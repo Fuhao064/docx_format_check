@@ -172,12 +172,18 @@ def check_abstract(paragraph_manager:ParagraphManager):
     errors = []
     # 获取摘要的内容
     abstract_content_zh = paragraph_manager.get_by_type(ParsedParaType.ABSTRACT_CONTENT_ZH)
+    # 如果没有获取到摘要，则报错
+    if abstract_content_zh is None:
+        errors.append("中文摘要内容缺失")
     # 统计摘要的字数是否合适
     if abstract_content_zh is not None:        
         if len(abstract_content_zh) < 100 or len(abstract_content_zh) > 500:
             errors.append("中文摘要字数不合适")
     # 获取英文摘要内容
     abstract_content_en = paragraph_manager.get_by_type(ParsedParaType.ABSTRACT_CONTENT_EN)   
+    # 如果没有获取到英文摘要，则报错
+    if abstract_content_en is None:
+        errors.append("英文摘要内容缺失")
     if abstract_content_en is not None:        
         if len(abstract_content_en) < 100 or len(abstract_content_en) > 500:
             errors.append("英文摘要字数不合适")
