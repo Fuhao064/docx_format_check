@@ -1,0 +1,4 @@
+flask==2.0.1
+flask-cors==3.0.10
+python-docx==0.8.11
+werkzeug==2.0.1
