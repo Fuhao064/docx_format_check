@@ -1,0 +1,37 @@
+{
+  "deepseek-r1": {
+    "base_url":"https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "api_key":"sk-97410738c00345049e1f34ea2e769347",
+    "model_name": "deepseek-r1"
+  },
+  "openai": {
+    "base_url":"https://api.openai.com",
+    "api_key":"",
+    "model_name": "gpt-3.5-turbo"
+  },
+  "qwen-max": {
+    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "api_key": "sk-97410738c00345049e1f34ea2e769347",
+    "model_name": "qwen-max"
+  },
+  "qwen-plus": {
+    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "api_key": "sk-97410738c00345049e1f34ea2e769347",
+    "model_name": "qwen-plus"
+  },
+  "qwen-turbo": {
+    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "api_key": "sk-97410738c00345049e1f34ea2e769347",
+    "model_name": "qwen-turbo"
+  },
+  "qwen-long":{
+    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "api_key": "sk-97410738c00345049e1f34ea2e769347",
+    "model_name": "qwen-long"
+  },
+  "glm-4-plus": {
+    "base_url": "https://open.bigmodel.cn/api/paas/v4/",
+    "api_key": "f2b48fbbda1e4ee8803d68c6fa16ac2d.kRVooHkSK2wEACcw",
+    "model_name": "glm-4-plus"
+  }
+}
