@@ -167,7 +167,36 @@ def remark_para_type(doc_path: str, llm: LLMs) -> ParagraphManager:
                 print(f"Error in thread pool task: {e}")
     
     return paragraph_manager
-    
+
+def check_abstract(paragraph_manager:ParagraphManager):
+    errors = []
+    # 获取摘要的内容
+    abstract_content_zh = paragraph_manager.get_by_type(ParsedParaType.ABSTRACT_CONTENT_ZH)
+    # 统计摘要的字数是否合适
+    if abstract_content_zh is not None:        
+        if len(abstract_content_zh) < 100 or len(abstract_content_zh) > 500:
+            errors.append("中文摘要字数不合适")
+    # 获取英文摘要内容
+    abstract_content_en = paragraph_manager.get_by_type(ParsedParaType.ABSTRACT_CONTENT_EN)   
+    if abstract_content_en is not None:        
+        if len(abstract_content_en) < 100 or len(abstract_content_en) > 500:
+            errors.append("英文摘要字数不合适")
+    return errors
+
+def check_keywords(paragraph_manager:ParagraphManager):
+    errors = []
+    # 获取关键词的内容
+    keywords_content_zh = paragraph_manager.get_by_type(ParsedParaType.KEYWORDS_CONTENT_ZH)
+    if keywords_content_zh is None:
+        errors.append("中文关键词内容缺失")
+    # 对中文关键词按照标点分割(,或、或；)
+    if keywords_content_zh is not None:        
+        keywords_list = keywords_content_zh.split(',')
+        if len(keywords_list) < 2 or len(keywords_list) > 5:
+            errors.append("中文关键词个数不合适")
+    return errors
+
+
 def check_main_format(paragraph_manager:ParagraphManager, required_format:dict):
     errors = []
     paras_format_info = paragraph_manager.to_dict()
