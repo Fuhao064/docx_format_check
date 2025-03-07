@@ -10,7 +10,7 @@
         }
     },
     "title_zh": {
-        "font": {
+        "fonts": {
             "zh_family": "黑体",
             "en_family": "Times New Roman",
             "size": "18pt",
@@ -19,7 +19,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "center",
             "indentation": {
@@ -30,7 +30,7 @@
         }
     },
     "abstract_zh": {
-        "font": {
+        "fonts": {
             "zh_family": "黑体",
             "en_family": "Times New Roman",
             "size": "16pt",
@@ -39,7 +39,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "left",
             "indentation": {
@@ -50,7 +50,7 @@
         }
     },
     "abstract_content_zh": {
-        "font": {
+        "fonts": {
             "zh_family": "宋体",
             "en_family": "Times New Roman",
             "size": "12pt",
@@ -59,7 +59,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "left",
             "indentation": {
@@ -70,7 +70,7 @@
         }
     },
     "keywords_zh": {
-        "font": {
+        "fonts": {
             "zh_family": "黑体",
             "en_family": "Times New Roman",
             "size": "14pt",
@@ -79,7 +79,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "left",
             "indentation": {
@@ -90,7 +90,7 @@
         }
     },
     "keywords_content_zh": {
-        "font": {
+        "fonts": {
             "zh_family": "宋体",
             "en_family": "Times New Roman",
             "size": "12pt",
@@ -99,7 +99,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "left",
             "indentation": {
@@ -110,7 +110,7 @@
         }
     },
     "title_en": {
-        "font": {
+        "fonts": {
             "zh_family": "宋体",
             "en_family": "Times New Roman",
             "size": "16pt",
@@ -119,7 +119,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "center",
             "indentation": {
@@ -130,7 +130,7 @@
         }
     },
     "abstract_en": {
-        "font": {
+        "fonts": {
             "zh_family": "宋体",
             "en_family": "Times New Roman",
             "size": "16pt",
@@ -139,7 +139,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "center",
             "indentation": {
@@ -150,7 +150,7 @@
         }
     },
     "abstract_content_en": {
-        "font": {
+        "fonts": {
             "zh_family": "宋体",
             "en_family": "Times New Roman",
             "size": "12pt",
@@ -159,7 +159,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "left",
             "indentation": {
@@ -170,7 +170,7 @@
         }
     },
     "keywords_en": {
-        "font": {
+        "fonts": {
             "zh_family": "宋体",
             "en_family": "Times New Roman",
             "size": "14pt",
@@ -179,7 +179,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "left",
             "indentation": {
@@ -190,7 +190,7 @@
         }
     },
     "keywords_content_en": {
-        "font": {
+        "fonts": {
             "zh_family": "宋体",
             "en_family": "Times New Roman",
             "size": "12pt",
@@ -199,7 +199,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "left",
             "indentation": {
@@ -210,7 +210,7 @@
         }
     },
     "heading1": {
-        "font": {
+        "fonts": {
             "zh_family": "黑体",
             "en_family": "Times New Roman",
             "size": "16pt",
@@ -219,7 +219,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "center",
             "indentation": {
@@ -230,7 +230,7 @@
         }
     },
     "heading2": {
-        "font": {
+        "fonts": {
             "zh_family": "黑体",
             "en_family": "Times New Roman",
             "size": "14pt",
@@ -239,7 +239,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "left",
             "indentation": {
@@ -250,7 +250,7 @@
         }
     },
     "heading3": {
-        "font": {
+        "fonts": {
             "zh_family": "宋体",
             "en_family": "Times New Roman",
             "size": "12pt",
@@ -259,7 +259,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "left",
             "indentation": {
@@ -270,7 +270,7 @@
         }
     },
     "body": {
-        "font": {
+        "fonts": {
             "zh_family": "宋体",
             "en_family": "Times New Roman",
             "size": "12pt",
@@ -279,7 +279,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "left",
             "indentation": {
@@ -291,7 +291,7 @@
     },
     "figures": {
         "caption": {
-            "font": {
+            "fonts": {
                 "zh_family": "黑体",
                 "en_family": "Times New Roman",
                 "size": "10.5pt",
@@ -302,7 +302,7 @@
             },
             "position": "below"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "center",
             "indentation": {
@@ -314,7 +314,7 @@
     },
     "tables": {
         "caption": {
-            "font": {
+            "fonts": {
                 "zh_family": "黑体",
                 "en_family": "Times New Roman",
                 "size": "18pt",
@@ -330,7 +330,7 @@
                 "color": "black"
             }
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "center",
             "indentation": {
@@ -342,7 +342,7 @@
     },
     "references": {
         "standard":"GB/T 7714-2015",
-        "font": {
+        "fonts": {
             "zh_family": "黑体",
             "en_family": "Times New Roman",
             "size": "18pt",
@@ -351,7 +351,7 @@
             "italic": false,
             "color": "#000000"
         },
-        "paragraph": {
+        "paragraph_format": {
             "line_spacing": "1.5",
             "alignment": "center",
             "indentation": {

@@ -61,7 +61,6 @@ translation_dict = {
     "figures": "图表",
     "tables": "表格",
     "references": "参考文献",
-    "font": "字体设置",
     "zh_family": "中文字体",
     "en_family": "英文字体",
     "size": "字号",
@@ -223,7 +222,7 @@ class ParagraphManager:
     def to_chinese_dict(self) -> List[Dict]:
         """导出为中文键字典格式"""
         english_data = self.to_dict()
-        return [self._translate_keys(item) for item in english_data]
+        return [self._translate_keys(item) for item in english_data]  
     # 由json文件转为ParagraphManager
     @staticmethod
     def build_from_json_file(json_file_path: str) -> "ParagraphManager":
@@ -263,6 +262,26 @@ class ParagraphManager:
                 
         return translated
 
+    def to_english_dict(self, data:Dict) -> List[Dict]:
+        """导出为英文键字典格式"""
+        english_data = data
+        reverse_dict = {v: k for k, v in translation_dict.items()}
+        return [self._translate_keys_english(item, reverse_dict) for item in english_data]
+
+    def _translate_keys_english(self, data: Dict, reverse_dict: Dict) -> Dict:
+        translated = {}
+        for key, value in data.items():
+            new_key = reverse_dict.get(key, key)
+            if isinstance(value, dict):
+                translated[new_key] = self._translate_keys_english(value, reverse_dict)
+            elif isinstance(value, list):
+                translated[new_key] = [
+                    self._translate_keys_english(item, reverse_dict) if isinstance(item, dict) else item
+                    for item in value
+                ]
+            else:
+                translated[new_key] = value
+        return translated
     def __len__(self) -> int:
         return len(self.paragraphs)
     
