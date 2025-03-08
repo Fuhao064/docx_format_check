@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import styled from 'styled-components';
 import { FiSend, FiUpload, FiX } from 'react-icons/fi';
 import axios from 'axios';
-import FileViewer from 'react-file-viewer';
+import { renderAsync } from 'docx-preview';
 import ErrorBoundary from './ErrorBoundary';
 
 // 定义消息类型
@@ -18,6 +18,7 @@ const App: React.FC = () => {
   const [input, setInput] = useState('');
   const [title, setTitle] = useState('');
   const [file, setFile] = useState<File | null>(null);
+  const [filePath, setFilePath] = useState<string>(''); // 新增状态用于存储文件路径
   const [progress, setProgress] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -88,51 +89,50 @@ const App: React.FC = () => {
     if (selectedFile) {
       setFile(selectedFile);
       setShowPreview(true);
-      
+
       // 创建FormData对象用于文件上传
       const formData = new FormData();
       formData.append('file', selectedFile);
-      
+
       // 设置上传进度初始值
       setProgress(0);
-      
+
       // 使用axios上传文件到后端API
       axios.post('/api/upload', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'multipart/form-data',
         },
         onUploadProgress: (progressEvent) => {
           // 计算并更新上传进度
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || progressEvent.loaded));
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / (progressEvent.total || progressEvent.loaded)
+          );
           setProgress(percentCompleted);
-        }
+        },
       })
-      .then(response => {
-        // 上传成功后显示消息
-        const botMessage: Message = {
-          id: Date.now().toString(),
-          content: `文件 "${selectedFile.name}" 已上传成功，文件路径: ${response.data.path}`,
-          sender: 'bot',
-        };
-        setMessages(prev => [...prev, botMessage]);
-        
-        // 保存文件路径用于预览
-        setFile({
-          ...selectedFile,
-          path: response.data.path
-        } as any);
-      })
-      .catch(error => {
-        // 处理上传错误
-        console.error('文件上传失败:', error);
-        const errorMessage: Message = {
-          id: Date.now().toString(),
-          content: `文件上传失败: ${error.response?.data?.error || '服务器错误'}`,
-          sender: 'bot',
-        };
-        setMessages(prev => [...prev, errorMessage]);
-        setProgress(0);
-      });
+        .then((response) => {
+          // 上传成功后显示消息
+          const botMessage: Message = {
+            id: Date.now().toString(),
+            content: `文件 "${selectedFile.name}" 已上传成功，文件路径: ${response.data.path}`,
+            sender: 'bot',
+          };
+          setMessages((prev) => [...prev, botMessage]);
+
+          // 保存文件路径用于预览
+          setFilePath(response.data.path); // 使用新状态存储文件路径
+        })
+        .catch((error) => {
+          // 处理上传错误
+          console.error('文件上传失败:', error);
+          const errorMessage: Message = {
+            id: Date.now().toString(),
+            content: `文件上传失败: ${error.response?.data?.error || '服务器错误'}`,
+            sender: 'bot',
+          };
+          setMessages((prev) => [...prev, errorMessage]);
+          setProgress(0);
+        });
     }
   };
 
@@ -144,6 +144,50 @@ const App: React.FC = () => {
     setShowPreview(false);
     setFile(null);
   };
+
+  // 文件预览逻辑
+  useEffect(() => {
+    if (showPreview && file && filePath) {
+      const previewContainer = document.getElementById('docx-preview');
+      if (previewContainer) {
+        fetch(`http://localhost:5000${filePath}`)
+          .then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.blob();
+          })
+          .then((blob) => {
+            renderAsync(blob, previewContainer, previewContainer, {
+              className: 'docx-preview',
+              inWrapper: true,
+              useBase64URL: true,
+            }).catch((error) => {
+              console.error('渲染失败:', error);
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: Date.now().toString(),
+                  content: '文档预览失败：' + error.message,
+                  sender: 'bot',
+                },
+              ]);
+              setShowPreview(false);
+            });
+          })
+          .catch((error) => {
+            console.error('文件加载失败:', error);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: Date.now().toString(),
+                content: `文件加载失败：${error.message}`,
+                sender: 'bot',
+              },
+            ]);
+            setShowPreview(false);
+          });
+      }
+    }
+  }, [showPreview, file, filePath]); // 依赖文件和文件路径
 
   return (
     <AppContainer>
@@ -227,15 +271,7 @@ const App: React.FC = () => {
                   <ErrorBoundary
                     fallback={<div style={{ padding: '20px', color: 'red' }}>文件预览出错，请重试</div>}
                   >
-                    <FileViewer
-                      fileType="docx"
-                      filePath={`http://localhost:5000${(file as any).path || `/uploads/${file.name}`}`}
-                      errorComponent={<div style={{ padding: '20px', color: 'red' }}>文件加载失败，请检查文件格式</div>}
-                      onError={(e: Error) => {
-                        console.error('文件预览错误:', e);
-                        setShowPreview(false);
-                      }}
-                    />
+                    <div id="docx-preview" style={{ width: '100%', height: '100%', overflow: 'auto' }} />
                   </ErrorBoundary>
                 ) : (
                   <div>不支持的文件类型</div>
