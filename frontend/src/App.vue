@@ -1,11 +1,11 @@
 <template>
-  <div class="min-h-screen bg-gray-900 text-gray-100 flex flex-col overflow-hidden">
+  <div class="min-h-screen bg-black text-white flex flex-col overflow-hidden">
     <!-- 顶部标题栏 -->
-    <header class="bg-gray-800 p-4 shadow-md flex justify-between items-center">
+    <header class="bg-gray-900 p-4 shadow-lg border-b border-gray-800 flex justify-between items-center">
       <h1 class="text-xl font-bold">{{ title }}</h1>
       <div>
         <Menu v-if="docxUrl" as="div" class="relative inline-block text-left">
-          <MenuButton class="inline-flex justify-center items-center w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors">
+          <MenuButton class="inline-flex justify-center items-center w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors">
             文档操作
             <ChevronDownIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
           </MenuButton>
@@ -17,7 +17,7 @@
             leave-from-class="transform scale-100 opacity-100"
             leave-to-class="transform scale-95 opacity-0"
           >
-            <MenuItems class="absolute right-0 mt-2 w-56 origin-top-right bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+            <MenuItems class="absolute right-0 mt-2 w-56 origin-top-right bg-gray-900 rounded-md shadow-lg ring-1 ring-indigo-500 ring-opacity-50 focus:outline-none backdrop-blur-sm">
               <div class="py-1">
                 <MenuItem v-slot="{ active }">
                   <button
@@ -59,8 +59,8 @@
             <span>处理进度</span>
             <span>{{ completedSteps }}/{{ totalSteps }}</span>
           </div>
-          <div class="w-full bg-gray-700 rounded-full h-2.5">
-            <div class="bg-blue-600 h-2.5 rounded-full" :style="{ width: `${progressPercentage}%` }"></div>
+          <div class="w-full bg-gray-800 rounded-full h-2.5">
+            <div class="bg-indigo-600 h-2.5 rounded-full transition-all duration-300 ease-out" :style="{ width: `${progressPercentage}%` }"></div>
           </div>
           <div class="mt-2 space-y-1">
             <div v-for="step in executionSteps" :key="step.id" class="flex items-center">
@@ -87,47 +87,28 @@
             />
           </div>
           
-          <Menu v-if="!docxFile" as="div" class="relative inline-block text-left">
-            <MenuButton class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors inline-flex items-center">
-              上传文件
-              <ChevronDownIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
-            </MenuButton>
-            <transition
-              enter-active-class="transition duration-100 ease-out"
-              enter-from-class="transform scale-95 opacity-0"
-              enter-to-class="transform scale-100 opacity-100"
-              leave-active-class="transition duration-75 ease-in"
-              leave-from-class="transform scale-100 opacity-100"
-              leave-to-class="transform scale-95 opacity-0"
-            >
-              <MenuItems class="absolute right-0 mt-2 w-56 origin-top-right bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                <div class="py-1">
-                  <MenuItem v-slot="{ active }">
-                    <label
-                      :class="[active ? 'bg-gray-700' : '', 'block w-full text-left px-4 py-2 text-sm text-white cursor-pointer']"
-                    >
-                      选择文件
-                      <input 
-                        type="file" 
-                        accept=".docx" 
-                        class="hidden" 
-                        @change="handleFileUpload"
-                      />
-                    </label>
-                  </MenuItem>
-                </div>
-              </MenuItems>
-            </transition>
-          </Menu>
-          
           <button 
+            v-if="!docxFile"
+            class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors inline-flex items-center"
+            @click="$refs.fileInput.click()"
+          >
+            上传文件
+            <input 
+              ref="fileInput"
+              type="file" 
+              accept=".docx" 
+              class="hidden" 
+              @change="handleFileUpload"
+            />
+          </button>
+          <button
             @click="sendMessage" 
             class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors inline-flex items-center"
           >
             发送
             <ChevronRightIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
           </button>
-          
+
           <button 
             @click="resetConversation" 
             class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors inline-flex items-center"
@@ -139,9 +120,9 @@
       </div>
 
       <!-- 右侧文档预览区域 -->
-      <div class="w-1/3 bg-gray-800 p-4 overflow-hidden flex flex-col border-l border-gray-700">
-        <h2 class="text-lg font-semibold mb-4">文档预览</h2>
-        <div class="flex-grow overflow-y-auto bg-gray-900 rounded-md pr-2 border border-gray-700">
+      <div class="w-1/3 bg-gray-900 p-4 overflow-hidden flex flex-col border-l border-gray-800">
+        <h2 class="text-lg font-semibold mb-4 text-white">文档预览</h2>
+        <div class="flex-grow overflow-y-auto bg-black rounded-md pr-2 border border-gray-800 hover:border-indigo-500/50 transition-all duration-300">
           <vue-office-docx 
             v-if="docxContent" 
             :src="docxContent"
@@ -418,14 +399,15 @@ function handleDocxError(error) {
 /* 输入框和按钮统一样式 */
 input:focus, button:focus {
   outline: none;
-  @apply ring-2 ring-blue-600;
+  @apply ring-2 ring-indigo-600;
 }
 
 button {
-  transition: transform 0.2s ease-in-out;
+  transition: all 0.3s ease-in-out;
 }
 
 button:hover {
   transform: scale(1.02);
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
 }
 </style>
