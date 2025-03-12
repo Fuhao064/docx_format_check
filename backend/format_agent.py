@@ -1,15 +1,16 @@
 import json,re
+import os
 from openai import OpenAI
 from para_type import ParsedParaType
 
 class LLMs:
-    def __init__(self, config_path='../keys.json'):
-        self.config_path = config_path
-        self.models_config = self.load_models_config()
-        self.current_model = None
-        self.client = None
-        self.model = None
-        self.set_model('qwen-plus')  # 默认使用'qwen-plus'模型
+    def __init__(self, config_path=os.path.abspath(os.path.join(os.path.dirname(__file__), '../keys.json'))):
+            self.config_path = config_path
+            self.models_config = self.load_models_config()
+            self.current_model = None
+            self.client = None
+            self.model = None
+            self.set_model('qwen-plus')  # 默认使用'qwen-plus'模型
 
     def load_models_config(self):
         with open(self.config_path, 'r') as f:

@@ -4,13 +4,33 @@
     <header class="bg-gray-800 p-4 shadow-md flex justify-between items-center">
       <h1 class="text-xl font-bold">{{ title }}</h1>
       <div>
-        <button 
-          v-if="docxUrl" 
-          @click="downloadDocx" 
-          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
-        >
-          下载文档
-        </button>
+        <Menu v-if="docxUrl" as="div" class="relative inline-block text-left">
+          <MenuButton class="inline-flex justify-center items-center w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors">
+            文档操作
+            <ChevronDownIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
+          </MenuButton>
+          <transition
+            enter-active-class="transition duration-100 ease-out"
+            enter-from-class="transform scale-95 opacity-0"
+            enter-to-class="transform scale-100 opacity-100"
+            leave-active-class="transition duration-75 ease-in"
+            leave-from-class="transform scale-100 opacity-100"
+            leave-to-class="transform scale-95 opacity-0"
+          >
+            <MenuItems class="absolute right-0 mt-2 w-56 origin-top-right bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+              <div class="py-1">
+                <MenuItem v-slot="{ active }">
+                  <button
+                    @click="downloadDocx"
+                    :class="[active ? 'bg-gray-700' : '', 'block w-full text-left px-4 py-2 text-sm text-white']"
+                  >
+                    下载文档
+                  </button>
+                </MenuItem>
+              </div>
+            </MenuItems>
+          </transition>
+        </Menu>
       </div>
     </header>
 
@@ -21,12 +41,12 @@
         <!-- 模型选择组件 -->
         <ModelManager class="mb-4" />
         <!-- 消息列表 -->
-        <div class="flex-grow overflow-y-auto mb-4 space-y-4 pr-2" ref="messagesContainer">
+        <div class="flex-grow overflow-y-auto mb-4 space-y-4 pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800" ref="messagesContainer">
           <div v-for="(message, index) in messages" :key="index" 
-               :class="{'flex justify-end': message.sender === 'user'}">
+               class="flex" :class="{'justify-end': message.sender === 'user', 'justify-start': message.sender === 'system'}">
             <div :class="{
-              'bg-blue-600 text-white rounded-lg p-3 max-w-3/4': message.sender === 'user',
-              'bg-gray-700 text-white rounded-lg p-3 max-w-3/4': message.sender === 'system'
+              'bg-blue-600 text-white rounded-lg p-3 max-w-3/4 shadow-md': message.sender === 'user',
+              'bg-gray-700 text-white rounded-lg p-3 max-w-3/4 shadow-md': message.sender === 'system'
             }">
               {{ message.content }}
             </div>
@@ -58,43 +78,70 @@
 
         <!-- 输入区域 -->
         <div class="flex space-x-2">
-          <input 
-            v-model="userInput" 
-            @keyup.enter="sendMessage"
-            placeholder="请输入消息..."
-            class="flex-grow bg-gray-800 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <label 
-            v-if="!docxFile"
-            class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md cursor-pointer transition-colors"
-          >
-            上传文件
+          <div class="flex-grow relative">
             <input 
-              type="file" 
-              accept=".docx" 
-              class="hidden" 
-              @change="handleFileUpload"
+              v-model="userInput" 
+              @keyup.enter="sendMessage"
+              placeholder="请输入消息..."
+              class="w-full bg-gray-800 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-          </label>
+          </div>
+          
+          <Menu v-if="!docxFile" as="div" class="relative inline-block text-left">
+            <MenuButton class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors inline-flex items-center">
+              上传文件
+              <ChevronDownIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
+            </MenuButton>
+            <transition
+              enter-active-class="transition duration-100 ease-out"
+              enter-from-class="transform scale-95 opacity-0"
+              enter-to-class="transform scale-100 opacity-100"
+              leave-active-class="transition duration-75 ease-in"
+              leave-from-class="transform scale-100 opacity-100"
+              leave-to-class="transform scale-95 opacity-0"
+            >
+              <MenuItems class="absolute right-0 mt-2 w-56 origin-top-right bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                <div class="py-1">
+                  <MenuItem v-slot="{ active }">
+                    <label
+                      :class="[active ? 'bg-gray-700' : '', 'block w-full text-left px-4 py-2 text-sm text-white cursor-pointer']"
+                    >
+                      选择文件
+                      <input 
+                        type="file" 
+                        accept=".docx" 
+                        class="hidden" 
+                        @change="handleFileUpload"
+                      />
+                    </label>
+                  </MenuItem>
+                </div>
+              </MenuItems>
+            </transition>
+          </Menu>
+          
           <button 
             @click="sendMessage" 
-            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors inline-flex items-center"
           >
             发送
+            <ChevronRightIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
           </button>
+          
           <button 
             @click="resetConversation" 
-            class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors"
+            class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors inline-flex items-center"
           >
             重置
+            <ArrowPathIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
           </button>
         </div>
       </div>
 
       <!-- 右侧文档预览区域 -->
-      <div class="w-1/3 bg-gray-800 p-4 overflow-hidden flex flex-col">
+      <div class="w-1/3 bg-gray-800 p-4 overflow-hidden flex flex-col border-l border-gray-700">
         <h2 class="text-lg font-semibold mb-4">文档预览</h2>
-        <div class="flex-grow overflow-y-auto bg-white rounded-md pr-2">
+        <div class="flex-grow overflow-y-auto bg-gray-900 rounded-md pr-2 border border-gray-700">
           <vue-office-docx 
             v-if="docxContent" 
             :src="docxContent"
@@ -102,7 +149,7 @@
             @error="handleDocxError"
             class="w-full h-full"
           />
-          <div v-else class="flex-grow flex items-center justify-center text-gray-500">
+          <div v-else class="flex-grow flex items-center justify-center text-gray-400">
             <p>请上传DOCX文件以预览</p>
           </div>
         </div>
@@ -117,6 +164,8 @@ import axios from 'axios'
 import { VueOfficeDocx } from '@vue-office/docx'
 import '@vue-office/docx/lib/index.css'
 import ModelManager from './components/ModelManager.vue'
+import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue'
+import { ChevronDownIcon, ChevronRightIcon, ArrowPathIcon } from '@heroicons/vue/20/solid'
 // 状态变量
 const title = ref('文档格式分析系统')
 const messages = ref([])
@@ -346,21 +395,37 @@ function handleDocxError(error) {
 </script>
 
 <style>
-/* 自定义滚动条样式 */
-::-webkit-scrollbar {
-  width: 8px;
+@layer component {
+  /* 自定义滚动条样式 */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: #1a202c;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #4a5568;
+    border-radius: 3px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: #718096;
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: #2d3748;
+/* 输入框和按钮统一样式 */
+input:focus, button:focus {
+  outline: none;
+  @apply ring-2 ring-blue-600;
 }
 
-::-webkit-scrollbar-thumb {
-  background-color: #4a5568;
-  border-radius: 4px;
+button {
+  transition: transform 0.2s ease-in-out;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background-color: #718096;
+button:hover {
+  transform: scale(1.02);
 }
 </style>
