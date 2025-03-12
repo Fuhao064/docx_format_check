@@ -6,7 +6,8 @@ from typing import List, Dict, Optional
 import os
 import json
 from format_agent import LLMs
-from format_checker import check_paper_format, remark_para_type
+from format_checker import check_paper_format, remark_para_type, check_format
+from format_editor import format_document
 from datetime import datetime
 
 app = Flask(__name__)
@@ -222,9 +223,139 @@ def delete_model(model_name):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@socketio.on('message')
-def handle_message(data):
-    emit('message', {"message": f"Message received: {data}"})
+# 格式化文档
+@app.route('/api/format-document', methods=['POST'])
+def format_doc():
+    data = request.get_json()
+    if not data or 'doc_path' not in data or 'config_path' not in data:
+        return jsonify({"error": "缺少必要参数"}), 400
+    
+    try:
+        doc_path = data['doc_path']
+        config_path = data['config_path']
+        output_path = data.get('output_path')  # 可选参数
+        
+        # 检查文件是否存在
+        if not os.path.exists(doc_path):
+            return jsonify({"error": f"文档 {doc_path} 不存在"}), 404
+        if not os.path.exists(config_path):
+            return jsonify({"error": f"配置文件 {config_path} 不存在"}), 404
+        
+        # 更新执行步骤状态
+        execution_steps[2]["status"] = "in_progress"
+        socketio.emit('execution_steps', execution_steps)
+        
+        # 先进行文档分析，获取段落管理器
+        manager = remark_para_type(doc_path, llm)
+        
+        # 应用格式
+        success = format_document(doc_path, config_path, output_path, manager)
+        
+        if success:
+            # 更新执行步骤状态
+            execution_steps[2]["status"] = "completed"
+            execution_steps[3]["status"] = "completed"
+            socketio.emit('execution_steps', execution_steps)
+            
+            # 发送成功消息
+            message = {
+                "sender": "system",
+                "content": f"文档格式化成功！{'输出到 ' + output_path if output_path else '已覆盖原文件'}",
+                "timestamp": datetime.now().isoformat()
+            }
+            messages.append(message)
+            socketio.emit('message', message)
+            
+            return jsonify({
+                "success": True,
+                "message": "文档格式化成功",
+                "output_path": output_path or doc_path
+            })
+        else:
+            # 更新执行步骤状态
+            execution_steps[2]["status"] = "failed"
+            socketio.emit('execution_steps', execution_steps)
+            
+            # 发送失败消息
+            message = {
+                "sender": "system",
+                "content": "文档格式化失败，请检查日志",
+                "timestamp": datetime.now().isoformat()
+            }
+            messages.append(message)
+            socketio.emit('message', message)
+            
+            return jsonify({
+                "success": False,
+                "message": "文档格式化失败"
+            }), 500
+    except Exception as e:
+        # 更新执行步骤状态
+        execution_steps[2]["status"] = "failed"
+        socketio.emit('execution_steps', execution_steps)
+        
+        # 发送错误消息
+        error_message = {
+            "sender": "system",
+            "content": f"发生错误：{str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+        messages.append(error_message)
+        socketio.emit('message', error_message)
+        
+        return jsonify({
+            "success": False,
+            "message": f"发生错误：{str(e)}"
+        }), 500
+
+# 创建配置文件
+@app.route('/api/create-config', methods=['POST'])
+def create_config():
+    data = request.get_json()
+    if not data or 'config_path' not in data or 'config_data' not in data:
+        return jsonify({"error": "缺少必要参数"}), 400
+    
+    try:
+        config_path = data['config_path']
+        config_data = data['config_data']
+        
+        # 确保目录存在
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        
+        # 保存配置文件
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config_data, f, ensure_ascii=False, indent=4)
+        
+        return jsonify({
+            "success": True,
+            "message": f"配置文件已保存到 {config_path}"
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"发生错误：{str(e)}"
+        }), 500
+
+# 获取示例配置文件
+@app.route('/api/get-config-example')
+def get_config_example():
+    try:
+        config_path = os.path.join(os.path.dirname(__file__), 'config_example.json')
+        if not os.path.exists(config_path):
+            return jsonify({"error": "示例配置文件不存在"}), 404
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config_data = json.load(f)
+        
+        return jsonify({
+            "success": True,
+            "config": config_data
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"发生错误：{str(e)}"
+        }), 500
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=8000, debug=True)

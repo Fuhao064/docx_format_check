@@ -123,3 +123,13 @@ class LLMs:
             ]
         )
         return response.choices[0].message.content
+
+    def get_models(self):
+        models_list = []
+        for name, config in self.models_config.items():
+            models_list.append({
+                "name": name,
+                "base_url": config['base_url'],
+                "model_name": config['model_name']
+            })
+        return {"models": models_list}

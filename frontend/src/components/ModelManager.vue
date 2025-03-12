@@ -1,42 +1,20 @@
 <template>
   <div class="bg-gray-800 p-4 rounded-lg">
-    <!-- 模型选择 -->
-    <div class="mb-4">
-      <label class="block text-sm font-medium text-gray-300 mb-2">选择模型</label>
-      <select
-        v-model="selectedModel"
-        @change="handleModelChange"
-        class="w-full bg-gray-700 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
-        <option v-for="model in models" :key="model.name" :value="model.name">
-          {{ model.name }}
-        </option>
-      </select>
-    </div>
-
-    <!-- 模型管理按钮 -->
-    <div class="flex justify-end mb-4">
-      <Button
-        as="template"
-        @click="showAddModal = true"
-      >
-        <span class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors mr-2">
-          添加模型
-        </span>
+    <div class="flex justify-between items-center mb-4">
+      <h2 class="text-lg font-medium text-white">模型管理</h2>
+      <Button @click="showAddModal = true">
+        添加模型
       </Button>
-      <button
-        v-if="selectedModel"
-        @click="deleteModel"
-        class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors"
-      >
-        删除模型
-      </button>
     </div>
 
-    <!-- 添加模型对话框 -->
+    <DataTable
+      :columns="columns"
+      :data="models"
+    />
+
     <Dialog
       :open="showAddModal"
-      @close="showAddModal = $event"
+      @close="showAddModal = false"
       class="fixed inset-0 z-50 overflow-y-auto"
     >
       <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -48,56 +26,42 @@
             <form @submit.prevent="addModel" class="space-y-4">
               <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">模型名称</label>
-                <input
+                <Input
                   v-model="newModel.name"
-                  type="text"
                   required
-                  class="w-full bg-gray-700 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
+                />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">Base URL</label>
-                <input
+                <Input
                   v-model="newModel.base_url"
-                  type="text"
                   required
-                  class="w-full bg-gray-700 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
+                />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">API Key</label>
-                <input
+                <Input
                   v-model="newModel.api_key"
                   type="password"
                   required
-                  class="w-full bg-gray-700 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
+                />
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">模型名称参数</label>
-                <input
+                <Input
                   v-model="newModel.model_name"
-                  type="text"
                   required
-                  class="w-full bg-gray-700 text-white rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
+                />
               </div>
               <div class="flex justify-end space-x-2">
                 <Button
-                  as="template"
+                  variant="secondary"
                   @click="showAddModal = false"
                 >
-                  <span class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md transition-colors">
-                    取消
-                  </span>
+                  取消
                 </Button>
-                <Button
-                  as="template"
-                  type="submit"
-                >
-                  <span class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors">
-                    添加
-                  </span>
+                <Button type="submit">
+                  添加
                 </Button>
               </div>
             </form>
@@ -112,9 +76,12 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { Dialog, DialogOverlay, DialogTitle } from '@headlessui/vue'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { DataTable } from './ui/data-table'
+import { columns } from './ui/data-table/columns'
 
 const models = ref([])
-const selectedModel = ref('')
 const showAddModal = ref(false)
 const newModel = ref({
   name: '',
@@ -128,20 +95,8 @@ const fetchModels = async () => {
   try {
     const response = await axios.get('/api/models')
     models.value = response.data.models
-    if (models.value.length > 0 && !selectedModel.value) {
-      selectedModel.value = models.value[0].name
-    }
   } catch (error) {
     console.error('获取模型列表失败:', error)
-  }
-}
-
-// 切换选中的模型
-const handleModelChange = async () => {
-  try {
-    await axios.post('/api/set-model', { model_name: selectedModel.value })
-  } catch (error) {
-    console.error('切换模型失败:', error)
   }
 }
 
@@ -158,12 +113,10 @@ const addModel = async () => {
 }
 
 // 删除模型
-const deleteModel = async () => {
-  if (!selectedModel.value) return
-  
-  if (confirm(`确定要删除模型 ${selectedModel.value} 吗？`)) {
+const deleteModel = async (modelName) => {
+  if (confirm(`确定要删除模型 ${modelName} 吗？`)) {
     try {
-      await axios.delete(`/api/delete-model/${selectedModel.value}`)
+      await axios.delete(`/api/delete-model/${modelName}`)
       await fetchModels()
     } catch (error) {
       console.error('删除模型失败:', error)
