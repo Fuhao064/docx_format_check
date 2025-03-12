@@ -1,142 +1,192 @@
 <template>
-  <div class="min-h-screen bg-black text-white flex flex-col overflow-hidden">
-    <!-- 顶部标题栏 -->
-    <header class="bg-gray-900 p-4 shadow-lg border-b border-gray-800 flex justify-between items-center">
-      <h1 class="text-xl font-bold">{{ title }}</h1>
-      <div>
-        <Menu v-if="docxUrl" as="div" class="relative inline-block text-left">
-          <MenuButton class="inline-flex justify-center items-center w-full px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors">
-            文档操作
-            <ChevronDownIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
-          </MenuButton>
-          <transition
-            enter-active-class="transition duration-100 ease-out"
-            enter-from-class="transform scale-95 opacity-0"
-            enter-to-class="transform scale-100 opacity-100"
-            leave-active-class="transition duration-75 ease-in"
-            leave-from-class="transform scale-100 opacity-100"
-            leave-to-class="transform scale-95 opacity-0"
-          >
-            <MenuItems class="absolute right-0 mt-2 w-56 origin-top-right bg-gray-900 rounded-md shadow-lg ring-1 ring-indigo-500 ring-opacity-50 focus:outline-none backdrop-blur-sm">
-              <div class="py-1">
-                <MenuItem v-slot="{ active }">
-                  <button
-                    @click="downloadDocx"
-                    :class="[active ? 'bg-gray-700' : '', 'block w-full text-left px-4 py-2 text-sm text-white']"
-                  >
-                    下载文档
-                  </button>
-                </MenuItem>
-              </div>
-            </MenuItems>
-          </transition>
-        </Menu>
+  <div class="min-h-screen bg-[#1A1B1E] text-white flex">
+    <!-- 左侧导航栏 -->
+    <Sheet class="fixed left-0 top-0 h-screen w-64 bg-gray-800 p-4 border-r border-gray-700">
+      <div class="flex items-center mb-8">
+        <h1 class="text-xl font-bold text-white">{{ title }}</h1>
       </div>
-    </header>
+      <div class="space-y-2">
+        <template v-for="item in menuItems" :key="item.id">
+          <NavigationMenuItem as-child>
+          <a :href="item.href" class="block px-4 py-2 text-white hover:bg-gray-700 rounded-md transition-colors">
+            <component :is="item.icon" class="h-5 w-5 inline-block mr-2" />
+            <span>{{ item.name[currentLanguage] }}</span>
+          </a>
+        </NavigationMenuItem>
+        </template>
+      </div>
+    </Sheet>
 
     <!-- 主内容区 -->
-    <main class="flex-grow flex overflow-hidden">
-      <!-- 左侧对话区域 -->
-      <div class="w-2/3 flex flex-col p-4 overflow-hidden">
-        <!-- 模型选择组件 -->
-        <ModelManager class="mb-4" />
-        <!-- 消息列表 -->
-        <div class="flex-grow overflow-y-auto mb-4 space-y-4 pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800" ref="messagesContainer">
-          <div v-for="(message, index) in messages" :key="index" 
-               class="flex" :class="{'justify-end': message.sender === 'user', 'justify-start': message.sender === 'system'}">
-            <div :class="{
-              'bg-blue-600 text-white rounded-lg p-3 max-w-3/4 shadow-md': message.sender === 'user',
-              'bg-gray-700 text-white rounded-lg p-3 max-w-3/4 shadow-md': message.sender === 'system'
-            }">
-              {{ message.content }}
-            </div>
-          </div>
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <!-- 顶部标题栏 -->
+      <header class="bg-[#25262B] p-4 shadow-lg border-b border-gray-700 flex justify-between items-center">
+        <div class="flex items-center space-x-4">
+          <Menu v-if="docxUrl" as="div" class="relative inline-block text-left">
+            <MenuButton class="inline-flex justify-center items-center px-4 py-2 bg-[#3B82F6] hover:bg-blue-700 text-white rounded-md transition-colors">
+              {{ translations.documentOperations[currentLanguage] }}
+              <ChevronDownIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
+            </MenuButton>
+            <transition
+              enter-active-class="transition duration-100 ease-out"
+              enter-from-class="transform scale-95 opacity-0"
+              enter-to-class="transform scale-100 opacity-100"
+              leave-active-class="transition duration-75 ease-in"
+              leave-from-class="transform scale-100 opacity-100"
+              leave-to-class="transform scale-95 opacity-0"
+            >
+              <MenuItems class="absolute left-0 mt-2 w-56 origin-top-right bg-[#25262B] rounded-md shadow-lg ring-1 ring-blue-500 ring-opacity-50 focus:outline-none">
+                <div class="py-1">
+                  <MenuItem v-slot="{ active }">
+                    <button
+                      @click="downloadDocx"
+                      :class="[active ? 'bg-[#3B82F6]' : '', 'block w-full text-left px-4 py-2 text-sm text-white']"
+                    >
+                      {{ translations.downloadDocument[currentLanguage] }}
+                    </Button>
+                  </MenuItem>
+                </div>
+              </MenuItems>
+            </transition>
+          </Menu>
         </div>
-
-        <!-- 进度条 -->
-        <div v-if="showProgress" class="mb-4">
-          <div class="flex justify-between text-sm text-gray-400 mb-1">
-            <span>处理进度</span>
-            <span>{{ completedSteps }}/{{ totalSteps }}</span>
-          </div>
-          <div class="w-full bg-gray-800 rounded-full h-2.5">
-            <div class="bg-indigo-600 h-2.5 rounded-full transition-all duration-300 ease-out" :style="{ width: `${progressPercentage}%` }"></div>
-          </div>
-          <div class="mt-2 space-y-1">
-            <div v-for="step in executionSteps" :key="step.id" class="flex items-center">
-              <div :class="{
-                'w-4 h-4 mr-2 rounded-full': true,
-                'bg-blue-600': step.status === 'completed',
-                'bg-yellow-500 animate-pulse': step.status === 'in_progress',
-                'bg-gray-600': step.status === 'pending',
-                'bg-red-500': step.status === 'error'
-              }"></div>
-              <span>{{ step.text }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- 输入区域 -->
-        <div class="flex space-x-2">
-          <div class="flex-grow relative">
-            <input 
-              v-model="userInput" 
-              @keyup.enter="sendMessage"
-              placeholder="请输入消息..."
-              class="w-full bg-gray-800 text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          
-          <button 
-            v-if="!docxFile"
-            class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors inline-flex items-center"
-            @click="$refs.fileInput.click()"
-          >
-            上传文件
-            <input 
-              ref="fileInput"
-              type="file" 
-              accept=".docx" 
-              class="hidden" 
-              @change="handleFileUpload"
-            />
-          </button>
+        <!-- 语言切换 -->
+        <div class="flex items-center space-x-2">
           <button
-            @click="sendMessage" 
-            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors inline-flex items-center"
+            v-for="lang in languages"
+            :key="lang.code"
+            @click="changeLanguage(lang.code)"
+            :class="[
+              'px-3 py-1 rounded-md text-sm transition-colors',
+              currentLanguage === lang.code ? 'bg-[#3B82F6] text-white' : 'bg-[#2C2D31] text-gray-300 hover:bg-[#3B82F6]/50'
+            ]"
           >
-            发送
-            <ChevronRightIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
-          </button>
-
-          <button 
-            @click="resetConversation" 
-            class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md transition-colors inline-flex items-center"
-          >
-            重置
-            <ArrowPathIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
-          </button>
+            {{ lang.name }}
+          </Button>
         </div>
-      </div>
+      </header>
 
-      <!-- 右侧文档预览区域 -->
-      <div class="w-1/3 bg-gray-900 p-4 overflow-hidden flex flex-col border-l border-gray-800">
-        <h2 class="text-lg font-semibold mb-4 text-white">文档预览</h2>
-        <div class="flex-grow overflow-y-auto bg-black rounded-md pr-2 border border-gray-800 hover:border-indigo-500/50 transition-all duration-300">
-          <vue-office-docx 
-            v-if="docxContent" 
-            :src="docxContent"
-            @rendered="handleDocxRendered"
-            @error="handleDocxError"
-            class="w-full h-full"
-          />
-          <div v-else class="flex-grow flex items-center justify-center text-gray-400">
-            <p>请上传DOCX文件以预览</p>
+      <!-- 主要内容区域 -->
+      <main class="flex-1 flex overflow-hidden p-4">
+        <!-- 左侧对话区域 -->
+        <div class="w-2/3 flex flex-col overflow-hidden">
+          <!-- 模型选择组件 -->
+          <ModelManager class="mb-4" />
+          <!-- 消息列表 -->
+          <div class="flex-grow overflow-y-auto mb-4 space-y-4 pr-2 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-[#25262B]" ref="messagesContainer">
+            <div v-for="(message, index) in messages" :key="index" 
+                 class="flex" :class="{'justify-end': message.sender === 'user', 'justify-start': message.sender === 'system'}">
+              <div :class="{
+                'bg-[#3B82F6] text-white rounded-lg p-3 max-w-3/4 shadow-md': message.sender === 'user',
+                'bg-[#25262B] text-white rounded-lg p-3 max-w-3/4 shadow-md': message.sender === 'system'
+              }">
+                {{ message.content }}
+              </div>
+            </div>
+          </div>
+
+          <!-- 进度条 -->
+          <div v-if="showProgress" class="mb-4">
+            <div class="flex justify-between text-sm text-gray-400 mb-1">
+              <span>{{ translations.progress[currentLanguage] }}</span>
+              <span>{{ completedSteps }}/{{ totalSteps }}</span>
+            </div>
+            <div class="w-full bg-[#25262B] rounded-full h-2.5">
+              <div class="bg-[#3B82F6] h-2.5 rounded-full transition-all duration-300 ease-out" :style="{ width: `${progressPercentage}%` }"></div>
+            </div>
+          </div>
+
+          <!-- 输入区域 -->
+          <div class="flex space-x-2">
+            <div class="flex-grow relative">
+              <input 
+                v-model="userInput" 
+                @keyup.enter="sendMessage"
+                :placeholder="translations.inputPlaceholder[currentLanguage]"
+                class="w-full bg-[#25262B] text-white px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3B82F6]"
+              />
+            </div>
+            
+            <Button 
+              v-if="!docxFile"
+              variant="ghost"
+              class="hover:bg-[#3B82F6] text-white px-4 py-2 rounded-md inline-flex items-center"
+              @click="$refs.fileInput.click()"
+            >
+              {{ translations.uploadFile[currentLanguage] }}
+              <input 
+                ref="fileInput"
+                type="file" 
+                accept=".docx" 
+                class="hidden" 
+                @change="handleFileUpload"
+              />
+            </Button>
+            <Button
+              @click="sendMessage"
+              class="hover:bg-blue-700 text-white px-4 py-2 rounded-md inline-flex items-center"
+            >
+              {{ translations.send[currentLanguage] }}
+              <ChevronRightIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
+            </Button>
+
+            <Button 
+              variant="outline"
+              @click="resetConversation" 
+              class="hover:bg-[#3B82F6] text-white px-4 py-2 rounded-md inline-flex items-center"
+            >
+              {{ translations.reset[currentLanguage] }}
+              <ArrowPathIcon class="ml-2 -mr-1 h-5 w-5" aria-hidden="true" />
+            </Button>
           </div>
         </div>
-      </div>
-    </main>
+
+        <!-- 右侧文档预览区域 -->
+        <div class="w-1/3 bg-[#1A1B1E] p-4 overflow-hidden flex flex-col border-l border-gray-800 ml-4">
+          <h2 class="text-lg font-semibold mb-4 text-white">{{ translations.documentPreview[currentLanguage] }}</h2>
+          <div class="flex-grow overflow-y-auto bg-[#25262B] rounded-md pr-2 border border-gray-800 hover:border-[#3B82F6]/50 transition-all duration-300">
+            <vue-office-docx 
+              v-if="docxContent" 
+              :src="docxContent"
+              @rendered="handleDocxRendered"
+              @error="handleDocxError"
+              class="w-full h-full"
+            />
+            <div v-else class="flex-grow flex items-center justify-center text-gray-400">
+              <p>{{ translations.uploadPrompt[currentLanguage] }}</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
   </div>
+  <SidebarProvider>
+    <AppSidebar />
+    <SidebarInset>
+      <header class="flex h-14 shrink-0 items-center gap-2">
+        <div class="flex flex-1 items-center gap-2 px-3">
+          <SidebarTrigger />
+          <Separator orientation="vertical" class="mr-2 h-4" />
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbPage class="line-clamp-1">
+                  Project Management & Task Tracking
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+        <div class="ml-auto px-3">
+          <NavActions />
+        </div>
+      </header>
+      <div class="flex flex-1 flex-col gap-4 px-4 py-10">
+        <div class="mx-auto h-24 w-full max-w-3xl rounded-xl bg-muted/50" />
+        <div class="mx-auto h-full w-full max-w-3xl rounded-xl bg-muted/50" />
+      </div>
+    </SidebarInset>
+  </SidebarProvider>
 </template>
 
 <script setup>
@@ -147,6 +197,27 @@ import '@vue-office/docx/lib/index.css'
 import ModelManager from './components/ModelManager.vue'
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/vue'
 import { ChevronDownIcon, ChevronRightIcon, ArrowPathIcon } from '@heroicons/vue/20/solid'
+import AppSidebar from './components/AppSidebar.vue'
+import NavActions from './components/sidebar/NavActions.vue'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from './components/ui/breadcrumb'
+import { Separator } from './components/ui/separator'
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from './components/ui/sidebar'
+const description = 'A sidebar in a popover.'
+const iframeHeight = '800px'
+
+defineExpose({
+  description,
+  iframeHeight
+})
 // 状态变量
 const title = ref('文档格式分析系统')
 const messages = ref([])
@@ -373,6 +444,70 @@ function handleDocxError(error) {
   console.error('文档渲染失败:', error)
   addSystemMessage('文档预览加载失败，请检查文件格式。')
 }
+
+// 语言配置
+const languages = [
+  { code: 'zh', name: '中文' },
+  { code: 'en', name: 'English' }
+]
+
+const currentLanguage = ref('zh')
+
+const translations = {
+  documentOperations: {
+    zh: '文档操作',
+    en: 'Document Operations'
+  },
+  downloadDocument: {
+    zh: '下载文档',
+    en: 'Download Document'
+  },
+  progress: {
+    zh: '处理进度',
+    en: 'Progress'
+  },
+  inputPlaceholder: {
+    zh: '请输入消息...',
+    en: 'Enter your message...'
+  },
+  uploadFile: {
+    zh: '上传文件',
+    en: 'Upload File'
+  },
+  send: {
+    zh: '发送',
+    en: 'Send'
+  },
+  reset: {
+    zh: '重置',
+    en: 'Reset'
+  },
+  documentPreview: {
+    zh: '文档预览',
+    en: 'Document Preview'
+  },
+  uploadPrompt: {
+    zh: '请上传DOCX文件以预览',
+    en: 'Please upload a DOCX file to preview'
+  }
+}
+
+const menuItems = [
+  { 
+    id: 'home',
+    name: { zh: '首页', en: 'Home' },
+    icon: 'HomeIcon'
+  },
+  {
+    id: 'settings',
+    name: { zh: '设置', en: 'Settings' },
+    icon: 'CogIcon'
+  }
+]
+
+function changeLanguage(lang) {
+  currentLanguage.value = lang
+}
 </script>
 
 <style>
@@ -383,23 +518,23 @@ function handleDocxError(error) {
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
-    background: #1a202c;
+    background: #1f2937;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: #4a5568;
+    background-color: #4b5563;
     border-radius: 3px;
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: #718096;
+    background-color: #6b7280;
   }
 }
 
 /* 输入框和按钮统一样式 */
 input:focus, button:focus {
   outline: none;
-  @apply ring-2 ring-indigo-600;
+  @apply ring-2 ring-blue-600;
 }
 
 button {
@@ -408,6 +543,6 @@ button {
 
 button:hover {
   transform: scale(1.02);
-  box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
 }
 </style>
