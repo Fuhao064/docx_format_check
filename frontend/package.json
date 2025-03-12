@@ -1,0 +1,25 @@
+{
+  "name": "docx-format-checker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@vue-office/docx": "^1.6.3",
+    "@vueuse/core": "^10.1.2",
+    "axios": "^1.4.0",
+    "pinia": "^2.0.36",
+    "vue": "^3.2.47",
+    "vue-demi": "^0.14.10"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.2.3",
+    "autoprefixer": "^10.4.14",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.3.2",
+    "vite": "^4.3.9"
+  }
+}

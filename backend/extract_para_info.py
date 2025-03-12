@@ -591,12 +591,4 @@ def pre_process_paragraphs(doc):
             break
     return doc.paragraphs
 
-# 创建段落管理器
-manager = ParagraphManager()
-manager = extract_para_format_info("test.docx", manager)
 
-chinese_data = manager.to_chinese_dict()
-# print("中文格式数据：")
-# 保存为json文件
-with open("para_format_info.json", "w", encoding="utf-8") as f:
-    json.dump(chinese_data, f, ensure_ascii=False, indent=4)
