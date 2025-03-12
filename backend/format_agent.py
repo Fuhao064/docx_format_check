@@ -3,7 +3,7 @@ from openai import OpenAI
 from para_type import ParsedParaType
 
 class LLMs:
-    def __init__(self, config_path='keys.json'):
+    def __init__(self, config_path='../keys.json'):
         self.config_path = config_path
         self.models_config = self.load_models_config()
         self.current_model = None

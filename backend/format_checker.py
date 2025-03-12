@@ -341,13 +341,13 @@ def check_format(doc_path:str, required_format:dict, llm:LLMs):
     # 重分配段落类型
     # paragraph_manager = remark_para_type(doc_path, llm)
     # 修改rusult到英文
-    with open("result.json", "r", encoding="utf-8") as f:
+    with open("../result.json", "r", encoding="utf-8") as f:
         data = json.load(f)
         result = paragraph_manager.to_english_dict(data)
     # 写回json
-    with open("result.json", "w", encoding="utf-8") as f:
+    with open("../result.json", "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=4)
-    paragraph_manager = ParagraphManager.build_from_json_file("result.json")
+    paragraph_manager = ParagraphManager.build_from_json_file("../result.json")
     # paras_info_json_zh = paragraph_manager.to_chinese_dict()
     # 对齐段落信息和格式信息同Config
     # print(paras_info_dict)
@@ -362,7 +362,7 @@ def check_format(doc_path:str, required_format:dict, llm:LLMs):
     # # 检查引用样式和参考文献
     # check_reference_format(doc_path, required_format)
 
-llm = LLMs()
-llm.set_model('deepseek-r1')
-required_format = load_config('config.json')
-check_format('test.docx', required_format, llm)
+# llm = LLMs()
+# llm.set_model('deepseek-r1')
+# required_format = load_config('../config.json')
+# check_format('../test.docx', required_format, llm)
