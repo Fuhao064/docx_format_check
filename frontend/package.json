@@ -23,7 +23,8 @@
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
     "vue": "^3.2.47",
-    "vue-demi": "^0.14.10"
+    "vue-demi": "^0.14.10",
+    "vue-router": "^4.2.5"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.2.3",
