@@ -16,7 +16,7 @@
           </div>
           
           <div v-for="(message, index) in messages" :key="index" class="flex" :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
-            <div class="max-w-3xl rounded-lg p-4" :class="message.role === 'user' ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-100'">
+            <div class="max-w-3xl rounded-md p-4" :class="message.role === 'user' ? 'bg-zinc-800 text-white' : 'bg-zinc-800/50 text-zinc-100'">
               {{ message.content }}
             </div>
           </div>
@@ -29,15 +29,15 @@
               v-model="userInput" 
               @keydown.enter.prevent="sendMessage"
               placeholder="开始摧毁格式..." 
-              class="w-full bg-zinc-800 text-zinc-100 rounded-lg pl-4 pr-12 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              class="w-full bg-zinc-800 text-zinc-100 rounded-md pl-12 pr-12 py-3 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-700"
               rows="3"
             ></textarea>
             
-            <div class="absolute right-3 bottom-3 flex space-x-2">
+            <div class="absolute left-3 bottom-3">
               <!-- 上传文件按钮 -->
               <button 
                 @click="triggerFileUpload"
-                class="p-2 rounded-full bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
+                class="p-2 rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
                 title="上传文档"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -46,11 +46,13 @@
                   <line x1="12" y1="3" x2="12" y2="15"></line>
                 </svg>
               </button>
-              
+            </div>
+            
+            <div class="absolute right-3 bottom-3">
               <!-- 发送按钮 -->
               <button 
                 @click="sendMessage"
-                class="p-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white transition-colors"
+                class="p-2 rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-300 transition-colors"
                 title="发送消息"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -106,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, inject } from 'vue'
 import { VueOfficeDocx } from '@vue-office/docx'
 import axios from 'axios'
 
@@ -120,6 +122,9 @@ const uploadedFile = ref(null)
 const uploadedFileName = ref('')
 const showDocPreview = ref(false)
 const docxSrc = ref('')
+
+// 获取通知函数
+const showNotification = inject('showNotification', null)
 
 // 触发文件上传
 function triggerFileUpload() {
@@ -138,6 +143,11 @@ async function handleFileUpload(event) {
   formData.append('file', file)
   
   try {
+    // 显示上传中通知
+    if (showNotification) {
+      showNotification('info', '文件上传中', '正在上传文档，请稍候...', 0)
+    }
+    
     // 上传文件到服务器
     const response = await axios.post('/api/upload-files', formData, {
       headers: {
@@ -155,13 +165,28 @@ async function handleFileUpload(event) {
         role: 'system',
         content: `文件 "${file.name}" 已上传成功。您可以开始分析文档格式。`
       })
+      
+      // 显示成功通知
+      if (showNotification) {
+        showNotification('success', '上传成功', `文件 "${file.name}" 已成功上传`, 3000)
+      }
     } else {
-      alert('文件上传失败: ' + response.data.message)
+      // 显示错误通知
+      if (showNotification) {
+        showNotification('error', '上传失败', response.data.message || '文件上传失败', 5000)
+      }
     }
   } catch (error) {
     console.error('上传文件时出错:', error)
-    alert('上传文件时出错: ' + error.message)
+    
+    // 显示错误通知
+    if (showNotification) {
+      showNotification('error', '上传失败', `上传文件时出错: ${error.message}`, 5000)
+    }
   }
+  
+  // 清空文件输入，允许重新选择同一文件
+  event.target.value = ''
 }
 
 // 发送消息
@@ -184,10 +209,16 @@ async function sendMessage() {
   if (uploadedFile.value) {
     try {
       // 添加加载消息
+      const loadingMessageIndex = messages.value.length
       messages.value.push({
         role: 'system',
         content: '正在分析文档格式...'
       })
+      
+      // 显示加载通知
+      if (showNotification) {
+        showNotification('info', '分析中', '正在分析文档格式，这可能需要一些时间...', 0)
+      }
       
       // 发送分析请求
       const response = await axios.post('/api/analyze-document', {
@@ -196,48 +227,77 @@ async function sendMessage() {
       })
       
       // 更新最后一条系统消息
-      if (messages.value[messages.value.length - 1].role === 'system') {
-        messages.value.pop()
+      if (messages.value[loadingMessageIndex].role === 'system') {
+        messages.value[loadingMessageIndex].content = response.data.message || '文档分析完成'
       }
       
-      // 添加分析结果
-      messages.value.push({
-        role: 'system',
-        content: response.data.message || '文档分析完成'
-      })
+      // 显示成功通知
+      if (showNotification) {
+        showNotification('success', '分析完成', '文档格式分析已完成', 3000)
+      }
     } catch (error) {
       console.error('分析文档时出错:', error)
       
       // 更新最后一条系统消息
-      if (messages.value[messages.value.length - 1].role === 'system') {
-        messages.value.pop()
+      const lastMessage = messages.value[messages.value.length - 1]
+      if (lastMessage && lastMessage.role === 'system') {
+        lastMessage.content = '分析文档时出错: ' + error.message
+      } else {
+        messages.value.push({
+          role: 'system',
+          content: '分析文档时出错: ' + error.message
+        })
       }
       
-      messages.value.push({
-        role: 'system',
-        content: '分析文档时出错: ' + error.message
-      })
+      // 显示错误通知
+      if (showNotification) {
+        showNotification('error', '分析失败', `分析文档时出错: ${error.message}`, 5000)
+      }
     }
   } else if (userMessage) {
     // 如果没有上传文件但有用户消息，发送普通消息
     try {
+      // 添加加载消息
+      const loadingMessageIndex = messages.value.length
+      messages.value.push({
+        role: 'system',
+        content: '正在思考...'
+      })
+      
       const response = await axios.post('/api/send-message', {
         message: userMessage
       })
       
-      messages.value.push({
-        role: 'system',
-        content: response.data.reply || '没有回复'
-      })
+      // 更新最后一条系统消息
+      if (messages.value[loadingMessageIndex].role === 'system') {
+        messages.value[loadingMessageIndex].content = response.data.reply || '没有回复'
+      }
     } catch (error) {
       console.error('发送消息时出错:', error)
-      messages.value.push({
-        role: 'system',
-        content: '发送消息时出错: ' + error.message
-      })
+      
+      // 更新最后一条系统消息
+      const lastMessage = messages.value[messages.value.length - 1]
+      if (lastMessage && lastMessage.role === 'system') {
+        lastMessage.content = '发送消息时出错: ' + error.message
+      } else {
+        messages.value.push({
+          role: 'system',
+          content: '发送消息时出错: ' + error.message
+        })
+      }
+      
+      // 显示错误通知
+      if (showNotification) {
+        showNotification('error', '发送失败', `发送消息时出错: ${error.message}`, 5000)
+      }
     }
   }
 }
+
+// 组件挂载时
+onMounted(() => {
+  // 可以在这里添加初始化逻辑
+})
 </script>
 
 <style scoped>
@@ -257,5 +317,15 @@ async function sendMessage() {
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background-color: #52525b;
+}
+
+/* 消息动画 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.flex-1 > div {
+  animation: fadeIn 0.3s ease-out forwards;
 }
 </style> 

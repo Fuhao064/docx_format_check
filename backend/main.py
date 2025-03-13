@@ -84,28 +84,41 @@ def send_message():
 # 上传文件
 @app.route('/api/upload-files', methods=['POST'])
 def upload_files():
-    if 'docx_file' not in request.files:
-        return jsonify({"error": "未找到上传的文件"}), 400
+    if 'file' not in request.files:
+        return jsonify({"success": False, "message": "未找到上传的文件"}), 400
     
-    docx_file = request.files['docx_file']
-    if docx_file.filename == '':
-        return jsonify({"error": "未选择文件"}), 400
+    uploaded_file = request.files['file']
+    if uploaded_file.filename == '':
+        return jsonify({"success": False, "message": "未选择文件"}), 400
     
     try:
-        if allowed_file(docx_file.filename):
-            filename = secure_filename(docx_file.filename)
+        if allowed_file(uploaded_file.filename):
+            filename = secure_filename(uploaded_file.filename)
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            docx_file.save(file_path)
+            uploaded_file.save(file_path)
             
             # 更新执行步骤状态
             execution_steps[0]["status"] = "completed"
-            socketio.emit('step_update', execution_steps[0])
             
-            return jsonify({"message": "文件上传成功", "file_path": file_path})
+            # 通过WebSocket广播更新
+            socketio.emit('execution_step_update', execution_steps[0])
+            
+            return jsonify({
+                "success": True,
+                "message": "文件上传成功",
+                "file_path": file_path,
+                "filename": filename
+            })
         else:
-            return jsonify({"error": "不支持的文件类型"}), 400
+            return jsonify({
+                "success": False,
+                "message": f"不支持的文件类型，仅支持 {', '.join(ALLOWED_EXTENSIONS)} 文件"
+            }), 400
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+            "success": False,
+            "message": f"文件上传失败: {str(e)}"
+        }), 500
 
 # 获取执行步骤状态
 @app.route('/api/get-execution-steps')
@@ -184,6 +197,7 @@ def get_models():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
 # 设置当前使用的模型
 @app.route('/api/set-model', methods=['POST'])
 def set_model():
@@ -220,6 +234,16 @@ def delete_model(model_name):
         # 使用全局的LLMs实例
         llm.delete_model(model_name)
         return jsonify({'message': f'模型 {model_name} 删除成功'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# 获取完整模型配置
+@app.route('/keys.json')
+def get_keys():
+    try:
+        # 使用全局的LLMs实例
+        models_config = llm.models_config
+        return jsonify(models_config)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

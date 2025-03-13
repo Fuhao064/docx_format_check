@@ -4,78 +4,86 @@ export default {
     './index.html',
     './src/**/*.{vue,js,ts,jsx,tsx}'
   ],
-  darkMode: ['class', 'class'],
+  darkMode: ['class', '[data-theme="dark"]'],
   theme: {
-  	extend: {
-  		colors: {
-  			gray: {
-  				'100': '#F3F4F6',
-  				'200': '#E5E7EB',
-  				'300': '#D1D5DB',
-  				'400': '#9CA3AF',
-  				'500': '#6B7280',
-  				'600': '#4B5563',
-  				'700': '#374151',
-  				'800': '#1F2937',
-  				'900': '#111827'
-  			},
-  			background: 'hsl(var(--background))',
-  			foreground: 'hsl(var(--foreground))',
-  			card: {
-  				DEFAULT: 'hsl(var(--card))',
-  				foreground: 'hsl(var(--card-foreground))'
-  			},
-  			popover: {
-  				DEFAULT: 'hsl(var(--popover))',
-  				foreground: 'hsl(var(--popover-foreground))'
-  			},
-  			primary: {
-  				DEFAULT: 'hsl(var(--primary))',
-  				foreground: 'hsl(var(--primary-foreground))'
-  			},
-  			secondary: {
-  				DEFAULT: 'hsl(var(--secondary))',
-  				foreground: 'hsl(var(--secondary-foreground))'
-  			},
-  			muted: {
-  				DEFAULT: 'hsl(var(--muted))',
-  				foreground: 'hsl(var(--muted-foreground))'
-  			},
-  			accent: {
-  				DEFAULT: 'hsl(var(--accent))',
-  				foreground: 'hsl(var(--accent-foreground))'
-  			},
-  			destructive: {
-  				DEFAULT: 'hsl(var(--destructive))',
-  				foreground: 'hsl(var(--destructive-foreground))'
-  			},
-  			border: 'hsl(var(--border))',
-  			input: 'hsl(var(--input))',
-  			ring: 'hsl(var(--ring))',
-  			chart: {
-  				'1': 'hsl(var(--chart-1))',
-  				'2': 'hsl(var(--chart-2))',
-  				'3': 'hsl(var(--chart-3))',
-  				'4': 'hsl(var(--chart-4))',
-  				'5': 'hsl(var(--chart-5))'
-  			},
-  			sidebar: {
-  				DEFAULT: 'hsl(var(--sidebar-background))',
-  				foreground: 'hsl(var(--sidebar-foreground))',
-  				primary: 'hsl(var(--sidebar-primary))',
-  				'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-  				accent: 'hsl(var(--sidebar-accent))',
-  				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-  				border: 'hsl(var(--sidebar-border))',
-  				ring: 'hsl(var(--sidebar-ring))'
-  			}
-  		},
-  		borderRadius: {
-  			lg: 'var(--radius)',
-  			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
-  		}
-  	}
+    extend: {
+      colors: {
+        zinc: {
+          '950': 'var(--bg-primary)',
+          '900': 'var(--bg-secondary)',
+          '800': 'var(--bg-tertiary)',
+          '700': '#3f3f46',
+          '600': '#52525b',
+          '500': '#71717a',
+          '400': '#a1a1aa',
+          '300': '#d4d4d8',
+          '200': '#e4e4e7',
+          '100': '#f4f4f5',
+          '50': '#fafafa'
+        },
+        background: 'var(--bg-primary)',
+        foreground: 'var(--text-primary)',
+        border: 'var(--border-color)',
+        input: 'var(--bg-tertiary)',
+        ring: 'var(--accent-color)',
+        primary: {
+          DEFAULT: 'var(--accent-color)',
+          foreground: 'var(--text-primary)'
+        },
+        secondary: {
+          DEFAULT: 'var(--bg-tertiary)',
+          foreground: 'var(--text-secondary)'
+        },
+        destructive: {
+          DEFAULT: 'var(--error-color)',
+          foreground: 'white'
+        },
+        success: {
+          DEFAULT: 'var(--success-color)',
+          foreground: 'white'
+        },
+        warning: {
+          DEFAULT: 'var(--warning-color)',
+          foreground: 'white'
+        },
+        info: {
+          DEFAULT: 'var(--info-color)',
+          foreground: 'white'
+        }
+      },
+      borderRadius: {
+        'sm': 'var(--border-radius-sm)',
+        'md': 'var(--border-radius-md)',
+        'lg': 'var(--border-radius-lg)'
+      },
+      transitionDuration: {
+        DEFAULT: 'var(--transition-speed)'
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.3s ease-out forwards',
+        'slide-up': 'slideUp 0.3s ease-out forwards',
+        'slide-down': 'slideDown 0.3s ease-out forwards',
+        'progress': 'progress 5s linear forwards'
+      },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' }
+        },
+        slideUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' }
+        },
+        slideDown: {
+          '0%': { opacity: '0', transform: 'translateY(-10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' }
+        },
+        progress: {
+          '0%': { width: '100%' },
+          '100%': { width: '0%' }
+        }
+      }
+    }
   },
-  plugins: [require("tailwindcss-animate")]
+  plugins: []
 }
