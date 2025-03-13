@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6 max-w-4xl mx-auto">
+  <div class="p-6">
     <div class="mb-6">
       <h1 class="text-2xl font-semibold mb-2">帮助中心</h1>
       <p class="text-zinc-400">了解如何使用文档格式检查与修正系统</p>

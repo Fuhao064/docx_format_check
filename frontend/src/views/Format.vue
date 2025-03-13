@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6 max-w-6xl mx-auto">
+  <div class="p-6 ">
     <div class="mb-6">
       <h1 class="text-2xl font-semibold mb-2">格式配置</h1>
       <p class="text-zinc-400">管理文档格式规范和样式配置</p>

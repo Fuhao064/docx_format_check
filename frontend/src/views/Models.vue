@@ -1,12 +1,12 @@
 <template>
-  <div class="p-6 max-w-6xl mx-auto">
+  <div class="p-6 overflow-y-auto h-full">
     <div class="mb-6">
       <h1 class="text-2xl font-semibold mb-2">模型管理</h1>
       <p class="text-zinc-400">管理和配置可用的AI模型</p>
     </div>
     
     <!-- 当前选择的模型 -->
-    <div class="bg-zinc-800 rounded-lg p-4 mb-6">
+    <div class="bg-zinc-800 rounded-md p-4 mb-6">
       <div class="flex items-center justify-between">
         <div>
           <h2 class="text-lg font-medium mb-1">当前选择的模型</h2>
@@ -15,7 +15,7 @@
         <button 
           v-if="currentModel"
           @click="refreshModels"
-          class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors text-sm"
+          class="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-md transition-colors text-sm"
         >
           刷新
         </button>
@@ -23,7 +23,7 @@
     </div>
     
     <!-- 模型列表 -->
-    <div class="bg-zinc-900 rounded-lg overflow-hidden mb-6">
+    <div class="bg-zinc-900 rounded-md overflow-hidden mb-6">
       <div class="overflow-x-auto">
         <table class="w-full border-collapse">
           <thead>
@@ -45,7 +45,7 @@
                 <div class="flex space-x-2">
                   <button 
                     @click="selectModel(key)"
-                    class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors text-sm"
+                    class="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-md transition-colors text-sm"
                   >
                     选择
                   </button>
@@ -69,7 +69,7 @@
     </div>
     
     <!-- 添加模型表单 -->
-    <div class="bg-zinc-800 rounded-lg p-6">
+    <div class="bg-zinc-800 rounded-md p-6">
       <h2 class="text-lg font-medium mb-4">添加新模型</h2>
       
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -78,7 +78,7 @@
           <input 
             v-model="newModel.name" 
             type="text" 
-            class="w-full bg-zinc-700 text-zinc-100 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            class="w-full bg-zinc-700 text-zinc-100 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-600"
             placeholder="例如: gpt-4"
           />
         </div>
@@ -88,7 +88,7 @@
           <input 
             v-model="newModel.base_url" 
             type="text" 
-            class="w-full bg-zinc-700 text-zinc-100 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            class="w-full bg-zinc-700 text-zinc-100 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-600"
             placeholder="例如: https://api.openai.com"
           />
         </div>
@@ -98,7 +98,7 @@
           <input 
             v-model="newModel.api_key" 
             type="text" 
-            class="w-full bg-zinc-700 text-zinc-100 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            class="w-full bg-zinc-700 text-zinc-100 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-600"
             placeholder="输入API密钥"
           />
         </div>
@@ -108,7 +108,7 @@
           <input 
             v-model="newModel.model_name" 
             type="text" 
-            class="w-full bg-zinc-700 text-zinc-100 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            class="w-full bg-zinc-700 text-zinc-100 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-600"
             placeholder="例如: gpt-3.5-turbo"
           />
         </div>
@@ -116,7 +116,7 @@
       
       <button 
         @click="addModel"
-        class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition-colors"
+        class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-md transition-colors"
         :disabled="isAddButtonDisabled"
         :class="{ 'opacity-50 cursor-not-allowed': isAddButtonDisabled }"
       >
@@ -126,19 +126,19 @@
     
     <!-- 确认删除对话框 -->
     <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div class="bg-zinc-900 rounded-lg p-6 max-w-md w-full mx-4">
+      <div class="bg-zinc-900 rounded-md p-6 max-w-md w-full mx-4">
         <h3 class="text-xl font-semibold mb-4">确认删除</h3>
         <p class="mb-6">确定要删除模型 "{{ modelToDelete }}" 吗？此操作无法撤销。</p>
         <div class="flex justify-end space-x-3">
           <button 
             @click="showDeleteConfirm = false"
-            class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-white rounded-md transition-colors"
+            class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-md transition-colors"
           >
             取消
           </button>
           <button 
             @click="deleteModel"
-            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors"
+            class="px-4 py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-md transition-colors"
           >
             删除
           </button>
@@ -149,7 +149,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, inject } from 'vue'
 import axios from 'axios'
 
 // 模型数据
@@ -167,6 +167,9 @@ const newModel = ref({
 // 删除确认
 const showDeleteConfirm = ref(false)
 const modelToDelete = ref('')
+
+// 获取通知函数
+const showNotification = inject('showNotification', null)
 
 // 计算属性：添加按钮是否禁用
 const isAddButtonDisabled = computed(() => {
@@ -205,32 +208,59 @@ function maskApiKey(apiKey) {
 // 获取所有模型
 async function fetchModels() {
   try {
+    // 显示加载通知
+    if (showNotification) {
+      showNotification('info', '加载中', '正在获取模型列表...', 0)
+    }
+    
     const response = await axios.get('/api/models')
     if (response.data.models) {
       // 获取完整的模型配置
       const keysResponse = await axios.get('/keys.json')
       models.value = keysResponse.data
+      
+      // 显示成功通知
+      if (showNotification) {
+        showNotification('success', '加载成功', '模型列表已更新', 3000)
+      }
     }
   } catch (error) {
     console.error('获取模型列表失败:', error)
-    alert('获取模型列表失败: ' + error.message)
+    
+    // 显示错误通知
+    if (showNotification) {
+      showNotification('error', '加载失败', `获取模型列表失败: ${error.message}`, 5000)
+    }
   }
 }
 
 // 选择模型
 async function selectModel(modelName) {
   try {
+    // 显示加载通知
+    if (showNotification) {
+      showNotification('info', '设置中', `正在设置模型: ${modelName}`, 0)
+    }
+    
     const response = await axios.post('/api/set-model', {
       model_name: modelName
     })
     
     if (response.data.message) {
       currentModel.value = modelName
-      alert(response.data.message)
+      
+      // 显示成功通知
+      if (showNotification) {
+        showNotification('success', '设置成功', response.data.message, 3000)
+      }
     }
   } catch (error) {
     console.error('设置模型失败:', error)
-    alert('设置模型失败: ' + error.message)
+    
+    // 显示错误通知
+    if (showNotification) {
+      showNotification('error', '设置失败', `设置模型失败: ${error.message}`, 5000)
+    }
   }
 }
 
@@ -243,6 +273,11 @@ function confirmDeleteModel(modelName) {
 // 删除模型
 async function deleteModel() {
   try {
+    // 显示加载通知
+    if (showNotification) {
+      showNotification('info', '删除中', `正在删除模型: ${modelToDelete.value}`, 0)
+    }
+    
     const response = await axios.delete(`/api/delete-model/${modelToDelete.value}`)
     
     if (response.data.message) {
@@ -258,11 +293,19 @@ async function deleteModel() {
       showDeleteConfirm.value = false
       modelToDelete.value = ''
       
-      alert(response.data.message)
+      // 显示成功通知
+      if (showNotification) {
+        showNotification('success', '删除成功', response.data.message, 3000)
+      }
     }
   } catch (error) {
     console.error('删除模型失败:', error)
-    alert('删除模型失败: ' + error.message)
+    
+    // 显示错误通知
+    if (showNotification) {
+      showNotification('error', '删除失败', `删除模型失败: ${error.message}`, 5000)
+    }
+    
     showDeleteConfirm.value = false
   }
 }
@@ -272,6 +315,11 @@ async function addModel() {
   if (isAddButtonDisabled.value) return
   
   try {
+    // 显示加载通知
+    if (showNotification) {
+      showNotification('info', '添加中', `正在添加模型: ${newModel.value.name}`, 0)
+    }
+    
     const response = await axios.post('/api/add-model', {
       name: newModel.value.name,
       base_url: newModel.value.base_url,
@@ -291,11 +339,18 @@ async function addModel() {
       // 重新获取模型列表
       await fetchModels()
       
-      alert(response.data.message)
+      // 显示成功通知
+      if (showNotification) {
+        showNotification('success', '添加成功', response.data.message, 3000)
+      }
     }
   } catch (error) {
     console.error('添加模型失败:', error)
-    alert('添加模型失败: ' + error.message)
+    
+    // 显示错误通知
+    if (showNotification) {
+      showNotification('error', '添加失败', `添加模型失败: ${error.message}`, 5000)
+    }
   }
 }
 
@@ -309,3 +364,16 @@ onMounted(() => {
   fetchModels()
 })
 </script>
+
+<style scoped>
+/* 添加过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
