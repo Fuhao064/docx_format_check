@@ -16,7 +16,11 @@
           </div>
           
           <div v-for="(message, index) in messages" :key="index" class="flex" :class="message.role === 'user' ? 'justify-end' : 'justify-start'">
-            <div class="max-w-3xl rounded-md p-4" :class="message.role === 'user' ? 'bg-zinc-800 text-white' : 'bg-zinc-800/50 text-zinc-100'">
+            <div class="max-w-3xl rounded-md p-4" :class="[
+              message.role === 'user' 
+                ? isDarkMode ? 'bg-zinc-800 text-white' : 'bg-gray-200 text-black' 
+                : isDarkMode ? 'bg-zinc-800/50 text-zinc-100' : 'bg-gray-100 text-black'
+            ]">
               {{ message.content }}
             </div>
           </div>
@@ -29,7 +33,8 @@
               v-model="userInput" 
               @keydown.enter.prevent="sendMessage"
               placeholder="开始摧毁格式..." 
-              class="w-full bg-zinc-800 text-zinc-100 rounded-md pl-12 pr-12 py-3 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-700"
+              class="w-full rounded-md pl-12 pr-12 py-3 resize-none focus:outline-none focus:ring-1"
+              :class="isDarkMode ? 'bg-zinc-800 text-zinc-100 focus:ring-zinc-700' : 'bg-gray-100 text-black focus:ring-gray-300'"
               rows="3"
             ></textarea>
             
@@ -111,6 +116,9 @@
 import { ref, onMounted, inject } from 'vue'
 import { VueOfficeDocx } from '@vue-office/docx'
 import axios from 'axios'
+
+// 获取主题模式
+const isDarkMode = inject('isDarkMode')
 
 // 消息列表
 const messages = ref([])
@@ -328,4 +336,4 @@ onMounted(() => {
 .flex-1 > div {
   animation: fadeIn 0.3s ease-out forwards;
 }
-</style> 
+</style>
