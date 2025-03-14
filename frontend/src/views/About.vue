@@ -1,8 +1,8 @@
 <template>
   <div class="p-6 max-w-4xl mx-auto">
     <div class="mb-6">
-      <h1 class="text-2xl font-semibold mb-2">关于我们</h1>
-      <p class="text-zinc-400">了解文档格式检查与修正系统的背景和团队</p>
+      <h1 class="text-2xl font-semibold mb-2">关于我</h1>
+      <p class="text-zinc-400">了解文档格式检查与修正系统的背景</p>
     </div>
     
     <div class="bg-zinc-800 rounded-lg p-6 mb-6">
@@ -115,11 +115,11 @@
     <div class="bg-zinc-800 rounded-lg p-6">
       <h2 class="text-xl font-semibold mb-4">版权声明</h2>
       <p class="text-zinc-300">
-        © 2023-2024 Putain le format 团队。保留所有权利。
+        © 2023-2024 Putain le format 开发者。保留所有权利。
       </p>
       <p class="mt-2 text-zinc-400 text-sm">
         本系统仅用于文档格式检查与修正，不存储或使用用户上传的文档内容用于其他目的。
-        用户对上传文档的内容负有完全责任，系统开发团队不对用户上传的文档内容承担任何法律责任。
+        用户对上传文档的内容负有完全责任，系统开发者不对用户上传的文档内容承担任何法律责任。
       </p>
     </div>
   </div>
