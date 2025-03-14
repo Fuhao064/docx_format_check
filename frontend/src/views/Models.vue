@@ -1,21 +1,24 @@
 <template>
-  <div class="p-6 overflow-y-auto h-full">
+  <div class="p-6 overflow-y-auto h-full" :class="{ 'bg-white text-black': !isDarkMode, 'bg-zinc-950 text-zinc-100': isDarkMode }">
     <div class="mb-6">
       <h1 class="text-2xl font-semibold mb-2">模型管理</h1>
-      <p class="text-zinc-400">管理和配置可用的AI模型</p>
+      <p :class="isDarkMode ? 'text-zinc-400' : 'text-gray-600'">管理和配置可用的AI模型</p>
     </div>
     
     <!-- 当前选择的模型 -->
-    <div class="bg-zinc-800 rounded-md p-4 mb-6">
+    <div :class="[isDarkMode ? 'bg-zinc-800' : 'bg-gray-100', 'rounded-md p-4 mb-6']">
       <div class="flex items-center justify-between">
         <div>
           <h2 class="text-lg font-medium mb-1">当前选择的模型</h2>
-          <p class="text-zinc-400">{{ currentModel || '未选择模型' }}</p>
+          <p :class="isDarkMode ? 'text-zinc-400' : 'text-gray-600'">{{ currentModel || '未选择模型' }}</p>
         </div>
         <button 
           v-if="currentModel"
           @click="refreshModels"
-          class="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-md transition-colors text-sm"
+          :class="[
+            isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700',
+            'px-3 py-1.5 rounded-md transition-colors text-sm'
+          ]"
         >
           刷新
         </button>
@@ -23,19 +26,19 @@
     </div>
     
     <!-- 模型列表 -->
-    <div class="bg-zinc-900 rounded-md overflow-hidden mb-6">
+    <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-white border border-gray-200', 'rounded-md overflow-hidden mb-6']">
       <div class="overflow-x-auto">
         <table class="w-full border-collapse">
           <thead>
-            <tr class="bg-zinc-800 text-left">
-              <th class="px-6 py-3 text-zinc-300 font-medium">模型提供商</th>
-              <th class="px-6 py-3 text-zinc-300 font-medium">模型名称</th>
-              <th class="px-6 py-3 text-zinc-300 font-medium">API Key</th>
-              <th class="px-6 py-3 text-zinc-300 font-medium">操作</th>
+            <tr :class="isDarkMode ? 'bg-zinc-800' : 'bg-gray-50'">
+              <th :class="[isDarkMode ? 'text-zinc-300' : 'text-gray-700', 'px-6 py-3 text-left font-medium']">模型提供商</th>
+              <th :class="[isDarkMode ? 'text-zinc-300' : 'text-gray-700', 'px-6 py-3 text-left font-medium']">模型名称</th>
+              <th :class="[isDarkMode ? 'text-zinc-300' : 'text-gray-700', 'px-6 py-3 text-left font-medium']">API Key</th>
+              <th :class="[isDarkMode ? 'text-zinc-300' : 'text-gray-700', 'px-6 py-3 text-left font-medium']">操作</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-zinc-800">
-            <tr v-for="(model, key) in models" :key="key" class="hover:bg-zinc-800/50 transition-colors">
+          <tbody :class="isDarkMode ? 'divide-y divide-zinc-800' : 'divide-y divide-gray-200'">
+            <tr v-for="(model, key) in models" :key="key" :class="isDarkMode ? 'hover:bg-zinc-800/50' : 'hover:bg-gray-50'">
               <td class="px-6 py-4">{{ getProviderName(key) }}</td>
               <td class="px-6 py-4">{{ model.model_name }}</td>
               <td class="px-6 py-4">
@@ -45,13 +48,19 @@
                 <div class="flex space-x-2">
                   <button 
                     @click="selectModel(key)"
-                    class="px-3 py-1 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-md transition-colors text-sm"
+                    :class="[
+                      isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700',
+                      'px-3 py-1 rounded-md transition-colors text-sm'
+                    ]"
                   >
                     选择
                   </button>
                   <button 
                     @click="confirmDeleteModel(key)"
-                    class="px-3 py-1 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-md transition-colors text-sm"
+                    :class="[
+                      isDarkMode ? 'bg-red-600/20 hover:bg-red-600/30 text-red-400' : 'bg-red-100 hover:bg-red-200 text-red-600',
+                      'px-3 py-1 rounded-md transition-colors text-sm'
+                    ]"
                   >
                     删除
                   </button>
@@ -59,7 +68,7 @@
               </td>
             </tr>
             <tr v-if="Object.keys(models).length === 0">
-              <td colspan="4" class="px-6 py-4 text-center text-zinc-500">
+              <td colspan="4" :class="[isDarkMode ? 'text-zinc-500' : 'text-gray-500', 'px-6 py-4 text-center']">
                 暂无模型数据
               </td>
             </tr>
@@ -69,46 +78,62 @@
     </div>
     
     <!-- 添加模型表单 -->
-    <div class="bg-zinc-800 rounded-md p-6">
+    <div :class="[isDarkMode ? 'bg-zinc-800' : 'bg-gray-100', 'rounded-md p-6']">
       <h2 class="text-lg font-medium mb-4">添加新模型</h2>
       
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label class="block text-sm font-medium text-zinc-400 mb-1">模型名称</label>
+          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm font-medium mb-1']">模型名称</label>
           <input 
             v-model="newModel.name" 
             type="text" 
-            class="w-full bg-zinc-700 text-zinc-100 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+            :class="[
+              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
+              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
+              isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+            ]"
             placeholder="例如: gpt-4"
           />
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-zinc-400 mb-1">API 基础 URL</label>
+          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm font-medium mb-1']">API 基础 URL</label>
           <input 
             v-model="newModel.base_url" 
             type="text" 
-            class="w-full bg-zinc-700 text-zinc-100 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+            :class="[
+              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
+              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
+              isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+            ]"
             placeholder="例如: https://api.openai.com"
           />
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-zinc-400 mb-1">API Key</label>
+          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm font-medium mb-1']">API Key</label>
           <input 
             v-model="newModel.api_key" 
             type="text" 
-            class="w-full bg-zinc-700 text-zinc-100 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+            :class="[
+              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
+              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
+              isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+            ]"
             placeholder="输入API密钥"
           />
         </div>
         
         <div>
-          <label class="block text-sm font-medium text-zinc-400 mb-1">模型标识符</label>
+          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm font-medium mb-1']">模型标识符</label>
           <input 
             v-model="newModel.model_name" 
             type="text" 
-            class="w-full bg-zinc-700 text-zinc-100 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+            :class="[
+              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
+              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
+              isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+            ]"
             placeholder="例如: gpt-3.5-turbo"
           />
         </div>
@@ -116,9 +141,12 @@
       
       <button 
         @click="addModel"
-        class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-md transition-colors"
+        :class="[
+          isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300' : 'bg-blue-500 hover:bg-blue-600 text-white',
+          'px-4 py-2 rounded-md transition-colors',
+          isAddButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''
+        ]"
         :disabled="isAddButtonDisabled"
-        :class="{ 'opacity-50 cursor-not-allowed': isAddButtonDisabled }"
       >
         添加模型
       </button>
@@ -126,19 +154,25 @@
     
     <!-- 确认删除对话框 -->
     <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div class="bg-zinc-900 rounded-md p-6 max-w-md w-full mx-4">
+      <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-white', 'rounded-md p-6 max-w-md w-full mx-4']">
         <h3 class="text-xl font-semibold mb-4">确认删除</h3>
-        <p class="mb-6">确定要删除模型 "{{ modelToDelete }}" 吗？此操作无法撤销。</p>
+        <p class="mb-6" :class="isDarkMode ? 'text-zinc-400' : 'text-gray-600'">确定要删除模型 "{{ modelToDelete }}" 吗？此操作无法撤销。</p>
         <div class="flex justify-end space-x-3">
           <button 
             @click="showDeleteConfirm = false"
-            class="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 rounded-md transition-colors"
+            :class="[
+              isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700',
+              'px-4 py-2 rounded-md transition-colors'
+            ]"
           >
             取消
           </button>
           <button 
             @click="deleteModel"
-            class="px-4 py-2 bg-red-600/80 hover:bg-red-600 text-white rounded-md transition-colors"
+            :class="[
+              isDarkMode ? 'bg-red-600/80 hover:bg-red-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white',
+              'px-4 py-2 rounded-md transition-colors'
+            ]"
           >
             删除
           </button>
@@ -168,8 +202,9 @@ const newModel = ref({
 const showDeleteConfirm = ref(false)
 const modelToDelete = ref('')
 
-// 获取通知函数
+// 获取通知函数和主题模式
 const showNotification = inject('showNotification', null)
+const isDarkMode = inject('isDarkMode', ref(true))
 
 // 计算属性：添加按钮是否禁用
 const isAddButtonDisabled = computed(() => {
@@ -200,67 +235,41 @@ function getProviderName(key) {
 
 // 掩码API密钥
 function maskApiKey(apiKey) {
-  if (!apiKey) return '未设置'
-  if (apiKey.length <= 8) return '****' + apiKey.slice(-4)
-  return apiKey.slice(0, 4) + '****' + apiKey.slice(-4)
+  if (!apiKey) return ''
+  if (apiKey.length <= 8) return '*'.repeat(apiKey.length)
+  return apiKey.slice(0, 4) + '*'.repeat(apiKey.length - 8) + apiKey.slice(-4)
 }
 
 // 获取所有模型
 async function fetchModels() {
   try {
-    // 显示加载通知
-    if (showNotification) {
-      showNotification('info', '加载中', '正在获取模型列表...', 0)
-    }
+    // 获取模型列表
+    const modelsResponse = await axios.get('/api/models')
+    models.value = modelsResponse.data.models || {}
     
-    const response = await axios.get('/api/models')
-    if (response.data.models) {
-      // 获取完整的模型配置
-      const keysResponse = await axios.get('/keys.json')
-      models.value = keysResponse.data
-      
-      // 显示成功通知
-      if (showNotification) {
-        showNotification('success', '加载成功', '模型列表已更新', 3000)
-      }
+    // 获取当前选中的模型
+    try {
+      const currentModelResponse = await axios.get('/api/current-model')
+      currentModel.value = currentModelResponse.data.current_model || ''
+    } catch (err) {
+      console.error('获取当前模型失败:', err)
+      // 如果无法获取当前模型，不阻止页面显示
     }
   } catch (error) {
     console.error('获取模型列表失败:', error)
-    
-    // 显示错误通知
-    if (showNotification) {
-      showNotification('error', '加载失败', `获取模型列表失败: ${error.message}`, 5000)
-    }
+    showNotification('error', '获取失败', '无法获取模型列表，请稍后重试')
   }
 }
 
 // 选择模型
 async function selectModel(modelName) {
   try {
-    // 显示加载通知
-    if (showNotification) {
-      showNotification('info', '设置中', `正在设置模型: ${modelName}`, 0)
-    }
-    
-    const response = await axios.post('/api/set-model', {
-      model_name: modelName
-    })
-    
-    if (response.data.message) {
-      currentModel.value = modelName
-      
-      // 显示成功通知
-      if (showNotification) {
-        showNotification('success', '设置成功', response.data.message, 3000)
-      }
-    }
+    await axios.post('/api/set-model', { model_name: modelName })
+    currentModel.value = modelName
+    showNotification('success', '选择成功', `已选择模型: ${modelName}`)
   } catch (error) {
-    console.error('设置模型失败:', error)
-    
-    // 显示错误通知
-    if (showNotification) {
-      showNotification('error', '设置失败', `设置模型失败: ${error.message}`, 5000)
-    }
+    console.error('选择模型失败:', error)
+    showNotification('error', '选择失败', '无法选择该模型，请稍后重试')
   }
 }
 
@@ -273,40 +282,16 @@ function confirmDeleteModel(modelName) {
 // 删除模型
 async function deleteModel() {
   try {
-    // 显示加载通知
-    if (showNotification) {
-      showNotification('info', '删除中', `正在删除模型: ${modelToDelete.value}`, 0)
+    await axios.delete(`/api/models/${modelToDelete.value}`)
+    if (currentModel.value === modelToDelete.value) {
+      currentModel.value = ''
     }
-    
-    const response = await axios.delete(`/api/delete-model/${modelToDelete.value}`)
-    
-    if (response.data.message) {
-      // 如果删除的是当前选中的模型，清空当前模型
-      if (currentModel.value === modelToDelete.value) {
-        currentModel.value = ''
-      }
-      
-      // 重新获取模型列表
-      await fetchModels()
-      
-      // 关闭确认对话框
-      showDeleteConfirm.value = false
-      modelToDelete.value = ''
-      
-      // 显示成功通知
-      if (showNotification) {
-        showNotification('success', '删除成功', response.data.message, 3000)
-      }
-    }
+    delete models.value[modelToDelete.value]
+    showDeleteConfirm.value = false
+    showNotification('success', '删除成功', `已删除模型: ${modelToDelete.value}`)
   } catch (error) {
     console.error('删除模型失败:', error)
-    
-    // 显示错误通知
-    if (showNotification) {
-      showNotification('error', '删除失败', `删除模型失败: ${error.message}`, 5000)
-    }
-    
-    showDeleteConfirm.value = false
+    showNotification('error', '删除失败', '无法删除该模型，请稍后重试')
   }
 }
 
@@ -315,48 +300,35 @@ async function addModel() {
   if (isAddButtonDisabled.value) return
   
   try {
-    // 显示加载通知
-    if (showNotification) {
-      showNotification('info', '添加中', `正在添加模型: ${newModel.value.name}`, 0)
-    }
-    
-    const response = await axios.post('/api/add-model', {
+    const modelData = {
       name: newModel.value.name,
       base_url: newModel.value.base_url,
       api_key: newModel.value.api_key,
       model_name: newModel.value.model_name
-    })
-    
-    if (response.data.message) {
-      // 重置表单
-      newModel.value = {
-        name: '',
-        base_url: '',
-        api_key: '',
-        model_name: ''
-      }
-      
-      // 重新获取模型列表
-      await fetchModels()
-      
-      // 显示成功通知
-      if (showNotification) {
-        showNotification('success', '添加成功', response.data.message, 3000)
-      }
     }
+    
+    await axios.post('/api/models', modelData)
+    
+    // 重置表单
+    newModel.value = {
+      name: '',
+      base_url: '',
+      api_key: '',
+      model_name: ''
+    }
+    
+    // 刷新模型列表
+    await fetchModels()
+    showNotification('success', '添加成功', `已添加新模型: ${modelData.name}`)
   } catch (error) {
     console.error('添加模型失败:', error)
-    
-    // 显示错误通知
-    if (showNotification) {
-      showNotification('error', '添加失败', `添加模型失败: ${error.message}`, 5000)
-    }
+    showNotification('error', '添加失败', '无法添加新模型，请检查输入信息是否正确')
   }
 }
 
 // 刷新模型列表
-function refreshModels() {
-  fetchModels()
+async function refreshModels() {
+  await fetchModels()
 }
 
 // 组件挂载时获取模型列表
@@ -364,16 +336,3 @@ onMounted(() => {
   fetchModels()
 })
 </script>
-
-<style scoped>
-/* 添加过渡动画 */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

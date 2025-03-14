@@ -33,5 +33,11 @@
     "base_url": "https://open.bigmodel.cn/api/paas/v4/",
     "api_key": "f2b48fbbda1e4ee8803d68c6fa16ac2d.kRVooHkSK2wEACcw",
     "model_name": "glm-4-plus"
+  },
+  "gemini-2.0-flash":{
+    "base_url":"https://generativelanguage.googleapis.com/v1beta/openai/",
+    "api_key": "AIzaSyDPVE8urIP-l9_FKDfa1Eul06Clw5KQ604",
+    "model_name": "gemini-2.0-flash"
   }
+
 }

@@ -192,11 +192,20 @@ def get_models():
     try:
         # 使用全局的LLMs实例
         models_config = llm.models_config
-        models_list = [{'name': name} for name in models_config.keys()]
-        return jsonify({'models': models_list})
+        return jsonify(models_config)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+# 获取当前使用的模型
+@app.route('/api/current-model')
+def get_current_model():
+    try:
+        # 使用全局的LLMs实例
+        current_model = llm.current_model
+        return jsonify({'current_model': current_model})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 # 设置当前使用的模型
 @app.route('/api/set-model', methods=['POST'])
@@ -380,6 +389,37 @@ def get_config_example():
             "success": False,
             "message": f"发生错误：{str(e)}"
         }), 500
+
+# 获取配置文件
+@app.route('/api/get-config')
+def get_config():
+    try:
+        config_path = 'config.json'  # 配置文件路径
+        if not os.path.exists(config_path):
+            return jsonify({"error": "配置文件不存在"}), 404
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config_data = json.load(f)
+        
+        return jsonify(config_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# 保存配置文件
+@app.route('/api/set-config', methods=['POST'])
+def set_config():
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': '配置数据不能为空'}), 400
+    
+    try:
+        config_path = 'config.json'  # 配置文件路径
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+        
+        return jsonify({'message': '配置保存成功'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=8000, debug=True)
