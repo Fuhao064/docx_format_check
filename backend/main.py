@@ -421,5 +421,215 @@ def set_config():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# 获取docx文件内容
+@app.route('/api/get-docx-content')
+def get_docx_content():
+    file_path = request.args.get('file_path')
+    if not file_path:
+        return jsonify({"error": "未提供文件路径"}), 400
+    
+    try:
+        # 确保文件路径安全
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(file_path))
+        if not os.path.exists(file_path):
+            return jsonify({"error": "文件不存在"}), 404
+            
+        # 读取文件内容
+        with open(file_path, 'rb') as f:
+            content = f.read()
+            
+        return content
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# 检查文档格式
+@app.route('/api/check-format', methods=['POST'])
+def check_format_api():
+    data = request.get_json()
+    if not data or 'doc_path' not in data:
+        return jsonify({"error": "未提供文档路径"}), 400
+    
+    try:
+        doc_path = data['doc_path']
+        format_path = data.get('format_path', 'default')
+        
+        # 更新执行步骤状态
+        execution_steps[2]["status"] = "in_progress"
+        socketio.emit('step_update', execution_steps[2])
+        
+        # 使用format_checker中的函数检查格式
+        # 先获取段落管理器
+        paragraph_manager = remark_para_type(doc_path, llm)
+        
+        # 检查格式
+        format_errors = []
+        if format_path == 'default':
+            # 使用默认格式检查
+            format_errors = check_paper_format(paragraph_manager.to_dict(), {})
+        else:
+            # 使用指定的格式文件检查
+            with open(format_path, 'r', encoding='utf-8') as f:
+                format_config = json.load(f)
+            format_errors = check_format(paragraph_manager.to_dict(), format_config)
+        
+        # 更新执行步骤状态
+        execution_steps[2]["status"] = "completed"
+        execution_steps[3]["status"] = "in_progress"
+        socketio.emit('step_update', execution_steps[2])
+        
+        # 统一错误信息格式
+        formatted_errors = []
+        for error in format_errors:
+            formatted_errors.append({
+                "type": error.get("type", "格式错误"),
+                "location": error.get("location", "未知位置"),
+                "message": error.get("message", "未知错误"),
+                "severity": error.get("severity", "error"),
+                "suggestion": error.get("suggestion", "请检查文档格式")
+            })
+        
+        return jsonify({
+            "success": True,
+            "errors": formatted_errors,
+            "total_errors": len(formatted_errors)
+        })
+    except Exception as e:
+        # 更新执行步骤状态为错误
+        execution_steps[2]["status"] = "error"
+        socketio.emit('step_update', execution_steps[2])
+        
+        return jsonify({
+            "success": False,
+            "message": f"检查格式时出错: {str(e)}"
+        }), 500
+
+# 生成分析报告
+@app.route('/api/generate-report', methods=['POST'])
+def generate_report():
+    data = request.get_json()
+    if not data or 'doc_path' not in data:
+        return jsonify({"error": "未提供文档路径"}), 400
+    
+    try:
+        doc_path = data['doc_path']
+        
+        # 更新执行步骤状态
+        execution_steps[3]["status"] = "in_progress"
+        socketio.emit('step_update', execution_steps[3])
+        
+        # 生成报告的逻辑
+        # 这里可以根据需要生成详细的报告
+        report = {
+            "document": os.path.basename(doc_path),
+            "analysis_time": datetime.now().isoformat(),
+            "summary": "文档格式分析完成",
+            "details": "详细信息请查看错误列表"
+        }
+        
+        # 保存报告
+        report_path = os.path.join(app.config['UPLOAD_FOLDER'], f"report_{os.path.basename(doc_path)}.json")
+        with open(report_path, 'w', encoding='utf-8') as f:
+            json.dump(report, f, ensure_ascii=False, indent=4)
+        
+        # 更新执行步骤状态
+        execution_steps[3]["status"] = "completed"
+        socketio.emit('step_update', execution_steps[3])
+        
+        return jsonify({
+            "success": True,
+            "report_path": report_path,
+            "report": report
+        })
+    except Exception as e:
+        # 更新执行步骤状态为错误
+        execution_steps[3]["status"] = "error"
+        socketio.emit('step_update', execution_steps[3])
+        
+        return jsonify({
+            "success": False,
+            "message": f"生成报告时出错: {str(e)}"
+        }), 500
+
+# 下载报告
+@app.route('/api/download-report')
+def download_report():
+    doc_path = request.args.get('doc_path')
+    if not doc_path:
+        return jsonify({"error": "未提供文档路径"}), 400
+    
+    try:
+        # 构建报告路径
+        report_path = os.path.join(app.config['UPLOAD_FOLDER'], f"report_{os.path.basename(doc_path)}.json")
+        
+        if not os.path.exists(report_path):
+            return jsonify({"error": "报告文件不存在"}), 404
+        
+        # 返回报告文件
+        return send_from_directory(
+            os.path.dirname(report_path),
+            os.path.basename(report_path),
+            as_attachment=True,
+            download_name=f"格式分析报告_{os.path.basename(doc_path)}.json"
+        )
+    except Exception as e:
+        return jsonify({
+            "error": f"下载报告时出错: {str(e)}"
+        }), 500
+
+# 上传格式文件
+@app.route('/api/upload-format', methods=['POST'])
+def upload_format():
+    if 'file' not in request.files:
+        return jsonify({"success": False, "message": "未找到上传的文件"}), 400
+    
+    uploaded_file = request.files['file']
+    if uploaded_file.filename == '':
+        return jsonify({"success": False, "message": "未选择文件"}), 400
+    
+    try:
+        filename = secure_filename(uploaded_file.filename)
+        file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+        
+        if file_ext == 'json':
+            # 直接保存JSON文件
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            uploaded_file.save(file_path)
+            
+            return jsonify({
+                "success": True,
+                "message": "格式文件上传成功",
+                "file_path": file_path,
+                "filename": filename
+            })
+        elif file_ext == 'docx':
+            # 处理docx格式文件
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            uploaded_file.save(file_path)
+            
+            # 使用format_agent处理docx文件，提取格式信息
+            format_json = llm.parse_format(file_path, '{}')
+            
+            # 保存提取的格式信息
+            json_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{filename.rsplit('.', 1)[0]}_format.json")
+            with open(json_path, 'w', encoding='utf-8') as f:
+                f.write(format_json)
+            
+            return jsonify({
+                "success": True,
+                "message": "格式文件上传并处理成功",
+                "file_path": json_path,
+                "filename": f"{filename.rsplit('.', 1)[0]}_format.json"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"不支持的文件类型，仅支持 .docx 或 .json 文件"
+            }), 400
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"格式文件上传失败: {str(e)}"
+        }), 500
+
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=8000, debug=True)
