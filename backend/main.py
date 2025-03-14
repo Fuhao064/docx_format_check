@@ -192,7 +192,7 @@ def get_models():
     try:
         # 使用全局的LLMs实例
         models_config = llm.models_config
-        return jsonify(models_config)
+        return jsonify({"models": models_config})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -394,7 +394,7 @@ def get_config_example():
 @app.route('/api/get-config')
 def get_config():
     try:
-        config_path = 'config.json'  # 配置文件路径
+        config_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../config.json'))  # 配置文件路径
         if not os.path.exists(config_path):
             return jsonify({"error": "配置文件不存在"}), 404
         

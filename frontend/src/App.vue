@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex" :class="isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-gray-50 text-gray-900'">
+  <div class="min-h-screen flex" :class="isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-gray-50 text-black'">
     <!-- 侧边栏 -->
     <aside 
       class="h-screen flex flex-col transition-all duration-300 overflow-hidden fixed z-10"
@@ -65,8 +65,8 @@
           class="flex items-center px-3 py-2 mx-2 rounded-md cursor-pointer transition-colors"
           :class="[
             currentChat && currentChat.id === chat.id 
-              ? isDarkMode ? 'bg-zinc-800 text-white' : 'bg-gray-100 text-gray-900'
-              : isDarkMode ? 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+              ? isDarkMode ? 'bg-zinc-800 text-white' : 'bg-gray-100 text-black'
+              : isDarkMode ? 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100' : 'text-gray-700 hover:bg-gray-100 hover:text-black'
           ]"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
@@ -82,11 +82,12 @@
           v-for="item in menuItems" 
           :key="item.id" 
           :to="item.href"
-          class="flex items-center px-3 py-2 mx-2 rounded-md transition-colors"
+          class="flex items-center transition-colors rounded-md"
           :class="[
-            route.path === item.href 
-              ? isDarkMode ? 'bg-zinc-800 text-white' : 'bg-gray-100 text-gray-900'
-              : isDarkMode ? 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'
+            sidebarCollapsed ? 'justify-center py-2 mx-2' : 'px-3 py-2 mx-2',
+            route.path === item.href && currentChat === null
+              ? isDarkMode ? 'bg-zinc-800 text-white' : 'bg-gray-100 text-black'
+              : isDarkMode ? 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100' : 'text-gray-700 hover:bg-gray-100 hover:text-black'
           ]"
         >
           <div class="w-5 h-5 flex items-center justify-center">
@@ -316,6 +317,10 @@ const currentChat = ref(null)
 // 选择聊天
 function selectChat(chat) {
   currentChat.value = chat
+  // 跳转到首页，确保显示对话内容
+  if (route.path !== '/') {
+    router.push('/')
+  }
 }
 
 // 创建新聊天
@@ -326,6 +331,8 @@ function createNewChat() {
   }
   chatHistory.value.push(newChat)
   selectChat(newChat)
+  // 确保跳转到首页显示新对话
+  router.push('/')
 }
 
 // 通知系统

@@ -16,7 +16,7 @@
           v-if="currentModel"
           @click="refreshModels"
           :class="[
-            isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700',
+            isDarkMode ? 'bg-teal-600/80 hover:bg-teal-700 text-zinc-100' : 'bg-indigo-500 hover:bg-indigo-600 text-white',
             'px-3 py-1.5 rounded-md transition-colors text-sm'
           ]"
         >
@@ -49,7 +49,7 @@
                   <button 
                     @click="selectModel(key)"
                     :class="[
-                      isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700',
+                      isDarkMode ? 'bg-teal-600/80 hover:bg-teal-600 text-zinc-100' : 'bg-indigo-500 hover:bg-indigo-600 text-white',
                       'px-3 py-1 rounded-md transition-colors text-sm'
                     ]"
                   >
@@ -88,9 +88,9 @@
             v-model="newModel.name" 
             type="text" 
             :class="[
-              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
+              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-black border border-gray-300',
               'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-              isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+              isDarkMode ? 'focus:ring-teal-600' : 'focus:ring-indigo-500'
             ]"
             placeholder="例如: gpt-4"
           />
@@ -102,9 +102,9 @@
             v-model="newModel.base_url" 
             type="text" 
             :class="[
-              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
+              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-black border border-gray-300',
               'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-              isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+              isDarkMode ? 'focus:ring-teal-600' : 'focus:ring-indigo-500'
             ]"
             placeholder="例如: https://api.openai.com"
           />
@@ -116,9 +116,9 @@
             v-model="newModel.api_key" 
             type="text" 
             :class="[
-              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
+              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-black border border-gray-300',
               'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-              isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+              isDarkMode ? 'focus:ring-teal-600' : 'focus:ring-indigo-500'
             ]"
             placeholder="输入API密钥"
           />
@@ -130,9 +130,9 @@
             v-model="newModel.model_name" 
             type="text" 
             :class="[
-              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
+              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-black border border-gray-300',
               'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-              isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+              isDarkMode ? 'focus:ring-teal-600' : 'focus:ring-indigo-500'
             ]"
             placeholder="例如: gpt-3.5-turbo"
           />
@@ -142,7 +142,7 @@
       <button 
         @click="addModel"
         :class="[
-          isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300' : 'bg-blue-500 hover:bg-blue-600 text-white',
+          isDarkMode ? 'bg-teal-600 hover:bg-teal-700 text-zinc-100' : 'bg-indigo-500 hover:bg-indigo-600 text-white',
           'px-4 py-2 rounded-md transition-colors',
           isAddButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''
         ]"
@@ -161,7 +161,7 @@
           <button 
             @click="showDeleteConfirm = false"
             :class="[
-              isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700',
+              isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300' : 'bg-gray-200 hover:bg-gray-300 text-black',
               'px-4 py-2 rounded-md transition-colors'
             ]"
           >
@@ -216,20 +216,24 @@ const isAddButtonDisabled = computed(() => {
 
 // 获取模型提供商名称
 function getProviderName(key) {
+  // 根据keys.json中的数据结构解析提供商名称
   const providerMap = {
     'openai': 'OpenAI',
     'deepseek': 'DeepSeek',
     'qwen': 'Qwen (阿里云)',
     'glm': 'GLM (智谱)',
+    'gemini': 'Gemini (Google)',
     'deepseek-r1': 'DeepSeek R1'
   }
   
+  // 尝试从key中提取提供商名称
   for (const [provider, name] of Object.entries(providerMap)) {
     if (key.toLowerCase().includes(provider)) {
       return name
     }
   }
   
+  // 如果没有匹配到任何已知提供商，返回原始key
   return key
 }
 
