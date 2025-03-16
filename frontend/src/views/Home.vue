@@ -97,13 +97,14 @@
               >
                 <div class="w-8 h-8 rounded-full flex items-center justify-center mr-3"
                   :class="[
-                    step.status === 'completed' 
+                    step.status === 'completed'
                       ? isDarkMode ? 'bg-green-600 text-white' : 'bg-green-600 text-white'
                       : step.status === 'in_progress'
                         ? isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'
                         : step.status === 'error'
                           ? isDarkMode ? 'bg-red-600 text-white' : 'bg-red-600 text-white'
-                          : isDarkMode ? 'bg-zinc-700 text-zinc-400' : 'bg-gray-300 text-gray-700'
+                          : isDarkMode ? 'bg-zinc-700 text-zinc-400' : 'bg-gray-300 text-gray-700',
+                    'transition-colors duration-300' // 添加过渡动画
                   ]"
                 >
                   <svg v-if="step.status === 'completed'" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -153,7 +154,7 @@
                   <h4 class="font-medium mb-2" :class="isDarkMode ? 'text-red-400' : 'text-red-700'">发现以下格式问题：</h4>
                   <ul class="list-disc pl-5 space-y-2">
                     <li v-for="(error, index) in formatErrors" :key="index" 
-                      class="text-sm p-2 rounded-md" 
+                      class="text-sm p-2 rounded-md mb-2" 
                       :class="isDarkMode ? 'bg-red-900/30 text-zinc-300' : 'bg-red-100 text-gray-900'"
                     >
                       {{ error.message }}
@@ -178,6 +179,19 @@
                 <span>下载报告</span>
               </button>
               <button 
+                @click="downloadMarkedDocument"
+                class="flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors"
+                :class="isDarkMode ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                <span>下载标记文档</span>
+              </button>
+              <button 
                 @click="resetProcess"
                 class="flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors"
                 :class="isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'"
@@ -197,25 +211,31 @@
       
       <!-- 文档预览区域 -->
       <div 
-        v-if="showDocPreview" 
-        class="w-1/2 border-l flex flex-col overflow-hidden"
-        :class="isDarkMode ? 'border-zinc-800 bg-zinc-900' : 'border-gray-200 bg-white'"
+        :class="[
+          'border-l flex flex-col overflow-hidden transition-all duration-300',
+          showDocPreview ? 'w-1/2' : 'w-12',
+          isDarkMode ? 'border-zinc-800 bg-zinc-900' : 'border-gray-200 bg-white'
+        ]"
       >
         <div class="flex items-center justify-between p-3 border-b" :class="isDarkMode ? 'border-zinc-800' : 'border-gray-200'">
-          <h3 class="font-medium" :class="isDarkMode ? 'text-zinc-100' : 'text-gray-900'">{{ uploadedFileName || '文档预览' }}</h3>
+          <h3 class="font-medium truncate" :class="[isDarkMode ? 'text-zinc-100' : 'text-gray-900', !showDocPreview ? 'hidden' : '']">
+            {{ uploadedFileName || '文档预览' }}
+          </h3>
           <button 
-            @click="showDocPreview = false"
-            class="p-1 rounded-md transition-colors"
+            @click="toggleDocPreview"
+            class="p-1 rounded-md transition-colors ml-auto"
             :class="isDarkMode ? 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100' : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
+            <svg v-if="showDocPreview" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m15 18-6-6 6-6"></path>
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m9 18 6-6-6-6"></path>
             </svg>
           </button>
         </div>
         
-        <div class="flex-1 overflow-hidden">
+        <div :class="['flex-1 overflow-hidden', !showDocPreview ? 'hidden' : '']">
           <DocxPreview :file-path="uploadedFile" />
         </div>
       </div>
@@ -242,7 +262,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject, watch } from 'vue'
+import { ref, computed, onMounted, inject, watch, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router';
+import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios'
 import DocxPreview from '../components/DocxPreview.vue'
 
@@ -259,9 +281,16 @@ const uploadedFile = ref(null)
 const uploadedFormatFile = ref(null)
 const uploadedFileName = ref('')
 const uploadedFormatFileName = ref('')
+const conversationId = ref(uuidv4());
+sessionStorage.setItem('conversationId', conversationId.value);
 const showDocPreview = ref(false)
 
-// 处理步骤
+// 切换文档预览折叠状态
+function toggleDocPreview() {
+  showDocPreview.value = !showDocPreview.value
+  const showDocPreviewKey = `showDocPreview-${conversationId.value}`;
+  sessionStorage.setItem(showDocPreviewKey, showDocPreview.value.toString());
+}
 const currentStep = ref(0)
 const processingSteps = ref([
   {
@@ -337,13 +366,19 @@ async function handleFileUpload(event) {
     if (response.data.success) {
       uploadedFile.value = response.data.file_path
       showDocPreview.value = true
-      
+
       // 更新步骤状态
-      processingSteps.value[0].status = 'completed'
-      
+      processingSteps.value[0].status = 'completed';
+
       // 进入下一步
-      currentStep.value = 1
-      
+      currentStep.value = 1;
+
+      const currentStepKey = `currentStep-${conversationId.value}`;
+      const uploadedFileKey = `uploadedFile-${conversationId.value}`;
+      const showDocPreviewKey = `showDocPreview-${conversationId.value}`;
+      sessionStorage.setItem(currentStepKey, currentStep.value.toString());
+      sessionStorage.setItem(uploadedFileKey, uploadedFile.value || '');
+      sessionStorage.setItem(showDocPreviewKey, showDocPreview.value.toString());
       // 显示成功通知
       if (showNotification) {
         showNotification('success', '上传成功', `文件 "${file.name}" 已成功上传`, 3000)
@@ -447,23 +482,14 @@ async function startProcessing() {
     // 更新步骤状态 - 解析文档结构
     processingSteps.value[2].status = 'in_progress'
     
-    // 发送分析请求
-    const response = await axios.post('/api/check-format', {
-      doc_path: uploadedFile.value,
-      format_path: uploadedFormatFile.value || 'default'
-    })
-    
-    // 更新步骤状态
-    processingSteps.value[2].status = 'completed'
-    processingSteps.value[3].status = 'in_progress'
-    
-    // 检查格式规范
+    // 发送分析请求 - 只调用一次check-format API
     const formatResponse = await axios.post('/api/check-format', {
       doc_path: uploadedFile.value,
       format_path: uploadedFormatFile.value || 'default'
     })
     
     // 更新步骤状态
+    processingSteps.value[2].status = 'completed'
     processingSteps.value[3].status = 'completed'
     processingSteps.value[4].status = 'in_progress'
     
@@ -507,7 +533,14 @@ async function startProcessing() {
 // 下载报告
 function downloadReport() {
   // 实现下载报告的逻辑
-  window.location.href = '/api/download-report?doc_path=' + encodeURIComponent(uploadedFile.value)
+  const filename = uploadedFile.value ? uploadedFile.value.split('\\').pop() : '';
+  window.location.href = '/api/download-report?doc_path=' + encodeURIComponent(filename);
+}
+
+function downloadMarkedDocument() {
+  // 实现下载带有错误标记的文档的逻辑
+  const filename = uploadedFile.value ? uploadedFile.value.split('\\').pop() : '';
+  window.location.href = '/api/download-marked-document?doc_path=' + encodeURIComponent(filename);
 }
 
 // 重置处理流程
@@ -525,13 +558,54 @@ function resetProcess() {
   processingSteps.value.forEach(step => {
     step.status = 'pending'
   })
+  const currentStepKey = `currentStep-${conversationId.value}`;
+  const uploadedFileKey = `uploadedFile-${conversationId.value}`;
+  const uploadedFormatFileKey = `uploadedFormatFile-${conversationId.value}`;
+  const showDocPreviewKey = `showDocPreview-${conversationId.value}`;
+
+  // 从 sessionStorage 中恢复状态
+  currentStep.value = parseInt(sessionStorage.getItem(currentStepKey) || '0');
+  uploadedFile.value = sessionStorage.getItem(uploadedFileKey) || null;
+  uploadedFormatFile.value = sessionStorage.getItem(uploadedFormatFileKey) || null;
+  showDocPreview.value = sessionStorage.getItem(showDocPreviewKey) === 'true';
 }
 
+  showDocPreview.value = localStorage.getItem('showDocPreview') === 'true';
 // 组件挂载时
+  console.log('Home.vue mounted', currentStep.value, uploadedFile.value, uploadedFormatFile.value);
+  // 从 localStorage 中恢复状态
+  const currentStepKey = `currentStep-${conversationId.value}`;
+  const uploadedFileKey = `uploadedFile-${conversationId.value}`;
+  const uploadedFormatFileKey = `uploadedFormatFile-${conversationId.value}`;
+  const showDocPreviewKey = `showDocPreview-${conversationId.value}`;
+
+  sessionStorage.setItem(currentStepKey, currentStep.value.toString());
+  sessionStorage.setItem(uploadedFileKey, uploadedFile.value || '');
+  sessionStorage.setItem(uploadedFormatFileKey, uploadedFormatFile.value || '');
+  sessionStorage.setItem(showDocPreviewKey, showDocPreview.value.toString());
+  currentStep.value = parseInt(localStorage.getItem('currentStep') || '0');
+  uploadedFile.value = localStorage.getItem('uploadedFile') || null;
+  uploadedFormatFile.value = localStorage.getItem('uploadedFormatFile') || null;
+  console.log('Home.vue mounted', currentStep.value, uploadedFile.value, uploadedFormatFile.value);
 onMounted(() => {
   // 可以在这里添加初始化逻辑
 })
+onBeforeUnmount(() => {
+  console.log('Home.vue unmounted', currentStep.value, uploadedFile.value, uploadedFormatFile.value);
+  localStorage.setItem('currentStep', currentStep.value.toString());
+  localStorage.setItem('uploadedFile', uploadedFile.value || '');
+  localStorage.setItem('uploadedFormatFile', uploadedFormatFile.value || '');
+  localStorage.setItem('showDocPreview', showDocPreview.value.toString());
+});
 </script>
+const route = useRoute();
+
+watch(
+  () => route.fullPath,
+  (newPath, oldPath) => {
+    console.log('Route changed from', oldPath, 'to', newPath);
+  }
+);
 
 <style scoped>
 /* 自定义滚动条样式 */

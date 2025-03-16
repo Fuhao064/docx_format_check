@@ -623,6 +623,8 @@ def _recursive_check(actual, expected):
             if len(actual_value) > 1:
                 nested_errors.append(f"字段 '{key}' 存在多个值: {actual_value}")
                 continue
+            if len(actual_value) == 0:
+                continue
             actual_value = actual_value[0]  # 取第一个值进行比较
 
         # 递归处理嵌套字典
@@ -755,7 +757,55 @@ def check_format(doc_path:str, required_format:dict, llm:LLMs):
     # 检查引用样式和参考文献
     check_reference_format(doc_path, required_format)
 
-llm = LLMs()
-llm.set_model('qwen-plus')
-required_format = load_config('..//config.json')
-check_format('..//test.docx', required_format, llm)
+def format_check_with_tools(doc_path: str, config_path: str, llm: LLMs):
+    """
+    使用工具函数检查文档格式
+    """
+    # 加载配置
+    required_format = load_config(config_path)
+    
+    # 获取文档信息
+    doc_info = docx_parser.extract_section_info(doc_path)
+    
+    # 初始化段落管理器
+    paragraph_manager = ParagraphManager()
+    paragraph_manager = extract_para_info.extract_para_format_info(doc_path, paragraph_manager)
+    
+    # 重新标记段落类型
+    paragraph_manager = remark_para_type(doc_path, llm)
+    
+    # 收集所有错误
+    errors = []
+    
+    # 检查基本格式
+    paper_errors = check_paper_format(doc_info, required_format)
+    if paper_errors:
+        errors.extend(paper_errors)
+        
+    # 检查段落格式
+    para_errors = check_main_format(paragraph_manager, required_format)
+    if para_errors:
+        errors.extend(para_errors)
+        
+    # 检查表格格式
+    table_errors = check_table_format(doc_path, required_format)
+    if table_errors:
+        errors.extend(table_errors)
+        
+    # 检查图片格式
+    figure_errors = check_figure_format(doc_path, required_format)
+    if figure_errors:
+        errors.extend(figure_errors)
+        
+    # 检查引用格式
+    ref_errors = check_reference_format(doc_path, required_format)
+    if ref_errors:
+        errors.extend(ref_errors)
+    
+    print(f"[LOG] 文件格式检查结果: {errors}")
+    return errors
+
+# llm = LLMs()
+# llm.set_model('qwen-plus')
+# required_format = load_config('..//config.json')
+# check_format('..//test.docx', required_format, llm)

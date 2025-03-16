@@ -6,7 +6,7 @@ from typing import List, Dict, Optional
 import os
 import json
 from format_agent import LLMs
-from format_checker import check_paper_format, remark_para_type, check_format
+from format_checker import check_paper_format, remark_para_type, format_check_with_tools
 from format_editor import format_document
 from datetime import datetime
 
@@ -449,6 +449,8 @@ def check_format_api():
     if not data or 'doc_path' not in data:
         return jsonify({"error": "未提供文档路径"}), 400
     
+    app.logger.info(f"Received check-format request with data: {data}")
+
     try:
         doc_path = data['doc_path']
         format_path = data.get('format_path', 'default')
@@ -457,20 +459,10 @@ def check_format_api():
         execution_steps[2]["status"] = "in_progress"
         socketio.emit('step_update', execution_steps[2])
         
-        # 使用format_checker中的函数检查格式
-        # 先获取段落管理器
-        paragraph_manager = remark_para_type(doc_path, llm)
-        
-        # 检查格式
-        format_errors = []
-        if format_path == 'default':
-            # 使用默认格式检查
-            format_errors = check_paper_format(paragraph_manager.to_dict(), {})
-        else:
-            # 使用指定的格式文件检查
-            with open(format_path, 'r', encoding='utf-8') as f:
-                format_config = json.load(f)
-            format_errors = check_format(paragraph_manager.to_dict(), format_config)
+        # 使用工具函数检查格式
+        format_errors = format_check_with_tools(doc_path, format_path, llm)
+        # 注释掉这行，因为在format_check_with_tools中已经调用了remark_para_type
+        # paragraph_manager = remark_para_type(doc_path, llm) # 保留段落类型标记，以便后续使用
         
         # 更新执行步骤状态
         execution_steps[2]["status"] = "completed"
@@ -480,9 +472,14 @@ def check_format_api():
         # 统一错误信息格式
         formatted_errors = []
         for error in format_errors:
+            if isinstance(error, str):
+                error = {"message": error, "type": "格式错误", "location": "未知位置"}
+            
+            # 确保错误信息包含所有必要字段
             formatted_errors.append({
                 "type": error.get("type", "格式错误"),
                 "location": error.get("location", "未知位置"),
+                "content": error.get("content", ""),
                 "message": error.get("message", "未知错误"),
                 "severity": error.get("severity", "error"),
                 "suggestion": error.get("suggestion", "请检查文档格式")
@@ -494,6 +491,7 @@ def check_format_api():
             "total_errors": len(formatted_errors)
         })
     except Exception as e:
+        app.logger.error(f"Error in check_format_api: {str(e)}", exc_info=True)
         # 更新执行步骤状态为错误
         execution_steps[2]["status"] = "error"
         socketio.emit('step_update', execution_steps[2])
@@ -558,8 +556,9 @@ def download_report():
         return jsonify({"error": "未提供文档路径"}), 400
     
     try:
-        # 构建报告路径
-        report_path = os.path.join(app.config['UPLOAD_FOLDER'], f"report_{os.path.basename(doc_path)}.json")
+        # 构建报告路径 - 只使用文件名部分
+        report_filename = f"report_{os.path.basename(doc_path)}.json"
+        report_path = os.path.join(app.config['UPLOAD_FOLDER'], report_filename)
         
         if not os.path.exists(report_path):
             return jsonify({"error": "报告文件不存在"}), 404
@@ -574,6 +573,72 @@ def download_report():
     except Exception as e:
         return jsonify({
             "error": f"下载报告时出错: {str(e)}"
+        }), 500
+
+# 下载带有错误标记的文档
+@app.route('/api/download-marked-document')
+def download_marked_document():
+    doc_path = request.args.get('doc_path')
+    if not doc_path:
+        return jsonify({"error": "未提供文档路径"}), 400
+    
+    try:
+        # 确保文件路径安全
+        # 检查doc_path是否为有效文件名
+        if os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], doc_path)):
+            original_doc_path = os.path.join(app.config['UPLOAD_FOLDER'], doc_path)
+        else:
+            # 尝试作为文件名处理
+            original_doc_path = os.path.join(app.config['UPLOAD_FOLDER'], os.path.basename(doc_path))
+            
+        if not os.path.exists(original_doc_path):
+            return jsonify({"error": "文档不存在"}), 404
+            
+        # 获取错误报告
+        report_filename = f"report_{os.path.basename(doc_path)}.json"
+        report_path = os.path.join(app.config['UPLOAD_FOLDER'], report_filename)
+        
+        if not os.path.exists(report_path):
+            return jsonify({"error": "错误报告不存在，请先进行格式检查"}), 404
+            
+        # 读取错误报告
+        with open(report_path, 'r', encoding='utf-8') as f:
+            report_data = json.load(f)
+            
+        # 获取错误列表
+        errors = []
+        if 'errors' in report_data:
+            errors = report_data['errors']
+        
+        # 创建带有错误标记的文档
+        from format_editor_with_errors import mark_errors_in_document
+        
+        # 生成带有错误标记的文档路径
+        original_name, ext = os.path.splitext(os.path.basename(doc_path))
+        marked_doc_filename = f"{original_name}_marked{ext}"
+        marked_doc_path = os.path.join(app.config['UPLOAD_FOLDER'], marked_doc_filename)
+        
+        # 确保标记文档的目录存在
+        os.makedirs(os.path.dirname(marked_doc_path), exist_ok=True)
+        
+        # 标记错误并保存文档
+        mark_errors_in_document(original_doc_path, errors, marked_doc_path)
+        
+        # 确认标记文档已生成
+        if not os.path.exists(marked_doc_path):
+            return jsonify({"error": "生成标记文档失败"}), 500
+        
+        # 返回带有错误标记的文档
+        return send_from_directory(
+            os.path.dirname(marked_doc_path),
+            os.path.basename(marked_doc_path),
+            as_attachment=True,
+            download_name=f"格式错误标记_{os.path.basename(doc_path)}"
+        )
+    except Exception as e:
+        app.logger.error(f"下载带有错误标记的文档时出错: {str(e)}", exc_info=True)
+        return jsonify({
+            "error": f"下载带有错误标记的文档时出错: {str(e)}"
         }), 500
 
 # 上传格式文件
