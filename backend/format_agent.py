@@ -5,12 +5,75 @@ from para_type import ParsedParaType
 
 class LLMs:
     def __init__(self, config_path=os.path.abspath(os.path.join(os.path.dirname(__file__), '../keys.json'))):
-            self.config_path = config_path
-            self.models_config = self.load_models_config()
-            self.current_model = None
-            self.client = None
-            self.model = None
-            self.set_model('qwen-plus')  # 默认使用'qwen-plus'模型
+        self.config_path = config_path
+        self.models_config = self.load_models_config()
+        self.current_model = None
+        self.client = None
+        self.model = None
+        self.set_model('qwen-plus')  # 默认使用'qwen-plus'模型
+        self.tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "check_document_format",
+                    "description": "检查文档格式是否符合要求",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "doc_path": {
+                                "type": "string",
+                                "description": "文档路径"
+                            },
+                            "config_path": {
+                                "type": "string", 
+                                "description": "格式配置文件路径"
+                            }
+                        },
+                        "required": ["doc_path", "config_path"]
+                    }
+                }
+            },
+            {
+                "type": "function", 
+                "function": {
+                    "name": "suggest_format_fixes",
+                    "description": "提供文档格式修改建议",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "format_errors": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object"
+                                },
+                                "description": "格式错误列表"
+                            }
+                        },
+                        "required": ["format_errors"]
+                    }
+                }
+            },
+            # 应用格式修改
+            {
+                "type": "function",
+                "function": {
+                    "name": "apply_format_fixes",
+                    "description": "根据建议修改文档格式并保存",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "doc_path": {"type": "string", "description": "文档路径"},
+                            "suggestions": {
+                                "type": "array",
+                                "items": {"type": "object"},
+                                "description": "格式修改建议列表"
+                            }
+                        },
+                        "required": ["doc_path", "suggestions"]
+                    }
+                }
+            }
+        ]
 
     def load_models_config(self):
         with open(self.config_path, 'r') as f:
@@ -133,3 +196,139 @@ class LLMs:
                 "model_name": config['model_name']
             })
         return {"models": models_list}
+
+    def check_document_format(self, arguments):
+        """检查文档格式"""
+        doc_path = arguments["doc_path"]
+        config_path = arguments["config_path"]
+        
+        try:
+            from format_checker import check_format
+            errors = check_format(doc_path, config_path, self)
+            return {"errors": errors}
+        except Exception as e:
+            return {"error": str(e)}
+
+    def suggest_format_fixes(self, arguments):
+        """生成格式修改建议"""
+        format_errors = arguments["format_errors"]
+        suggestions = []
+        
+        for error in format_errors:
+            suggestion = {
+                "location": error.get("location", "未知位置"),
+                "issue": error.get("message", "未知问题"),
+                "fix": self._generate_fix_suggestion(error)
+            }
+            suggestions.append(suggestion)
+            
+        return {"suggestions": suggestions}
+
+    def _generate_fix_suggestion(self, error):
+        """使用LLM生成修改建议"""
+        prompt = f"请针对以下文档格式错误生成修改建议:\n{error}"
+        
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": "你是一个文档格式专家，请提供具体的修改建议。"},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.choices[0].message.content
+
+    def format_check_with_agent(self, doc_path: str, config_path: str):
+        """使用Agent检查文档格式并提供建议"""
+        messages = [
+            {
+                "role": "system",
+                "content": "我是一个文档格式检查助手，可以帮助检查文档格式并提供修改建议。"
+            },
+            {
+                "role": "user",
+                "content": f"请检查文档 {doc_path} 的格式是否符合要求。"
+            }
+        ]
+
+        while True:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                tools=self.tools
+            )
+            
+            assistant_msg = response.choices[0].message
+            
+            if not assistant_msg.tool_calls:
+                return assistant_msg.content
+                
+            messages.append(assistant_msg)
+            
+            for tool_call in assistant_msg.tool_calls:
+                function_name = tool_call.function.name
+                arguments = json.loads(tool_call.function.arguments)
+                
+                if function_name == "check_document_format":
+                    result = self.check_document_format(arguments)
+                elif function_name == "suggest_format_fixes":
+                    result = self.suggest_format_fixes(arguments)
+                    
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": json.dumps(result)
+                })
+                
+def apply_format_fixes(self, arguments):
+        """根据建议修改文档格式"""
+        doc_path = arguments["doc_path"]
+        suggestions = arguments["suggestions"]
+
+        try:
+            from format_editor import FormatEditor  # 假设 FormatEditor 在 format_editor.py 中
+
+            # 初始化 FormatEditor
+            editor = FormatEditor(doc_path)
+
+            # 遍历建议并应用修改
+            for suggestion in suggestions:
+                location = suggestion.get("location", "未知位置")
+                issue = suggestion.get("issue", "未知问题")
+                fix = suggestion.get("fix", "未知修复建议")
+
+                # 简单的示例逻辑：根据建议修改段落格式
+                # 这里假设 location 是段落索引（需要根据实际情况调整）
+                try:
+                    para_index = int(location) if location.isdigit() else None
+                    if para_index is not None and 0 <= para_index < len(editor.doc.paragraphs):
+                        paragraph = editor.doc.paragraphs[para_index]
+
+                        # 根据 fix 解析并应用格式（示例）
+                        if "字体大小" in issue or "font size" in issue:
+                            size_match = re.search(r"(\d+(\.\d+)?)(pt|磅)", fix)
+                            if size_match:
+                                size = float(size_match.group(1))
+                                para_config = {
+                                    "fonts": {"size": size}
+                                }
+                                editor.apply_format_to_paragraph(paragraph, para_config)
+                        elif "对齐" in issue or "alignment" in issue:
+                            if "居中" in fix or "center" in fix:
+                                para_config = {"paragraph_format": {"alignment": "center"}}
+                                editor.apply_format_to_paragraph(paragraph, para_config)
+                            elif "左对齐" in fix or "left" in fix:
+                                para_config = {"paragraph_format": {"alignment": "left"}}
+                                editor.apply_format_to_paragraph(paragraph, para_config)
+
+                        # 可以根据需要扩展更多的格式修改逻辑
+
+                except ValueError:
+                    # 如果 location 不是有效的段落索引，跳过
+                    continue
+
+            # 保存修改后的文档
+            editor.save()
+            return {"status": "success", "message": f"文档 {doc_path} 已根据建议修改并保存"}
+
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
