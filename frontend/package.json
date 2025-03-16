@@ -10,6 +10,7 @@
   "dependencies": {
     "@headlessui/vue": "^1.7.14",
     "@heroicons/vue": "^2.0.18",
+    "@primeuix/themes": "^1.0.0",
     "@tanstack/vue-table": "^8.21.2",
     "@vue-office/docx": "^1.6.3",
     "@vueuse/core": "^10.11.1",
@@ -19,6 +20,7 @@
     "lucide-vue-next": "^0.479.0",
     "mammoth": "^1.9.0",
     "pinia": "^2.0.36",
+    "primevue": "^4.3.2",
     "radix-vue": "^1.9.17",
     "reka-ui": "^2.0.2",
     "tailwind-merge": "^3.0.2",

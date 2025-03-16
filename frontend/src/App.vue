@@ -1,20 +1,20 @@
 <template>
-  <div class="min-h-screen flex" :class="isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-gray-50 text-black'">
+  <div class="min-h-screen flex" :class="isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'">
     <!-- 侧边栏 -->
     <aside 
       class="h-screen flex flex-col transition-all duration-300 overflow-hidden fixed z-10"
       :class="[
-        isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-gray-200',
+        isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200',
         'border-r',
         sidebarCollapsed ? 'w-12' : 'w-64'
       ]"
     >
       <!-- 顶部Logo和标题 -->
-      <div class="p-4 flex items-center" :class="isDarkMode ? 'border-zinc-800' : 'border-gray-200'">
+      <div class="p-4 flex items-center" :class="isDarkMode ? 'border-slate-700' : 'border-slate-200'">
         <div v-if="!sidebarCollapsed" class="w-8 h-8 rounded-md flex items-center justify-center mr-3"
-          :class="isDarkMode ? 'bg-zinc-800' : 'bg-gray-100'">
+          :class="isDarkMode ? 'bg-slate-700' : 'bg-slate-100'">
           <!-- 占位Logo -->
-          <div class="w-5 h-5" :class="isDarkMode ? 'text-zinc-300' : 'text-gray-600'">
+          <div class="w-5 h-5" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
               <path d="M2 17l10 5 10-5"></path>
@@ -27,7 +27,7 @@
         <!-- 折叠按钮 -->
         <button 
           @click="toggleSidebar" 
-          :class="isDarkMode ? 'text-zinc-400 hover:text-zinc-100' : 'text-gray-400 hover:text-gray-600'"
+          :class="isDarkMode ? 'text-slate-400 hover:text-slate-100' : 'text-slate-400 hover:text-slate-600'"
           class="ml-auto transition-colors sidebar-toggle-button"
         >
           <svg v-if="!sidebarCollapsed" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -45,7 +45,7 @@
           @click="createNewChat"
           class="w-full flex items-center justify-center gap-2 rounded-md py-2 transition-colors"
           :class="[
-            isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900',
+            isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white',
             sidebarCollapsed ? 'px-0' : 'px-3'
           ]"
         >
@@ -65,8 +65,8 @@
           class="flex items-center px-3 py-2 mx-2 rounded-md cursor-pointer transition-colors"
           :class="[
             currentChat && currentChat.id === chat.id 
-              ? isDarkMode ? 'bg-zinc-800 text-white' : 'bg-gray-100 text-black'
-              : isDarkMode ? 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100' : 'text-gray-700 hover:bg-gray-100 hover:text-black'
+              ? isDarkMode ? 'bg-blue-600/20 text-blue-100' : 'bg-blue-50 text-blue-900'
+              : isDarkMode ? 'text-slate-300 hover:bg-slate-700 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           ]"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
@@ -77,7 +77,7 @@
       </div>
       
       <!-- 底部菜单 -->
-      <div :class="[isDarkMode ? 'border-zinc-800' : 'border-gray-200', 'border-t py-2']">
+      <div :class="[isDarkMode ? 'border-slate-700' : 'border-slate-200', 'border-t py-2']">
         <router-link 
           v-for="item in menuItems" 
           :key="item.id" 
@@ -86,8 +86,8 @@
           :class="[
             sidebarCollapsed ? 'justify-center py-2 mx-2' : 'px-3 py-2 mx-2',
             route.path === item.href && currentChat === null
-              ? isDarkMode ? 'bg-zinc-800 text-white' : 'bg-gray-100 text-black'
-              : isDarkMode ? 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100' : 'text-gray-700 hover:bg-gray-100 hover:text-black'
+              ? isDarkMode ? 'bg-blue-600/20 text-blue-100' : 'bg-blue-50 text-blue-900'
+              : isDarkMode ? 'text-slate-300 hover:bg-slate-700 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           ]"
         >
           <div class="w-5 h-5 flex items-center justify-center">
@@ -111,7 +111,7 @@
         v-if="notification.show" 
         class="flex-shrink-0 w-80 overflow-hidden transition-all duration-300 transform rounded-lg shadow-lg"
         :class="[
-          isDarkMode ? 'bg-zinc-800 border-zinc-700' : 'bg-white border-gray-200',
+          isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200',
           'border',
           notification.show ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
         ]"
@@ -129,18 +129,18 @@
             </svg>
           </div>
           <div class="ml-3 w-0 flex-1">
-            <p class="text-sm font-medium" :class="isDarkMode ? 'text-zinc-100' : 'text-gray-900'">{{ notification.title }}</p>
-            <p class="mt-1 text-sm" :class="isDarkMode ? 'text-zinc-400' : 'text-gray-500'">{{ notification.message }}</p>
+            <p class="text-sm font-medium" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ notification.title }}</p>
+            <p class="mt-1 text-sm" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">{{ notification.message }}</p>
           </div>
           <div class="ml-4 flex-shrink-0 flex">
-            <button @click="closeNotification" class="inline-flex transition-colors" :class="isDarkMode ? 'text-zinc-400 hover:text-zinc-100' : 'text-gray-400 hover:text-gray-600'">
+            <button @click="closeNotification" class="inline-flex transition-colors" :class="isDarkMode ? 'text-slate-400 hover:text-slate-100' : 'text-slate-400 hover:text-slate-600'">
               <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
               </svg>
             </button>
           </div>
         </div>
-        <div :class="isDarkMode ? 'bg-zinc-700' : 'bg-gray-200'" class="h-1" :style="{ width: `${notification.progress}%` }"></div>
+        <div :class="isDarkMode ? 'bg-slate-700' : 'bg-slate-200'" class="h-1" :style="{ width: `${notification.progress}%` }"></div>
       </div>
     </div>
   </div>
@@ -409,16 +409,16 @@ provide('toggleTheme', toggleTheme)
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  background: #18181b;
+  background: transparent;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: #3f3f46;
+  background-color: rgba(59, 130, 246, 0.5);
   border-radius: 2px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: #52525b;
+  background-color: rgba(59, 130, 246, 0.8);
 }
 
 /* 添加页面过渡动画 */
