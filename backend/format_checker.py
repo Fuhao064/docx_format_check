@@ -7,6 +7,11 @@ from para_type import ParagraphManager,ParsedParaType
 import os,concurrent,re
 def load_config(config_path: str) -> Dict:
     """加载JSON配置文件"""
+    print(f"[LOG] 当前工作目录: {os.getcwd()}")
+    config_path_full = os.path.abspath(config_path)
+    print(f"[LOG] 尝试加载配置文件: {config_path_full}")
+    if not os.path.exists(config_path_full):
+        print(f"[LOG] 配置文件不存在: {config_path_full}")
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -212,6 +217,7 @@ def _check_gbt_references(references: List[str], standard: str) -> List[str]:
         elif '[EB/OL]' in ref:  # 电子资源
             if not _check_electronic_format(ref, standard):
                 errors.append(f"参考文献 #{i+1} 电子资源格式不符合{standard}标准")
+        else :errors.append(f"不符合的参考文献类型: {ref}")
     
     return errors
 
@@ -552,6 +558,10 @@ def check_main_format(paragraph_manager, required_format):
         para_type = para.get("type")
         para_meta = para.get("meta", {})
         required_meta = required_format.get(para_type, {})
+        
+        # 如果段落类型为other，则跳过格式检查
+        if para_type == "other":
+            continue
 
         # 遍历要求格式中的每个字段
         for key, expected in required_meta.items():
@@ -711,6 +721,11 @@ def remark_para_type(doc_path: str, llm: LLMs) -> ParagraphManager:
     return paragraph_manager
 
 def check_format(doc_path:str, required_format:dict, llm:LLMs):
+    print(f"[LOG] 当前工作目录: {os.getcwd()}")
+    doc_path_full = os.path.abspath(doc_path)
+    print(f"[LOG] 尝试打开文档: {doc_path_full}")
+    if not os.path.exists(doc_path_full):
+        print(f"[LOG] 文档文件不存在: {doc_path_full}")
     doc_info = docx_parser.extract_section_info(doc_path)
     # 初始化段落管理器
     paragraph_manager = ParagraphManager()
@@ -740,7 +755,7 @@ def check_format(doc_path:str, required_format:dict, llm:LLMs):
     # 检查引用样式和参考文献
     check_reference_format(doc_path, required_format)
 
-# llm = LLMs()
-# llm.set_model('deepseek-r1')
-# required_format = load_config('../config.json')
-# check_format('../test.docx', required_format, llm)
+llm = LLMs()
+llm.set_model('qwen-plus')
+required_format = load_config('..//config.json')
+check_format('..//test.docx', required_format, llm)
