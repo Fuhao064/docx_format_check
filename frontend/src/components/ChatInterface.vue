@@ -31,6 +31,39 @@
     
     <!-- 聊天界面 -->
     <div v-else class="flex-1 flex flex-col overflow-hidden">
+      <!-- 顶部状态/结果区域 - 可折叠 -->
+      <StatusResultArea 
+        :title="'处理状态'" 
+        :error-count="formatErrors.length" 
+        :initial-expanded="false"
+        class="mx-4 mt-4"
+      >
+        <div v-if="formatErrors.length > 0" class="space-y-2">
+          <div v-for="(error, index) in formatErrors" :key="index" class="p-2 rounded-lg" :class="isDarkMode ? 'bg-red-900/20' : 'bg-red-50'">
+            <div class="flex items-start">
+              <div class="flex-shrink-0 mt-0.5">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="isDarkMode ? 'text-red-400' : 'text-red-500'">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+              </div>
+              <div class="ml-2">
+                <p :class="isDarkMode ? 'text-red-300' : 'text-red-700'">{{ error.message }}</p>
+                <p class="text-sm mt-1" :class="isDarkMode ? 'text-zinc-400' : 'text-gray-600'">{{ error.location }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-else class="flex items-center justify-center py-4">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" :class="isDarkMode ? 'text-green-400' : 'text-green-500'" class="mr-2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          <span :class="isDarkMode ? 'text-zinc-300' : 'text-gray-700'">文档处理正常，未发现格式问题</span>
+        </div>
+      </StatusResultArea>
+      
       <!-- 消息区域 -->
       <div class="flex-1 overflow-y-auto p-4 space-y-4" ref="messagesContainer">
         <!-- 欢迎消息 -->
@@ -57,10 +90,16 @@
           v-for="(message, index) in messages" 
           :key="index"
           :class="[
-            'flex',
-            message.sender === 'user' ? 'justify-end' : 'justify-start'
+            'flex flex-col',
+            message.sender === 'user' ? 'items-end' : 'items-start',
+            'mb-4' // 增加行间距
           ]"
         >
+          <!-- 时间戳 -->
+          <div class="text-xs opacity-60 mb-1" :class="isDarkMode ? 'text-zinc-500' : 'text-gray-500'">
+            {{ formatTimestamp(message.timestamp) }}
+          </div>
+          
           <div 
             :class="[
               'max-w-3/4 rounded-lg p-3',
@@ -131,6 +170,7 @@
 import { ref, computed, onMounted, inject, watch, nextTick } from 'vue'
 import axios from 'axios'
 import { io } from 'socket.io-client'
+import StatusResultArea from './StatusResultArea.vue'
 
 // 获取主题模式
 const isDarkMode = inject('isDarkMode')
@@ -143,6 +183,9 @@ const fileInput = ref(null)
 const hasUploadedFile = ref(false)
 const uploadedFile = ref(null)
 const uploadedFileName = ref('')
+
+// 格式错误信息
+const formatErrors = ref([])
 
 // 检查是否有已上传的文件（从localStorage恢复状态）
 onMounted(() => {
@@ -262,6 +305,7 @@ async function sendMessage(suggestionText) {
     const response = await axios.post('/api/send-message', {
       message: messageText,
       file_path: uploadedFile.value,
+      file_name: uploadedFileName.value,
       timestamp: new Date().toISOString()
     })
     
@@ -330,6 +374,13 @@ function formatMessage(content) {
   content = content.replace(/\n/g, '<br>')
   
   return content
+}
+
+// 格式化时间戳
+function formatTimestamp(timestamp) {
+  if (!timestamp) return ''
+  const date = new Date(timestamp)
+  return date.toLocaleTimeString()
 }
 
 // 滚动到底部

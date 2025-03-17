@@ -5,19 +5,6 @@
       <h1 class="text-xl font-semibold">多Agent文档处理系统</h1>
       <div class="flex items-center space-x-2">
         <button 
-          @click="toggleDocPreview"
-          class="p-2 rounded-md transition-colors"
-          :class="isDarkMode ? 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100' : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
-            <polyline points="10 9 9 9 8 9"></polyline>
-          </svg>
-        </button>
-        <button 
           @click="toggleDarkMode"
           class="p-2 rounded-md transition-colors"
           :class="isDarkMode ? 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100' : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'"
@@ -40,38 +27,56 @@
       </div>
     </div>
     
-    <!-- 主内容区域 -->
-    <div class="flex-1 flex overflow-hidden">
-      <!-- 聊天界面 -->
-      <div :class="['flex-1 flex flex-col overflow-hidden', showDocPreview ? 'w-1/2' : 'w-full']">
-        <ChatInterface />
-      </div>
-      
-      <!-- 文档预览区域 -->
-      <div 
-        v-if="showDocPreview && uploadedFile"
-        class="w-1/2 border-l flex flex-col overflow-hidden"
-        :class="isDarkMode ? 'border-zinc-800' : 'border-gray-200'"
-      >
-        <div class="flex items-center justify-between p-3 border-b" :class="isDarkMode ? 'border-zinc-800' : 'border-gray-200'">
-          <h3 class="font-medium truncate" :class="isDarkMode ? 'text-zinc-100' : 'text-gray-900'">
-            {{ uploadedFileName || '文档预览' }}
-          </h3>
-          <button 
-            @click="toggleDocPreview"
-            class="p-1 rounded-md transition-colors"
-            :class="isDarkMode ? 'hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100' : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m15 18-6-6 6-6"></path>
-            </svg>
-          </button>
-        </div>
+    <!-- 主内容区域 - 使用ResizablePanel组件 -->
+    <div class="flex-1 overflow-hidden">
+      <ResizablePanel :initial-left-width="60" @resize="handleResize" @maximize="handleMaximize">
+        <!-- 左侧面板 - 聊天界面 -->
+        <template #left>
+          <div class="h-full flex flex-col overflow-hidden">
+            <!-- Agent标签页 -->
+            <AgentTabs 
+              :agents="agents" 
+              :initial-agent-id="activeAgentId"
+              @agent-change="handleAgentChange"
+              @collaboration-start="startCollaboration"
+            >
+              <!-- 结构Agent -->
+              <template #structure>
+                <ChatInterface />
+              </template>
+              
+              <!-- 格式Agent -->
+              <template #format>
+                <ChatInterface />
+              </template>
+              
+              <!-- 合规Agent -->
+              <template #compliance>
+                <ChatInterface />
+              </template>
+              
+              <!-- 协作模式 -->
+              <template #collaboration>
+                <ChatInterface />
+              </template>
+            </AgentTabs>
+          </div>
+        </template>
         
-        <div class="flex-1 overflow-hidden">
-          <DocxPreview :file-path="uploadedFile" />
-        </div>
-      </div>
+        <!-- 右侧面板 - 文档预览 -->
+        <template #right-title>
+          {{ uploadedFileName || '文档预览' }}
+        </template>
+        
+        <template #right>
+          <div class="h-full overflow-hidden">
+            <DocxPreview v-if="uploadedFile" :file-path="uploadedFile" />
+            <div v-else class="h-full flex items-center justify-center" :class="isDarkMode ? 'text-zinc-500' : 'text-gray-400'">
+              <p>请先上传文档</p>
+            </div>
+          </div>
+        </template>
+      </ResizablePanel>
     </div>
   </div>
 </template>
@@ -80,6 +85,8 @@
 import { ref, inject, provide } from 'vue'
 import ChatInterface from '../components/ChatInterface.vue'
 import DocxPreview from '../components/DocxPreview.vue'
+import ResizablePanel from '../components/ResizablePanel.vue'
+import AgentTabs from '../components/AgentTabs.vue'
 
 // 获取主题模式
 const isDarkMode = inject('isDarkMode', ref(true))
@@ -88,13 +95,48 @@ const isDarkMode = inject('isDarkMode', ref(true))
 provide('isDarkMode', isDarkMode)
 
 // 文档预览状态
-const showDocPreview = ref(true)
 const uploadedFile = ref(null)
 const uploadedFileName = ref('')
 
-// 切换文档预览
-function toggleDocPreview() {
-  showDocPreview.value = !showDocPreview.value
+// Agent相关
+const activeAgentId = ref('structure')
+const agents = [
+  {
+    id: 'structure',
+    name: '结构Agent',
+    bgColor: 'bg-green-500'
+  },
+  {
+    id: 'format',
+    name: '格式Agent',
+    bgColor: 'bg-blue-500'
+  },
+  {
+    id: 'compliance',
+    name: '合规Agent',
+    bgColor: 'bg-orange-500'
+  }
+]
+
+// 处理面板调整
+function handleResize(newLeftWidth) {
+  console.log('面板宽度调整为:', newLeftWidth)
+}
+
+// 处理最大化
+function handleMaximize(isMaximized) {
+  console.log('面板最大化状态:', isMaximized)
+}
+
+// 处理Agent切换
+function handleAgentChange(agentId) {
+  activeAgentId.value = agentId
+  console.log('切换到Agent:', agentId)
+}
+
+// 启动协作模式
+function startCollaboration() {
+  console.log('启动协作模式')
 }
 
 // 切换暗黑模式
@@ -103,9 +145,14 @@ function toggleDarkMode() {
 }
 
 // 监听文件上传事件
-provide('onFileUploaded', (filePath, fileName) => {
+provide('onFileUploaded', (filePath, fileName, colorClass) => {
   uploadedFile.value = filePath
   uploadedFileName.value = fileName
-  showDocPreview.value = true
+  
+  // 更新App.vue中的聊天历史
+  const updateChatHistory = inject('updateChatHistory', null)
+  if (updateChatHistory) {
+    updateChatHistory(fileName, colorClass)
+  }
 })
 </script>
