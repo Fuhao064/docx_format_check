@@ -59,17 +59,27 @@ def send_message():
         # 使用Agent管理器处理用户消息
         system_reply = agent_manager.process_user_message(data['message'])
         
+        # 获取文件路径信息
+        file_path = data.get('file_path')
+        file_name = None
+        if file_path:
+            file_name = os.path.basename(file_path)
+        
         # 保存消息历史
         timestamp = data.get('timestamp') or datetime.now().isoformat()
         user_message = {
             "sender": "user",
             "content": data['message'],
-            "timestamp": timestamp
+            "timestamp": timestamp,
+            "file_path": file_path,
+            "file_name": file_name
         }
         system_message = {
             "sender": "system",
             "content": system_reply,
-            "timestamp": timestamp
+            "timestamp": timestamp,
+            "file_path": file_path,
+            "file_name": file_name
         }
         
         messages.append(user_message)
@@ -80,7 +90,8 @@ def send_message():
         
         return jsonify({
             "reply": system_reply,
-            "timestamp": timestamp
+            "timestamp": timestamp,
+            "file_name": file_name
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -107,11 +118,15 @@ def upload_files():
             # 通过WebSocket广播更新
             socketio.emit('execution_step_update', execution_steps[0])
             
+            # 创建一个新的聊天会话记录
+            chat_id = len(messages) // 2 + 1 if messages else 1
+            
             return jsonify({
                 "success": True,
                 "message": "文件上传成功",
                 "file_path": file_path,
-                "filename": filename
+                "filename": filename,
+                "chat_id": chat_id
             })
         else:
             return jsonify({

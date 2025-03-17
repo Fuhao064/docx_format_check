@@ -65,10 +65,18 @@
               : isDarkMode ? 'text-slate-300 hover:bg-slate-700 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
           ]"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-          </svg>
-          <span class="truncate" v-if="!sidebarCollapsed">{{ chat.title }}</span>
+          <div class="flex items-center space-x-2 w-full">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <div class="flex-1 overflow-hidden" v-if="!sidebarCollapsed">
+              <div class="flex items-center">
+                <span class="truncate">{{ chat.title }}</span>
+                <span v-if="chat.docName" class="ml-1 text-xs px-1.5 py-0.5 rounded-full" :class="chat.colorClass || 'bg-green-500/20 text-green-400'">{{ chat.docName }}</span>
+              </div>
+              <div v-if="chat.timestamp" class="text-xs opacity-60 mt-0.5">{{ new Date(chat.timestamp).toLocaleTimeString() }}</div>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -78,7 +86,7 @@
           v-for="item in menuItems" 
           :key="item.id" 
           :to="item.href"
-          class="flex items-center transition-colors rounded-md"
+          class="flex items-center transition-colors rounded-md group relative"
           :class="[
             sidebarCollapsed ? 'justify-center py-2 mx-2' : 'px-3 py-2 mx-2',
             route.path === item.href && currentChat === null
@@ -89,17 +97,36 @@
           <div class="w-5 h-5 flex items-center justify-center">
             <component :is="item.icon" />
           </div>
-          <span class="ml-2 truncate" v-if="!sidebarCollapsed">{{ item.name[currentLanguage] }}</span>
+          <span class="ml-3 truncate" v-if="!sidebarCollapsed">{{ item.name[currentLanguage] }}</span>
+          <!-- 悬停提示 -->
+          <div v-if="sidebarCollapsed" class="absolute left-full ml-2 px-2 py-1 bg-black bg-opacity-80 text-white text-xs rounded pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
+            {{ item.name[currentLanguage] }}
+          </div>
         </router-link>
+        <div :class="[isDarkMode ? 'border-slate-700' : 'border-slate-200', 'border-t py-2 flex items-center justify-between px-3 mx-2 rounded-md']">
+          <span class="truncate">{{ isDarkMode ? '深色模式' : '浅色模式' }}</span>
+          <label class="inline-flex relative items-center cursor-pointer">
+            <input type="checkbox" value="" class="sr-only peer" @change="toggleTheme" :checked="isDarkMode">
+            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
       </div>
     </aside>
 
 
     <!-- 主内容区域 -->
     <main class="flex-1 flex flex-col h-screen overflow-auto transition-all duration-300" :class="sidebarCollapsed ? 'ml-12' : 'ml-64'">
-      <router-view />
+      <div class="flex-1 flex flex-col overflow-hidden">
+        <!-- 根据路由显示对应组件 -->
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
+      </div>
     </main>
     
+  
     <!-- 通知容器 -->
     <div class="fixed top-4 right-4 flex flex-row-reverse items-start gap-4 z-50">
       <!-- 通知组件 -->
@@ -120,8 +147,8 @@
             <svg v-else-if="notification.type === 'error'" class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
             </svg>
-            <svg v-else class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z" clip-rule="evenodd" />
+            <svg v-else class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z" clip-rule="evenodd" />
             </svg>
           </div>
           <div class="ml-3 w-0 flex-1">
@@ -172,20 +199,6 @@ const ModelsIcon = h('svg', {
   h('path', { d: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z' }),
   h('polyline', { points: '3.29 7 12 12 20.71 7' }),
   h('line', { x1: '12', y1: '22', x2: '12', y2: '12' })
-])
-
-const ChatIcon = h('svg', {
-  xmlns: 'http://www.w3.org/2000/svg',
-  width: '20',
-  height: '20',
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  'stroke-width': '2',
-  'stroke-linecap': 'round',
-  'stroke-linejoin': 'round'
-}, [
-  h('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' })
 ])
 
 const FormatIcon = h('svg', {
@@ -274,6 +287,27 @@ const menuItems = [
     icon: FormatIcon
   },
   {
+    id: 'agents',
+    name: {
+      'zh-CN': 'Agent中心',
+      'en-US': 'Agents'
+    },
+    href: '/agents',
+    icon: h('svg', {
+      xmlns: 'http://www.w3.org/2000/svg',
+      width: '20',
+      height: '20',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'currentColor',
+      'stroke-width': '2',
+      'stroke-linecap': 'round',
+      'stroke-linejoin': 'round'
+    }, [
+      h('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' })
+    ])
+  },
+  {
     id: 'help',
     name: {
       'zh-CN': '帮助',
@@ -291,15 +325,6 @@ const menuItems = [
     href: '/about',
     icon: AboutIcon
   },
-  {
-    id: 'settings',
-    name: {
-      'zh-CN': '设置',
-      'en-US': 'Settings'
-    },
-    href: '/settings',
-    icon: SettingsIcon
-  }
 ]
 
 // 语言设置
@@ -317,8 +342,8 @@ function toggleSidebar() {
 
 // 聊天历史
 const chatHistory = ref([
-  { id: 1, title: '文档格式分析 #1' },
-  { id: 2, title: '论文格式检查 #2' }
+  { id: 1, title: '文档格式分析 #1', docName: '望色.docx', colorClass: 'bg-green-500/20 text-green-400', timestamp: new Date().toISOString() },
+  { id: 2, title: '论文格式检查 #2', docName: 'test.docx', colorClass: 'bg-blue-500/20 text-blue-400', timestamp: new Date().toISOString() }
 ])
 
 // 当前聊天
@@ -338,7 +363,8 @@ function createNewChat() {
   console.log('创建新对话');
   const newChat = {
     id: chatHistory.value.length + 1,
-    title: `新对话 #${chatHistory.value.length + 1}`
+    title: `新对话 #${chatHistory.value.length + 1}`,
+    timestamp: new Date().toISOString()
   }
   chatHistory.value.push(newChat)
   selectChat(newChat)
@@ -400,9 +426,24 @@ function closeNotification() {
   notification.value.timeout = null
 }
 
-// 提供通知函数给子组件
+// 更新当前聊天的文档信息
+function updateChatHistory(docName, colorClass) {
+  if (currentChat.value) {
+    currentChat.value.docName = docName
+    currentChat.value.colorClass = colorClass
+    
+    // 更新聊天历史中对应的项
+    const chatIndex = chatHistory.value.findIndex(chat => chat.id === currentChat.value.id)
+    if (chatIndex !== -1) {
+      chatHistory.value[chatIndex] = {...currentChat.value}
+    }
+  }
+}
+
+// 提供函数给子组件
 provide('showNotification', showNotification)
 provide('currentLanguage', currentLanguage)
+provide('updateChatHistory', updateChatHistory)
 
 // 切换主题
 function toggleTheme() {
