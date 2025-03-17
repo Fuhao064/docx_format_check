@@ -174,6 +174,20 @@ const ModelsIcon = h('svg', {
   h('line', { x1: '12', y1: '22', x2: '12', y2: '12' })
 ])
 
+const ChatIcon = h('svg', {
+  xmlns: 'http://www.w3.org/2000/svg',
+  width: '20',
+  height: '20',
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  'stroke-width': '2',
+  'stroke-linecap': 'round',
+  'stroke-linejoin': 'round'
+}, [
+  h('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' })
+])
+
 const FormatIcon = h('svg', {
   xmlns: 'http://www.w3.org/2000/svg',
   width: '20',
@@ -321,14 +335,15 @@ function selectChat(chat) {
 
 // 创建新聊天
 function createNewChat() {
+  console.log('创建新对话');
   const newChat = {
     id: chatHistory.value.length + 1,
     title: `新对话 #${chatHistory.value.length + 1}`
   }
   chatHistory.value.push(newChat)
   selectChat(newChat)
-  // 确保跳转到首页显示新对话
-  router.push('/')
+  // 确保跳转到聊天页面
+  router.push('/chat')
 }
 
 // 通知系统

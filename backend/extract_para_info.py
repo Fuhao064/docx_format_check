@@ -4,6 +4,12 @@ import json, re
 from para_type import ParsedParaType, ParagraphManager
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
+from utils import (
+    get_alignment_string, 
+    is_font_dict_empty, 
+    merge_font_dictionaries, 
+    is_all_caps_string
+)
 
 def extract_para_format_from_style(style)-> dict:
     # 获取段落样式
@@ -154,11 +160,11 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
         
         # 解析XML中的字体信息
         fonts_from_xml = extract_font_info_from_xml(xml_data)
-        if font_dict_is_empty(fonts_from_xml):
+        if is_font_dict_empty(fonts_from_xml):
             fonts_from_xml = extract_font_info_from_xml(style_xml_data)
         
         # 合并字体信息
-        fonts = merge_font_info(fonts_from_runs, fonts_from_xml)
+        fonts = merge_font_dictionaries(fonts_from_runs, fonts_from_xml)
         
         # 将字体信息添加到元数据
         meta_data["fonts"] = fonts
@@ -265,7 +271,7 @@ def extract_font_info_from_runs(runs: list) -> dict:
             
             # 提取全大写信息 - 这个属性对整个段落是一致的
             if fonts['isAllcaps'] is None:
-                fonts['isAllcaps'] = is_all_caps(run.text)
+                fonts['isAllcaps'] = is_all_caps_string(run.text)
     
     # 如果没有找到中文字体，但有中文内容，则根据内容判断使用默认中文字体
     if not fonts['zh_family'] and any(re.search(r'[\u4e00-\u9fa5]', run.text) for run in runs if run.text.strip()):
@@ -402,73 +408,7 @@ def find_style_by_name(style_name: str, styles_info: list):
     return None
 
 def analysise_alignment(alignment: int) -> str:
-    if alignment == 0:
-        return "左对齐"
-    elif alignment == 1:
-        return "居中"
-    elif alignment == 2:
-        return "右对齐"
-    elif alignment == 3:
-        return "两端对齐"
-    elif alignment == 4:
-        return "分散对齐"
-    else:
-        return None
-
-def font_dict_is_empty(fonts: dict) -> bool:
-    for font in fonts.values():
-        if font:
-            return False
-    return True
-
-def merge_font_info(fonts_from_runs: dict, fonts_from_xml: dict) -> dict:
-    merged_fonts = {}
-    keys = ['zh_family', 'en_family', 'size', 'color', 'bold', 'italic', 'isAllcaps']
-    
-    for key in keys:
-        if key in ['zh_family', 'en_family', 'size', 'color']:
-            # 合并集合类型，优先使用runs中的值，如果为空则使用xml的值
-            merged_set = set()
-            if fonts_from_runs[key]:
-                merged_set.update(fonts_from_runs[key])
-            if not merged_set and fonts_from_xml[key]:
-                merged_set.update(fonts_from_xml[key])
-            merged_fonts[key] = merged_set
-        elif key in ['bold', 'italic']:
-            # 处理布尔类型集合，当runs中有值时优先使用
-            merged_set = set()
-            if fonts_from_runs[key]:
-                merged_set.update(fonts_from_runs[key])
-            elif fonts_from_xml[key]:
-                merged_set.update(fonts_from_xml[key])
-            
-            # 如果集合为空，默认为False
-            if not merged_set:
-                merged_set.add(False)
-            
-            merged_fonts[key] = merged_set
-        elif key == 'isAllcaps':
-            # isAllcaps是单一值，不是集合
-            if fonts_from_runs[key] is not None:
-                merged_fonts[key] = fonts_from_runs[key]
-            elif fonts_from_xml[key] is not None:
-                merged_fonts[key] = fonts_from_xml[key]
-            else:
-                merged_fonts[key] = False
-        else:
-            # 其他字段直接使用runs的值（如果存在）
-            merged_fonts[key] = fonts_from_runs.get(key, fonts_from_xml.get(key))
-    
-    return merged_fonts
-
-def is_all_caps(string: str) -> bool:
-    # 判断是否全是大写英文字母
-    english_words = re.findall(r'[A-Za-z]+', string)
-    # print(english_words)
-    if(english_words == []):
-        return False
-    # 检查提取出的每个英文单词是否都是大写
-    return all(word.isupper() for word in english_words)
+    return get_alignment_string(alignment)
 
 def split_paragraph(paragraph, split_pos):
     # 获取段落所有 run 并计算总文本

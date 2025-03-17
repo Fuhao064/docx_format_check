@@ -8,6 +8,7 @@ import Help from '../views/Help.vue'
 import Format from '../views/Format.vue'
 import About from '../views/About.vue'
 import Settings from '../views/Settings.vue'
+import Chat from '../views/Chat.vue'
 
 // 定义路由
 const routes = [
@@ -16,7 +17,8 @@ const routes = [
   { path: '/format', name: 'format', component: Format },
   { path: '/help', name: 'help', component: Help },
   { path: '/about', name: 'about', component: About },
-  { path: '/settings', name: 'settings', component: Settings }
+  { path: '/settings', name: 'settings', component: Settings },
+  { path: '/chat', name: 'chat', component: Chat }
 ]
 
 // 创建路由实例

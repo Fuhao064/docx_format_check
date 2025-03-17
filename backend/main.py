@@ -9,6 +9,7 @@ from format_agent import LLMs
 from format_checker import check_paper_format, remark_para_type, format_check_with_tools
 from format_editor import format_document
 from datetime import datetime
+from agent_manager import AgentManager
 
 app = Flask(__name__)
 CORS(app)
@@ -16,6 +17,9 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 # 创建一个全局的LLMs实例
 llm = LLMs()
+
+# 创建一个全局的Agent管理器实例
+agent_manager = AgentManager(llm)
 
 # 配置静态文件服务
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -52,8 +56,8 @@ def send_message():
         return jsonify({"error": "消息不能为空"}), 400
     
     try:
-        # 使用全局的LLMs实例
-        system_reply = "收到您的消息：" + data['message']
+        # 使用Agent管理器处理用户消息
+        system_reply = agent_manager.process_user_message(data['message'])
         
         # 保存消息历史
         timestamp = data.get('timestamp') or datetime.now().isoformat()
@@ -142,34 +146,67 @@ def analyze_document():
         execution_steps[1]["status"] = "in_progress"
         socketio.emit('step_update', execution_steps[1])
         
-        # 使用全局的LLMs实例
-        paragraph_manager = remark_para_type(data['file_path'], llm)
+        # 获取配置文件路径
+        config_path = data.get('config_path', {})
         
-        # 更新状态为完成
-        execution_steps[1]["status"] = "completed"
-        execution_steps[2]["status"] = "in_progress"
+        # 使用Agent管理器进行格式检查
+        result = agent_manager.run_format_check(data['file_path'], config_path)
         
-        socketio.emit('step_update', execution_steps[1])
-        
-        # 检查文档格式
-        format_errors = check_paper_format(paragraph_manager.to_dict(), {})
-        
-        # 更新状态
-        execution_steps[2]["status"] = "completed"
-        execution_steps[3]["status"] = "completed"
-        
-        socketio.emit('step_update', execution_steps[2])
-        
-        return jsonify({
-            "message": "文档分析完成",
-            "errors": format_errors,
-            "paragraphs": paragraph_manager.to_chinese_dict()
-        })
+        if result["success"]:
+            # 更新状态为完成
+            execution_steps[1]["status"] = "completed"
+            execution_steps[2]["status"] = "completed"
+            execution_steps[3]["status"] = "completed"
+            
+            socketio.emit('step_update', execution_steps[1])
+            socketio.emit('step_update', execution_steps[2])
+            socketio.emit('step_update', execution_steps[3])
+            
+            # 发送消息通知
+            message = {
+                "sender": "system",
+                "content": f"文档分析完成，发现了{len(result.get('errors', []))}个格式问题。",
+                "timestamp": datetime.now().isoformat()
+            }
+            messages.append(message)
+            socketio.emit('message', message)
+            
+            return jsonify({
+                "message": "文档分析完成",
+                "errors": result.get("errors", []),
+                "report": result.get("report", ""),
+                "paragraphs": result["paragraph_manager"].to_chinese_dict() if "paragraph_manager" in result else []
+            })
+        else:
+            # 更新状态为错误
+            for step in execution_steps[1:]:
+                if step["status"] == "in_progress":
+                    step["status"] = "error"
+            
+            # 发送错误消息
+            error_message = {
+                "sender": "system",
+                "content": f"文档分析失败: {result.get('error', '未知错误')}",
+                "timestamp": datetime.now().isoformat()
+            }
+            messages.append(error_message)
+            socketio.emit('message', error_message)
+            
+            return jsonify({"error": result.get("error", "文档分析失败")}), 500
     except Exception as e:
         # 更新状态为错误
         for step in execution_steps[1:]:
             if step["status"] == "in_progress":
                 step["status"] = "error"
+        
+        # 发送错误消息
+        error_message = {
+            "sender": "system",
+            "content": f"发生错误: {str(e)}",
+            "timestamp": datetime.now().isoformat()
+        }
+        messages.append(error_message)
+        socketio.emit('message', error_message)
         
         return jsonify({"error": str(e)}), 500
 
