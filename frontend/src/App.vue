@@ -1,10 +1,10 @@
 <template>
-  <div class="min-h-screen flex" :class="isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'">
+<div class="min-h-screen flex" :class="isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'">
     <!-- 侧边栏 -->
     <aside 
       class="h-screen flex flex-col transition-all duration-300 overflow-hidden fixed z-10"
       :class="[
-        isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200',
+        isDarkMode ? 'bg-black border-slate-700' : 'bg-white border-slate-200',
         'border-r',
         sidebarCollapsed ? 'w-12' : 'w-64'
       ]"
@@ -13,14 +13,10 @@
       <div class="p-4 flex items-center" :class="isDarkMode ? 'border-slate-700' : 'border-slate-200'">
         <div v-if="!sidebarCollapsed" class="w-8 h-8 rounded-md flex items-center justify-center mr-3"
           :class="isDarkMode ? 'bg-slate-700' : 'bg-slate-100'">
-          <!-- 占位Logo -->
-          <div class="w-5 h-5" :class="isDarkMode ? 'text-slate-300' : 'text-slate-600'">
-            <img src="@/assets/favicon.ico" alt="Logo" class="w-full h-full" />
-          </div>
+          <img :src="logo" alt="Logo" class="w-full h-full" />
         </div>
         <h1 class="text-lg font-semibold truncate" v-show="!sidebarCollapsed">Putain le format</h1>
         
-        <!-- 折叠按钮 -->
         <button 
           @click="toggleSidebar" 
           :class="isDarkMode ? 'text-slate-400 hover:text-slate-100' : 'text-slate-400 hover:text-slate-600'"
@@ -46,9 +42,12 @@
           ]"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 5v14M5 12h14"></path>
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="9" y1="9" x2="15" y2="9"></line>
+            <line x1="9" y1="13" x2="15" y2="13"></line>
+            <line x1="9" y1="17" x2="15" y2="17"></line>
           </svg>
-          <span v-if="!sidebarCollapsed">新增对话</span>
+          <span v-if="!sidebarCollapsed">新增任务</span>
         </button>
       </div>
       
@@ -66,8 +65,11 @@
           ]"
         >
           <div class="flex items-center space-x-2 w-full">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0" :class="sidebarCollapsed ? 'ml-auto mr-auto' : ''">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="9" y1="9" x2="15" y2="9"></line>
+              <line x1="9" y1="13" x2="15" y2="13"></line>
+              <line x1="9" y1="17" x2="15" y2="17"></line>
             </svg>
             <div class="flex-1 overflow-hidden" v-if="!sidebarCollapsed">
               <div class="flex items-center">
@@ -81,6 +83,7 @@
       </div>
       
       <!-- 底部菜单 -->
+      
       <div :class="[isDarkMode ? 'border-slate-700' : 'border-slate-200', 'border-t py-2']">
         <router-link 
           v-for="item in menuItems" 
@@ -117,7 +120,6 @@
     <!-- 主内容区域 -->
     <main class="flex-1 flex flex-col h-screen overflow-auto transition-all duration-300" :class="sidebarCollapsed ? 'ml-12' : 'ml-64'">
       <div class="flex-1 flex flex-col overflow-hidden">
-        <!-- 根据路由显示对应组件 -->
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
             <component :is="Component" />
@@ -369,7 +371,7 @@ function createNewChat() {
   chatHistory.value.push(newChat)
   selectChat(newChat)
   // 确保跳转到聊天页面
-  router.push('/chat')
+  router.push('/')
 }
 
 // 通知系统
@@ -504,3 +506,4 @@ provide('toggleTheme', toggleTheme)
   height: 100%;
 }
 </style>
+
