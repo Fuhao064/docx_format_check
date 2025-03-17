@@ -9,6 +9,7 @@ import os
 from typing import Dict, List, Union, Optional, Tuple
 from para_type import ParsedParaType, ParagraphManager, ParaInfo
 import re
+from utils import parse_color
 
 class FormatEditorWithErrors:
     """
@@ -37,33 +38,7 @@ class FormatEditorWithErrors:
         self.doc.save(output_path)
     
     def _parse_color(self, color_str: str) -> Tuple[int, int, int]:
-        """
-        解析颜色字符串
-        
-        Args:
-            color_str: 颜色字符串，如"#FF0000"、"red"
-            
-        Returns:
-            RGB颜色元组
-        """
-        # 处理十六进制颜色
-        if color_str.startswith('#'):
-            color_str = color_str.lstrip('#')
-            return tuple(int(color_str[i:i+2], 16) for i in (0, 2, 4))
-        
-        # 处理常见颜色名称
-        color_map = {
-            'black': (0, 0, 0),
-            'white': (255, 255, 255),
-            'red': (255, 0, 0),
-            'green': (0, 255, 0),
-            'blue': (0, 0, 255),
-            'yellow': (255, 255, 0),
-            'purple': (128, 0, 128),
-            'orange': (255, 165, 0),
-            'gray': (128, 128, 128)
-        }
-        return color_map.get(color_str.lower(), (0, 0, 0))  # 默认黑色
+        return parse_color(color_str)
     
     def mark_errors_in_document(self, errors: List[Dict], output_path: Optional[str] = None):
         """

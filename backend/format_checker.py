@@ -5,97 +5,14 @@ from typing import Dict, List, Tuple
 from format_agent import LLMs
 from para_type import ParagraphManager,ParsedParaType
 import os,concurrent,re
-def load_config(config_path: str) -> Dict:
-    """加载JSON配置文件"""
-    print(f"[LOG] 当前工作目录: {os.getcwd()}")
-    config_path_full = os.path.abspath(config_path)
-    print(f"[LOG] 尝试加载配置文件: {config_path_full}")
-    if not os.path.exists(config_path_full):
-        print(f"[LOG] 配置文件不存在: {config_path_full}")
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except FileNotFoundError:
-        print(f"配置文件 {config_path} 未找到，将创建新文件")
-        return {}
-
-def save_config(config_path: str, config: Dict) -> None:
-    """保存配置文件"""
-    with open(config_path, 'w', encoding='utf-8') as f:
-        json.dump(config, f, ensure_ascii=False, indent=4)
-
-def update_config(config_path: str, new_config: Dict) -> None:
-    """深度更新配置文件"""
-    try:
-        current_config = load_config(config_path)
-        # 实现深度更新（示例为简单实现，复杂情况需要递归函数）
-        for key, value in new_config.items():
-            if isinstance(value, dict) and key in current_config:
-                current_config[key].update(value)
-            else:
-                current_config[key] = value
-        save_config(config_path, current_config)
-        print("配置文件更新成功！")
-    except json.JSONDecodeError:
-        print(f"配置文件 {config_path} 格式错误")
-    except Exception as e:
-        print(f"发生错误：{e}")
+from utils import are_values_equal, extract_number_from_string
+from config_utils import load_config, save_config, update_config
 
 def is_value_equal(expected, actual, key):
-    """
-    比较两个值是否相等，考虑特殊情况。
-    """
-    # 特殊处理：字体大小字段
-    if key == "size":
-        expected_value = extract_number(expected)
-        actual_value = extract_number(actual)
-        if expected_value is not None and actual_value is not None:
-            return abs(expected_value - actual_value) <= 0.01  # 允许小误差
-
-    # 转换为小写进行比较（忽略大小写差异）
-    expected_lower = str(expected).lower()
-    actual_lower = str(actual).lower()
-
-    # 如果完全相同（忽略大小写），直接返回 True
-    if expected_lower == actual_lower:
-        return True
-
-    # 特殊处理：颜色字段，忽略 #000000 和 black 的差异
-    if key == "color":
-        if (expected_lower in ["#000000", "black"] and actual_lower in ["#000000", "black"]):
-            return True
-
-    # 特殊处理：布尔值，忽略大小写差异
-    if isinstance(expected, bool) and isinstance(actual, bool):
-        return expected == actual
-
-    # 特殊处理：方向值
-    if key == "orientation":
-        return expected_lower == actual_lower
-
-    # 提取数值进行比较
-    expected_value = extract_number(expected)
-    actual_value = extract_number(actual)
-
-    if expected_value is not None and actual_value is not None:
-        # 对于边距值，允许 0.01 厘米的误差
-        margin_keys = ('top', 'bottom', 'left', 'right')
-        if any(margin_key in key.lower() for margin_key in margin_keys):
-            return abs(expected_value - actual_value) <= 0.01
-
-    # 其他情况直接比较
-    return False
-
+    return are_values_equal(expected, actual, key)
 
 def extract_number(value):
-    """
-    从字符串中提取数值部分。
-    """
-    import re
-    match = re.search(r"[-+]?\d*\.\d+|\d+", str(value))
-    if match:
-        return float(match.group())
-    return None
+    return extract_number_from_string(value)
 
 def check_paper_format(doc_info: Dict, required_format: Dict) -> None:
     paper_required_format = required_format.get('paper', {})
@@ -490,7 +407,7 @@ def _check_figure_number_format(caption_text: str) -> List[str]:
     errors = []
     
     # 匹配图片编号格式：图x-y 或 Figure x-y
-    match = re.search(r'图\s*(\d+)[-－](\d+)|Figure\s*(\d+)[-－](\d+)', caption_text, re.IGNORECASE)
+    match = re.search(r'图\s*(\d+)[-－](\d+)|Figure\s*(\d+)[-－]\d+', caption_text, re.IGNORECASE)
     if not match:
         errors.append(f"图片编号格式不正确，应为'图x-y'或'Figure x-y'格式")
         return errors

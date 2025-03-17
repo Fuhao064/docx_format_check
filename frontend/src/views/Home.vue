@@ -587,22 +587,19 @@ function resetProcess() {
   uploadedFile.value = localStorage.getItem('uploadedFile') || null;
   uploadedFormatFile.value = localStorage.getItem('uploadedFormatFile') || null;
   console.log('Home.vue mounted', currentStep.value, uploadedFile.value, uploadedFormatFile.value);
-onMounted(() => {
-  // 可以在这里添加初始化逻辑
-})
-onBeforeUnmount(() => {
-  console.log('Home.vue unmounted', currentStep.value, uploadedFile.value, uploadedFormatFile.value);
-  localStorage.setItem('currentStep', currentStep.value.toString());
-  localStorage.setItem('uploadedFile', uploadedFile.value || '');
-  localStorage.setItem('uploadedFormatFile', uploadedFormatFile.value || '');
-  localStorage.setItem('showDocPreview', showDocPreview.value.toString());
-});
+  // 若未上传文件，则重置状态
+  if (!uploadedFile.value) {
+    currentStep.value = 0;
+    showDocPreview.value = false;
+  };
 </script>
+
 const route = useRoute();
 
 watch(
   () => route.fullPath,
   (newPath, oldPath) => {
+    
     console.log('Route changed from', oldPath, 'to', newPath);
   }
 );
