@@ -331,17 +331,17 @@ const isLoading = ref(false)
 // 是否需要内容修改建议
 const isneedAdvice = ref(flase)
 // 当前处理的文档
-const currentDocument = ref('')
-
+const currentDocumentPath = ref('')
+// 当前配置文件
+const currentConfigPath = ref('')
 // 处理步骤
 const currentStep = ref(0)
 const processingComplete = ref(false)
 const processingSteps = ref([
     { id: 1, title: '上传文档', description: '上传需要检查格式的文档', status: 'pending' },
     { id: 2, title: '上传格式要求', description: '上传格式要求文档或使用默认格式', status: 'pending' },
-    { id: 3, title: '解析文档结构', description: '分析文档的段落和结构', status: 'pending' },
-    { id: 4, title: '检查格式规范', description: '根据格式要求检查文档格式', status: 'pending' },
-    { id: 5, title: '生成分析报告', description: '生成格式检查报告', status: 'pending' }
+    { id: 3, title: '检查格式规范', description: '根据格式要求检查文档格式', status: 'pending' },
+    { id: 4, title: '生成分析报告', description: '生成格式检查报告', status: 'pending' }
 ])
 
 // 格式错误信息
@@ -414,12 +414,12 @@ async function handleFileUpload(event) {
             processingSteps.value[0].status = 'completed'
             currentStep.value = 1
             // 设置当前处理文档
-            currentDocument.value = response.data.file.filename
+            currentDocumentPath.value = response.data.file.path
             // TODO:侧边消息记录
 
             showNotification('success', '上传成功', `文件 "${file.name}" 已成功上传`, 3000)
             //继续进行下一步
-            Processing(currentDocument.value)
+            Processing(currentDocumentPath.value)
 
         } else {
             throw new Error(response.data.message || '上传失败')
@@ -448,8 +448,15 @@ async function handleFormatUpload(event) {
                 'Content-Type': 'multipart/form-data'
             }
         })
-        //修改步骤信息
-        processingSteps.value[1].status = 'completed'
+        if(response.data.success) {
+            hasUploadedFormat.value = true
+            currentConfigPath.value = response.data.file.file_path
+            processingSteps.value[1].status = 'completed'
+            currentStep.value = 2
+            showNotification('success', '上传成功', `格式要求 "${file.name}" 已成功上传`, 3000)
+        } else {
+            throw new Error(response.data.message || '上传失败')
+        }
     }
     catch (error) {
         console.error('上传格式文件时出错:', error)
@@ -465,13 +472,26 @@ function Processing() {
         // 是否需要内容修改建议，调用 Flask 后端 API
         if (isneedAdvice){
             const response = axios.post('/api/get-advice', {
-            doc_path: currentDocument.value
+            doc_path: currentDocumentPath.value
             })
             // 后端返回的处理结果
             if (response.data.success) {
                 //格式修改建议
                 adviceMessages.value.append(response.data.result)
             }
+        }
+        // 解析文档段落
+        const response = axios.post('/api/check-format', {
+            doc_path: currentDocumentPath.value,
+            config_path: currentConfig.value
+        })
+        // 后端返回的处理结果
+        if (response.data.success) {
+            // 格式错误信息
+            processingSteps.value[2].status = 'completed'
+            currentStep.value = 3
+        } else {
+            throw new Error(response.data.message || '解析失败')
         }
         
     }

@@ -14,17 +14,31 @@ from utils import parse_color
 class FormatEditor:
     """
     文档格式编辑器，用于修改docx文档的格式，包括段落样式、字体样式等
+    支持大模型作为工具函数调用
     """
-    def __init__(self, doc_path: str):
+    def __init__(self, doc_path: str, paragraph_manager: Optional[ParagraphManager] = None):
         """
         初始化格式编辑器
         
         Args:
             doc_path: 文档路径
+            paragraph_manager: 段落管理器，包含已处理好的段落类型信息
         """
         self.doc_path = doc_path
         self.doc = Document(doc_path)
+        self.paragraph_manager = paragraph_manager
         
+        # 如果传入了paragraph_manager，创建段落类型映射
+        self.para_type_map = {}
+        if paragraph_manager:
+            para_infos = paragraph_manager.to_dict()
+            for i, para in enumerate(self.doc.paragraphs):
+                para_content = para.text.strip()
+                for para_info in para_infos:
+                    if para_content == para_info['content'].strip():
+                        self.para_type_map[i] = para_info['type']
+                        break
+    
     def save(self, output_path: Optional[str] = None):
         """
         保存文档
@@ -35,7 +49,8 @@ class FormatEditor:
         if output_path is None:
             output_path = self.doc_path
         self.doc.save(output_path)
-        
+        return output_path
+    
     def set_paper_format(self, paper_config: Dict):
         """
         设置文档纸张格式
@@ -277,13 +292,18 @@ class FormatEditor:
             para_type: 段落类型
             para_config: 段落配置
         """
-        # 遍历文档中的所有段落
-        for paragraph in self.doc.paragraphs:
-            # 这里需要一个判断段落类型的逻辑，可以根据实际情况实现
-            # 简单示例：根据段落文本内容判断类型
-            current_type = self._determine_para_type(paragraph.text)
-            if current_type == para_type:
-                self.apply_format_to_paragraph(paragraph, para_config)
+        # 有paragraph_manager优先使用
+        if self.paragraph_manager:
+            for i, paragraph in enumerate(self.doc.paragraphs):
+                if i in self.para_type_map and self.para_type_map[i] == para_type:
+                    self.apply_format_to_paragraph(paragraph, para_config)
+        else:
+            # 遍历文档中的所有段落
+            for paragraph in self.doc.paragraphs:
+                # 根据段落文本内容判断类型
+                current_type = self._determine_para_type(paragraph.text)
+                if current_type == para_type:
+                    self.apply_format_to_paragraph(paragraph, para_config)
     
     def _determine_para_type(self, text: str) -> str:
         """
@@ -323,43 +343,29 @@ class FormatEditor:
         # 默认为正文
         return ParsedParaType.BODY.value
     
-    def apply_format_with_manager(self, manager: ParagraphManager, config: Dict):
+    def apply_format_with_manager(self, config: Dict):
         """
         使用段落管理器应用格式
         
         Args:
-            manager: 段落管理器
             config: 格式配置
         """
-        # 获取所有段落信息
-        para_infos = manager.to_dict()
-        
-        # 创建段落类型到段落索引的映射
-        para_indices = {}
-        for i, para in enumerate(self.doc.paragraphs):
-            para_indices[para.text.strip()] = i
-        
-        # 应用格式
-        for para_info in para_infos:
-            para_type = para_info['type']
-            content = para_info['content']
+        if not self.paragraph_manager:
+            raise ValueError("需要提供段落管理器才能使用此方法")
             
-            # 查找对应的段落
-            if content.strip() in para_indices:
-                para_index = para_indices[content.strip()]
-                paragraph = self.doc.paragraphs[para_index]
-                
-                # 应用格式
+        # 应用格式
+        for i, paragraph in enumerate(self.doc.paragraphs):
+            if i in self.para_type_map:
+                para_type = self.para_type_map[i]
                 if para_type in config:
                     self.apply_format_to_paragraph(paragraph, config[para_type])
     
-    def apply_config(self, config_path: str, manager: Optional[ParagraphManager] = None):
+    def apply_config(self, config_path: str):
         """
         应用配置文件
         
         Args:
             config_path: 配置文件路径
-            manager: 段落管理器，如果为None则自动判断段落类型
         """
         # 加载配置文件
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -370,19 +376,187 @@ class FormatEditor:
             self.set_paper_format(config['paper'])
         
         # 应用段落格式
-        if manager:
+        if self.paragraph_manager:
             # 使用段落管理器应用格式
-            self.apply_format_with_manager(manager, config)
+            self.apply_format_with_manager(config)
         else:
-            # 自动判断段落类型并应用格式
+            # 判断段落类型并应用格式
             for para_type, para_config in config.items():
                 if para_type != 'paper':  # 排除纸张配置
                     self.apply_format_by_type(para_type, para_config)
         
         # 保存文档
-        self.save()
+        return self.save()
+    
+    # 以下为新增的工具函数，方便大模型调用
+    
+    def get_document_content(self) -> str:
+        """
+        获取文档内容
+        
+        Returns:
+            文档内容字符串
+        """
+        return "\n".join([para.text for para in self.doc.paragraphs])
+    
+    def get_paragraph_content(self, index: int) -> str:
+        """
+        获取指定段落的内容
+        
+        Args:
+            index: 段落索引
+            
+        Returns:
+            段落内容
+        """
+        if 0 <= index < len(self.doc.paragraphs):
+            return self.doc.paragraphs[index].text
+        return ""
+    
+    def modify_paragraph_content(self, index: int, new_content: str) -> bool:
+        """
+        修改指定段落的内容
+        
+        Args:
+            index: 段落索引
+            new_content: 新内容
+            
+        Returns:
+            是否修改成功
+        """
+        if 0 <= index < len(self.doc.paragraphs):
+            # 清除原有内容
+            p = self.doc.paragraphs[index]
+            for run in p.runs:
+                run.text = ""
+            # 添加新内容
+            p.add_run(new_content)
+            return True
+        return False
+    
+    def set_paragraph_alignment(self, index: int, alignment: str) -> bool:
+        """
+        设置段落对齐方式
+        
+        Args:
+            index: 段落索引
+            alignment: 对齐方式，支持 "左对齐", "居中", "右对齐", "两端对齐" 
+                      或 "left", "center", "right", "justify"
+                      
+        Returns:
+            是否设置成功
+        """
+        if 0 <= index < len(self.doc.paragraphs):
+            p = self.doc.paragraphs[index]
+            p.alignment = self._get_alignment_value(alignment)
+            return True
+        return False
+    
+    def set_paragraph_font(self, index: int, font_config: Dict) -> bool:
+        """
+        设置段落字体格式
+        
+        Args:
+            index: 段落索引
+            font_config: 字体配置，如 {"zh_family": "宋体", "en_family": "Times New Roman", 
+                         "size": 12, "bold": True, "italic": False, "color": "黑色"}
+                         
+        Returns:
+            是否设置成功
+        """
+        if 0 <= index < len(self.doc.paragraphs):
+            p = self.doc.paragraphs[index]
+            if not p.runs:
+                run = p.add_run(p.text)
+                self.set_font_format(run, font_config)
+            else:
+                for run in p.runs:
+                    self.set_font_format(run, font_config)
+            return True
+        return False
+    
+    def add_paragraph(self, content: str, position: int = -1) -> int:
+        """
+        添加段落
+        
+        Args:
+            content: 段落内容
+            position: 插入位置，-1表示添加到文档末尾
+            
+        Returns:
+            新段落的索引
+        """
+        if position < 0 or position >= len(self.doc.paragraphs):
+            p = self.doc.add_paragraph(content)
+            return len(self.doc.paragraphs) - 1
+        else:
+            # 在指定位置插入段落
+            p = self.doc.paragraphs[position]
+            new_p = p._element.addnext(docx.oxml.shared.OxmlElement('w:p'))
+            new_p = docx.text.paragraph.Paragraph(new_p, p._parent)
+            new_p.add_run(content)
+            return position + 1
+    
+    def delete_paragraph(self, index: int) -> bool:
+        """
+        删除段落
+        
+        Args:
+            index: 段落索引
+            
+        Returns:
+            是否删除成功
+        """
+        if 0 <= index < len(self.doc.paragraphs):
+            p = self.doc.paragraphs[index]
+            p._element.getparent().remove(p._element)
+            return True
+        return False
+    
+    def apply_style_to_paragraph_by_type(self, para_type: str, style_config: Dict) -> int:
+        """
+        根据段落类型应用样式
+        
+        Args:
+            para_type: 段落类型
+            style_config: 样式配置
+            
+        Returns:
+            修改的段落数量
+        """
+        count = 0
+        if self.paragraph_manager:
+            for i, paragraph in enumerate(self.doc.paragraphs):
+                if i in self.para_type_map and self.para_type_map[i] == para_type:
+                    self.apply_format_to_paragraph(paragraph, style_config)
+                    count += 1
+        else:
+            for paragraph in self.doc.paragraphs:
+                current_type = self._determine_para_type(paragraph.text)
+                if current_type == para_type:
+                    self.apply_format_to_paragraph(paragraph, style_config)
+                    count += 1
+        return count
+    
+    def list_all_paragraphs(self) -> List[Dict]:
+        """
+        列出所有段落信息
+        
+        Returns:
+            段落信息列表，每个元素包含索引、内容和类型
+        """
+        paragraphs = []
+        for i, p in enumerate(self.doc.paragraphs):
+            para_type = self.para_type_map.get(i, self._determine_para_type(p.text)) if hasattr(self, 'para_type_map') else self._determine_para_type(p.text)
+            paragraphs.append({
+                "index": i,
+                "content": p.text,
+                "type": para_type
+            })
+        return paragraphs
 
-def format_document(doc_path: str, config_path: str, output_path: Optional[str] = None, manager: Optional[ParagraphManager] = None):
+
+def format_document(doc_path: str, config_path: str, output_path: Optional[str] = None, paragraph_manager: Optional[ParagraphManager] = None):
     """
     格式化文档
     
@@ -390,10 +564,13 @@ def format_document(doc_path: str, config_path: str, output_path: Optional[str] 
         doc_path: 文档路径
         config_path: 配置文件路径
         output_path: 输出路径，如果为None则覆盖原文件
-        manager: 段落管理器，如果为None则自动判断段落类型
+        paragraph_manager: 段落管理器，如果为None则自动判断段落类型
+        
+    Returns:
+        是否成功
     """
-    editor = FormatEditor(doc_path)
-    editor.apply_config(config_path, manager)
+    editor = FormatEditor(doc_path, paragraph_manager)
+    editor.apply_config(config_path)
     if output_path:
-        editor.save(output_path)
+        return editor.save(output_path)
     return True

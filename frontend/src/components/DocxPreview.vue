@@ -16,14 +16,21 @@
         <p class="text-sm" :class="isDarkMode ? 'text-zinc-300' : 'text-gray-800'">{{ error }}</p>
       </div>
     </div>
-    <div v-else class="docx-content p-6" :class="isDarkMode ? 'text-zinc-100' : 'text-gray-900'" v-html="content"></div>
+    <vue-office-docx 
+      v-else
+      :src="docxContent"
+      class="docx-content"
+      :class="isDarkMode ? 'text-zinc-100 dark-theme' : 'text-gray-900'"
+      @rendered="onDocRendered"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, inject, watch } from 'vue'
-import mammoth from 'mammoth'
 import axios from 'axios'
+import VueOfficeDocx from '@vue-office/docx'
+import '@vue-office/docx/lib/index.css'
 
 const props = defineProps({
   filePath: {
@@ -35,7 +42,7 @@ const props = defineProps({
 const isDarkMode = inject('isDarkMode')
 const loading = ref(true)
 const error = ref(null)
-const content = ref('')
+const docxContent = ref(null)
 
 // 监听文件路径变化，重新加载文档
 watch(() => props.filePath, loadDocument)
@@ -54,29 +61,20 @@ async function loadDocument() {
       responseType: 'arraybuffer'
     })
     
-    // 使用mammoth.js转换docx为HTML
-    const result = await mammoth.convertToHtml({ 
-      arrayBuffer: response.data,
-      styleMap: [
-        "p[style-name='Heading 1'] => h1:fresh",
-        "p[style-name='Heading 2'] => h2:fresh",
-        "p[style-name='Heading 3'] => h3:fresh",
-        "p[style-name='Heading 4'] => h4:fresh",
-        "p[style-name='Heading 5'] => h5:fresh",
-        "p[style-name='Heading 6'] => h6:fresh"
-      ]
-    })
-    
-    // 设置转换后的HTML内容
-    content.value = result.value
-    
-    // 添加自定义样式
-    applyCustomStyles()
+    // 使用vue-office-docx渲染文档
+    docxContent.value = response.data
   } catch (err) {
     error.value = '加载文档失败：' + err.message
   } finally {
     loading.value = false
   }
+}
+
+function onDocRendered() {
+  console.log("文档渲染完成")
+  
+  // 应用自定义样式
+  applyCustomStyles()
 }
 
 function applyCustomStyles() {
@@ -93,81 +91,41 @@ function applyCustomStyles() {
     .docx-content {
       font-family: "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
       line-height: 1.6;
-      color: ${isDarkMode.value ? '#f1f5f9' : '#111827'};
     }
-    .docx-content h1 {
-      font-size: 1.8rem;
-      font-weight: 600;
-      margin: 1.5rem 0 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid ${isDarkMode.value ? '#3f3f46' : '#e5e7eb'};
-      color: ${isDarkMode.value ? '#f1f5f9' : '#111827'};
+    .dark-theme .docx-viewer-wrapper {
+      background-color: #18181b !important;
+      color: #f1f5f9 !important;
     }
-    .docx-content h2 {
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin: 1.4rem 0 0.8rem;
-      color: ${isDarkMode.value ? '#f1f5f9' : '#111827'};
+    .docx-viewer-wrapper {
+      height: 100%;
     }
-    .docx-content h3 {
-      font-size: 1.3rem;
-      font-weight: 600;
-      margin: 1.2rem 0 0.7rem;
-      color: ${isDarkMode.value ? '#f1f5f9' : '#111827'};
+    .dark-theme .docx-viewer * {
+      color: #e4e4e7;
     }
-    .docx-content h4, .docx-content h5, .docx-content h6 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      margin: 1rem 0 0.6rem;
-      color: ${isDarkMode.value ? '#f1f5f9' : '#111827'};
+    .dark-theme .docx-viewer h1,
+    .dark-theme .docx-viewer h2,
+    .dark-theme .docx-viewer h3,
+    .dark-theme .docx-viewer h4,
+    .dark-theme .docx-viewer h5,
+    .dark-theme .docx-viewer h6 {
+      color: #f1f5f9;
     }
-    .docx-content p {
-      margin-bottom: 1em;
-      color: ${isDarkMode.value ? '#e4e4e7' : '#1f2937'};
+    .dark-theme .docx-viewer a {
+      color: #60a5fa;
     }
-    .docx-content table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-bottom: 1.5em;
-      border: 1px solid ${isDarkMode.value ? '#3f3f46' : '#e5e7eb'};
+    .dark-theme .docx-viewer table {
+      border-color: #3f3f46;
     }
-    .docx-content td, .docx-content th {
-      border: 1px solid ${isDarkMode.value ? '#3f3f46' : '#e5e7eb'};
-      padding: 8px 12px;
-      color: ${isDarkMode.value ? '#e4e4e7' : '#1f2937'};
+    .dark-theme .docx-viewer td,
+    .dark-theme .docx-viewer th {
+      border-color: #3f3f46;
     }
-    .docx-content th {
-      background-color: ${isDarkMode.value ? '#27272a' : '#f9fafb'};
-      font-weight: 600;
-      color: ${isDarkMode.value ? '#f1f5f9' : '#111827'};
+    .dark-theme .docx-viewer th {
+      background-color: #27272a;
     }
-    .docx-content img {
-      max-width: 100%;
-      height: auto;
-      margin: 1em 0;
-    }
-    .docx-content ul, .docx-content ol {
-      margin-bottom: 1em;
-      padding-left: 2em;
-      color: ${isDarkMode.value ? '#e4e4e7' : '#1f2937'};
-    }
-    .docx-content li {
-      margin-bottom: 0.5em;
-    }
-    .docx-content a {
-      color: ${isDarkMode.value ? '#60a5fa' : '#2563eb'};
-      text-decoration: none;
-    }
-    .docx-content a:hover {
-      text-decoration: underline;
-    }
-    .docx-content blockquote {
-      border-left: 4px solid ${isDarkMode.value ? '#4b5563' : '#e5e7eb'};
-      padding-left: 1em;
-      margin-left: 0;
-      margin-right: 0;
-      font-style: italic;
-      color: ${isDarkMode.value ? '#9ca3af' : '#4b5563'};
+    .dark-theme .docx-viewer blockquote {
+      color: #9ca3af;
+      border-color: #4b5563;
     }
   `
   document.head.appendChild(style)
@@ -201,4 +159,4 @@ function applyCustomStyles() {
 .docx-preview::-webkit-scrollbar-thumb:hover {
   background-color: v-bind('isDarkMode ? "#52525b" : "#9ca3af"');
 }
-</style> 
+</style>
