@@ -6,8 +6,7 @@ from typing import List, Dict, Optional
 import os
 import json
 from agents.setting import LLMs
-from format_checker import check_paper_format, remark_para_type, format_check_with_tools
-from format_editor import format_document
+from format_checker import check_format
 from datetime import datetime
 import docx_parser
 from agents.advice_agent import AdviceAgent
@@ -19,7 +18,7 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 llm = LLMs()
 
 # 配置上传文件夹
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
 ALLOWED_EXTENSIONS = {'docx'}  # 允许的文件类型
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
@@ -68,7 +67,7 @@ def upload_file():
             # 确保文件名安全并生成唯一文件名
             filename = secure_filename(file.filename)
             unique_filename = f"{os.path.splitext(filename)[0]}_{int(os.time.time())}{os.path.splitext(filename)[1]}"
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename) + ".docx"  # 文件名唯一
             
             # 保存文件
             file.save(file_path)
@@ -81,7 +80,6 @@ def upload_file():
                     'filename': unique_filename,
                     'originalname': filename,
                     'path': file_path,
-                    'size': os.path.getsize(file_path)
                 }
             }), 200
         else:
@@ -262,12 +260,11 @@ def upload_format():
         
         if file_ext == 'json':
             # 直接保存JSON文件
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename) + '.json'
             uploaded_file.save(file_path)
-            
             return jsonify({
                 "success": True,
-                "message": "格式文件上传成功",
+                "message": "格式Json上传成功",
                 "file_path": file_path,
                 "filename": filename
             })
@@ -315,9 +312,48 @@ def process_file():
         advice_agent = AdviceAgent('qwen-plus')
         # 传送给格式建议
         result = advice_agent.get_advice(doc_content)
-        return jsonify({"result": result})
+        return jsonify({"success": True,
+                        "result": result})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"success": False,
+                        "message": str(e)}), 500
+# 格式修改Agent
+@app.route('/api/use-format-agent', methods=['POST'])
+def use_format_agent():
+    try:
+        data = request.get_json()
+        if not data or 'messages' not in data:
+            return jsonify({"error": "缺少必要参数"}), 400
+        
+        
+        return jsonify({"success": True,
+                        "result": result})
+    except Exception as e:
+        return jsonify({"success": False,
+                        "message": str(e)}), 500
+# 检查文档格式
+@app.route('/api/check-format', methods=['POST'])
+def start_check_format():
+    try:
+        data = request.get_json()
+        if not data or 'doc_path' or 'config_path' not in data:
+            return jsonify({"error": "缺少必要参数"}), 400
+        # 获取文件路径
+        file_path = data.get('doc_path')
+        config_path = data.get('config_path')
+        # 处理文件信息
+        docx_errors = check_format(file_path, config_path, llm.model)
+        # 以json格式返回错误信息
+        if docx_errors:
+            return jsonify({"success": True,
+                            "message": "分析成功",
+                            "docx_errors": docx_errors})
+        else:
+            return jsonify({"success": True,
+                            "message": "未发现错误"})
+    except Exception as e:
+        return jsonify({"success": False,
+                        "message": str(e)}), 500
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=8000, debug=True)

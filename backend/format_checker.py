@@ -2,7 +2,7 @@ import docx
 import extract_para_info, docx_parser
 import json
 from typing import Dict, List, Tuple
-from format_analysis import LLMs
+from format_analysis import FormatAuxiliary
 from para_type import ParagraphManager,ParsedParaType
 import os,concurrent,re
 from utils import are_values_equal, extract_number_from_string
@@ -570,7 +570,7 @@ def _add_error(errors, para_id, error_msg):
         errors[para_id] = []
     errors[para_id].append(error_msg)
 
-def remark_para_type(doc_path: str, llm: LLMs) -> ParagraphManager:
+def remark_para_type(doc_path: str, model_name) -> ParagraphManager:
     # 初始化段落管理器
     paragraph_manager = ParagraphManager()
     
@@ -587,9 +587,10 @@ def remark_para_type(doc_path: str, llm: LLMs) -> ParagraphManager:
                 pass
             # 提取当前段落信息
             para_string = para["content"]
-            
+            # 使用大模型预测段落类型
+            format_auxiliary = FormatAuxiliary(model = model_name)
             # 调用大模型预测类型
-            response = llm.predict_location(doc_content, para_string, doc_content_sent)
+            response = format_auxiliary.predict_location(doc_content, para_string, doc_content_sent)
             response = response.strip()  # 去除首尾空白字符
             
             # 解析 JSON 字符串
@@ -639,45 +640,44 @@ def remark_para_type(doc_path: str, llm: LLMs) -> ParagraphManager:
     
     return paragraph_manager
 
-def check_format(doc_path:str, required_format:dict, llm:LLMs):
-    print(f"[LOG] 当前工作目录: {os.getcwd()}")
-    doc_path_full = os.path.abspath(doc_path)
-    print(f"[LOG] 尝试打开文档: {doc_path_full}")
-    if not os.path.exists(doc_path_full):
-        print(f"[LOG] 文档文件不存在: {doc_path_full}")
-    doc_info = docx_parser.extract_section_info(doc_path)
-    # 初始化段落管理器
-    paragraph_manager = ParagraphManager()
-    # 读取doc的段落信息
-    paragraph_manager = extract_para_info.extract_para_format_info(doc_path, paragraph_manager)
-    # 重分配段落类型
-    # paragraph_manager = remark_para_type(doc_path, llm)
-    # 修改rusult到英文
-    with open("../result.json", "r", encoding="utf-8") as f:
-        data = json.load(f)
-        result = paragraph_manager.to_english_dict(data)
-    # 写回json
-    with open("../result.json", "w", encoding="utf-8") as f:
-        json.dump(result, f, ensure_ascii=False, indent=4)
-    paragraph_manager = ParagraphManager.build_from_json_file("../result.json")
-    # paras_info_json_zh = paragraph_manager.to_chinese_dict()
-    # 对齐段落信息和格式信息同Config
-    # print(paras_info_dict)
-    # 检查格式是否符合要求
-    check_paper_format(doc_info, required_format)
-    #  检查段落格式
-    check_main_format(paragraph_manager, required_format)
-    #  检查表格样式
-    check_table_format(doc_path, required_format)
-    # 检查图片样式
-    check_figure_format(doc_path, required_format)
-    # 检查引用样式和参考文献
-    check_reference_format(doc_path, required_format)
 
-def format_check_with_tools(doc_path: str, config_path: str, llm: LLMs):
-    """
-    使用工具函数检查文档格式
-    """
+# debug
+# def check_format(doc_path:str, required_format:dict, llm:LLMs):
+#     print(f"[LOG] 当前工作目录: {os.getcwd()}")
+#     doc_path_full = os.path.abspath(doc_path)
+#     print(f"[LOG] 尝试打开文档: {doc_path_full}")
+#     if not os.path.exists(doc_path_full):
+#         print(f"[LOG] 文档文件不存在: {doc_path_full}")
+#     doc_info = docx_parser.extract_section_info(doc_path)
+#     # 初始化段落管理器
+#     paragraph_manager = ParagraphManager()
+#     # 读取doc的段落信息
+#     paragraph_manager = extract_para_info.extract_para_format_info(doc_path, paragraph_manager)
+#     # 重分配段落类型
+#     # paragraph_manager = remark_para_type(doc_path, llm)
+#     # 修改rusult到英文
+#     with open("../result.json", "r", encoding="utf-8") as f:
+#         data = json.load(f)
+#         result = paragraph_manager.to_english_dict(data)
+#     # 写回json
+#     with open("../result.json", "w", encoding="utf-8") as f:
+#         json.dump(result, f, ensure_ascii=False, indent=4)
+#     paragraph_manager = ParagraphManager.build_from_json_file("../result.json")
+#     # paras_info_json_zh = paragraph_manager.to_chinese_dict()
+#     # 对齐段落信息和格式信息同Config
+#     # print(paras_info_dict)
+#     # 检查格式是否符合要求
+#     check_paper_format(doc_info, required_format)
+#     #  检查段落格式
+#     check_main_format(paragraph_manager, required_format)
+#     #  检查表格样式
+#     check_table_format(doc_path, required_format)
+#     # 检查图片样式
+#     check_figure_format(doc_path, required_format)
+#     # 检查引用样式和参考文献
+#     check_reference_format(doc_path, required_format)
+
+def check_format(doc_path: str, config_path: str, model_name: str) -> List[str]:
     # 加载配置
     required_format = load_config(config_path)
     
@@ -689,7 +689,7 @@ def format_check_with_tools(doc_path: str, config_path: str, llm: LLMs):
     paragraph_manager = extract_para_info.extract_para_format_info(doc_path, paragraph_manager)
     
     # 重新标记段落类型
-    paragraph_manager = remark_para_type(doc_path, llm)
+    paragraph_manager = remark_para_type(doc_path, model_name)
     
     # 收集所有错误
     errors = []
