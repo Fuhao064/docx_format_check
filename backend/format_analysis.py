@@ -1,116 +1,15 @@
 import json,re
 import os
-from openai import OpenAI
 from para_type import ParsedParaType
+from agents.setting import LLMs
 
-class LLMs:
-    def __init__(self, config_path=os.path.abspath(os.path.join(os.path.dirname(__file__), '../keys.json'))):
-        self.config_path = config_path
-        self.models_config = self.load_models_config()
-        self.current_model = None
-        self.client = None
-        self.model = None
-        self.set_model('qwen-plus')  # 默认使用'qwen-plus'模型
-        self.tools = [
-            {
-                "type": "function",
-                "function": {
-                    "name": "check_document_format",
-                    "description": "检查文档格式是否符合要求",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "doc_path": {
-                                "type": "string",
-                                "description": "文档路径"
-                            },
-                            "config_path": {
-                                "type": "string", 
-                                "description": "格式配置文件路径"
-                            }
-                        },
-                        "required": ["doc_path", "config_path"]
-                    }
-                }
-            },
-            {
-                "type": "function", 
-                "function": {
-                    "name": "suggest_format_fixes",
-                    "description": "提供文档格式修改建议",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "format_errors": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object"
-                                },
-                                "description": "格式错误列表"
-                            }
-                        },
-                        "required": ["format_errors"]
-                    }
-                }
-            },
-            # 应用格式修改
-            {
-                "type": "function",
-                "function": {
-                    "name": "apply_format_fixes",
-                    "description": "根据建议修改文档格式并保存",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "doc_path": {"type": "string", "description": "文档路径"},
-                            "suggestions": {
-                                "type": "array",
-                                "items": {"type": "object"},
-                                "description": "格式修改建议列表"
-                            }
-                        },
-                        "required": ["doc_path", "suggestions"]
-                    }
-                }
-            }
-        ]
-
-    def load_models_config(self):
-        with open(self.config_path, 'r') as f:
-            return json.load(f)
-    
-    def set_model(self, model_name):
-        if model_name in self.models_config:
-            print(f"Setting model to '{model_name}'")
-            config = self.models_config[model_name]
-            self.current_model = model_name
-            self.client = OpenAI(api_key=config['api_key'], base_url=config['base_url'])
-            self.model = config['model_name']  # 使用实例变量存储当前模型名
-        else:
-            raise ValueError(f"Model '{model_name}' not found in configuration.")
-
-    def add_model(self, model_name, base_url, api_key, model_name_param):
-        if model_name not in self.models_config:
-            self.models_config[model_name] = {
-                "base_url": base_url,
-                "api_key": api_key,
-                "model_name": model_name_param
-            }
-            self.save_models_config()
-        else:
-            raise ValueError(f"Model '{model_name}' already exists.")
-
-    def delete_model(self, model_name):
-        if model_name in self.models_config:
-            del self.models_config[model_name]
-            self.save_models_config()
-        else:
-            raise ValueError(f"Model '{model_name}' not found.")
-
-    def save_models_config(self):
-        with open(self.config_path, 'w') as f:
-            json.dump(self.models_config, f, indent=4)
-
+class format_auxiliary:
+    def __init__(self):
+        self.llm = LLMs()  # 保存 LLMs 实例到类属性
+        self.llm.set_model('qwen-plus')
+        self.client = self.llm.client  # 获取 OpenAI 客户端
+        self.model = self.llm.model    # 获取当前模型名称
+                
     def parse_format(self, format_str: str, json_str: str) -> str:
         response = self.client.chat.completions.create(
             model=self.model,
@@ -174,7 +73,7 @@ class LLMs:
 
         json_str = json_str.replace("'", '"').replace("#.*", "")
         print(json_str)
-        return json_str        
+        return json.loads(json_str)        
     # 解析文档中的表格内容
     def parse_table(self, table_str: str) -> str:
         response = self.client.chat.completions.create(
@@ -187,15 +86,6 @@ class LLMs:
         )
         return response.choices[0].message.content
 
-    def get_models(self):
-        models_list = []
-        for name, config in self.models_config.items():
-            models_list.append({
-                "name": name,
-                "base_url": config['base_url'],
-                "model_name": config['model_name']
-            })
-        return {"models": models_list}
 
     def check_document_format(self, arguments):
         """检查文档格式"""
@@ -279,56 +169,56 @@ class LLMs:
                     "content": json.dumps(result)
                 })
                 
-def apply_format_fixes(self, arguments):
-        """根据建议修改文档格式"""
-        doc_path = arguments["doc_path"]
-        suggestions = arguments["suggestions"]
+    def apply_format_fixes(self, arguments):
+            """根据建议修改文档格式"""
+            doc_path = arguments["doc_path"]
+            suggestions = arguments["suggestions"]
 
-        try:
-            from format_editor import FormatEditor  # 假设 FormatEditor 在 format_editor.py 中
+            try:
+                from format_editor import FormatEditor  # 假设 FormatEditor 在 format_editor.py 中
 
-            # 初始化 FormatEditor
-            editor = FormatEditor(doc_path)
+                # 初始化 FormatEditor
+                editor = FormatEditor(doc_path)
 
-            # 遍历建议并应用修改
-            for suggestion in suggestions:
-                location = suggestion.get("location", "未知位置")
-                issue = suggestion.get("issue", "未知问题")
-                fix = suggestion.get("fix", "未知修复建议")
+                # 遍历建议并应用修改
+                for suggestion in suggestions:
+                    location = suggestion.get("location", "未知位置")
+                    issue = suggestion.get("issue", "未知问题")
+                    fix = suggestion.get("fix", "未知修复建议")
 
-                # 简单的示例逻辑：根据建议修改段落格式
-                # 这里假设 location 是段落索引（需要根据实际情况调整）
-                try:
-                    para_index = int(location) if location.isdigit() else None
-                    if para_index is not None and 0 <= para_index < len(editor.doc.paragraphs):
-                        paragraph = editor.doc.paragraphs[para_index]
+                    # 简单的示例逻辑：根据建议修改段落格式
+                    # 这里假设 location 是段落索引（需要根据实际情况调整）
+                    try:
+                        para_index = int(location) if location.isdigit() else None
+                        if para_index is not None and 0 <= para_index < len(editor.doc.paragraphs):
+                            paragraph = editor.doc.paragraphs[para_index]
 
-                        # 根据 fix 解析并应用格式（示例）
-                        if "字体大小" in issue or "font size" in issue:
-                            size_match = re.search(r"(\d+(\.\d+)?)(pt|磅)", fix)
-                            if size_match:
-                                size = float(size_match.group(1))
-                                para_config = {
-                                    "fonts": {"size": size}
-                                }
-                                editor.apply_format_to_paragraph(paragraph, para_config)
-                        elif "对齐" in issue or "alignment" in issue:
-                            if "居中" in fix or "center" in fix:
-                                para_config = {"paragraph_format": {"alignment": "center"}}
-                                editor.apply_format_to_paragraph(paragraph, para_config)
-                            elif "左对齐" in fix or "left" in fix:
-                                para_config = {"paragraph_format": {"alignment": "left"}}
-                                editor.apply_format_to_paragraph(paragraph, para_config)
+                            # 根据 fix 解析并应用格式（示例）
+                            if "字体大小" in issue or "font size" in issue:
+                                size_match = re.search(r"(\d+(\.\d+)?)(pt|磅)", fix)
+                                if size_match:
+                                    size = float(size_match.group(1))
+                                    para_config = {
+                                        "fonts": {"size": size}
+                                    }
+                                    editor.apply_format_to_paragraph(paragraph, para_config)
+                            elif "对齐" in issue or "alignment" in issue:
+                                if "居中" in fix or "center" in fix:
+                                    para_config = {"paragraph_format": {"alignment": "center"}}
+                                    editor.apply_format_to_paragraph(paragraph, para_config)
+                                elif "左对齐" in fix or "left" in fix:
+                                    para_config = {"paragraph_format": {"alignment": "left"}}
+                                    editor.apply_format_to_paragraph(paragraph, para_config)
 
-                        # 可以根据需要扩展更多的格式修改逻辑
+                            # 可以根据需要扩展更多的格式修改逻辑
 
-                except ValueError:
-                    # 如果 location 不是有效的段落索引，跳过
-                    continue
+                    except ValueError:
+                        # 如果 location 不是有效的段落索引，跳过
+                        continue
 
-            # 保存修改后的文档
-            editor.save()
-            return {"status": "success", "message": f"文档 {doc_path} 已根据建议修改并保存"}
+                # 保存修改后的文档
+                editor.save()
+                return {"status": "success", "message": f"文档 {doc_path} 已根据建议修改并保存"}
 
-        except Exception as e:
-            return {"status": "error", "message": str(e)}
+            except Exception as e:
+                return {"status": "error", "message": str(e)}

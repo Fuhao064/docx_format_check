@@ -2,7 +2,7 @@ import docx
 import extract_para_info, docx_parser
 import json
 from typing import Dict, List, Tuple
-from format_agent import LLMs
+from format_analysis import LLMs
 from para_type import ParagraphManager,ParsedParaType
 import os,concurrent,re
 from utils import are_values_equal, extract_number_from_string

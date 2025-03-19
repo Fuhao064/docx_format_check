@@ -184,7 +184,7 @@ const isDarkMode = ref(true)
 provide('isDarkMode', isDarkMode)
 
 // 侧边栏折叠状态
-const sidebarCollapsed = ref(false)
+const sidebarCollapsed = ref(true)
 
 // 图标组件
 const ModelsIcon = h('svg', {
@@ -287,27 +287,6 @@ const menuItems = [
     },
     href: '/format',
     icon: FormatIcon
-  },
-  {
-    id: 'agents',
-    name: {
-      'zh-CN': 'Agent中心',
-      'en-US': 'Agents'
-    },
-    href: '/agents',
-    icon: h('svg', {
-      xmlns: 'http://www.w3.org/2000/svg',
-      width: '20',
-      height: '20',
-      viewBox: '0 0 24 24',
-      fill: 'none',
-      stroke: 'currentColor',
-      'stroke-width': '2',
-      'stroke-linecap': 'round',
-      'stroke-linejoin': 'round'
-    }, [
-      h('path', { d: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z' })
-    ])
   },
   {
     id: 'help',
