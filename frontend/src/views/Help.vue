@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen p-6 overflow-y-auto transition-colors duration-[--transition-speed]"
-       :class="isDarkMode ? 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))]' : 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))]'">
+    :class="isDarkMode ? 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))]' : 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))]'">
     <!-- 头部 -->
     <div class="max-w-4xl mx-auto mb-8">
       <h1 class="text-3xl font-bold mb-3 text-[hsl(var(--foreground))]">帮助中心</h1>
@@ -13,7 +13,7 @@
     <div class="max-w-4xl mx-auto space-y-6">
       <!-- 快速入门卡片 -->
       <div class="rounded-lg shadow-sm p-6 transition-all duration-[--transition-speed] hover:shadow-md"
-           :class="isDarkMode ? 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]' : 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]'">
+        :class="isDarkMode ? 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]' : 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]'">
         <div class="prose max-w-none" :class="isDarkMode ? 'prose-invert' : ''">
           <h2 class="text-2xl font-semibold mb-4 text-[hsl(var(--foreground))]">快速入门</h2>
           <p class="text-[hsl(var(--muted-foreground))]">
@@ -79,15 +79,15 @@
 
       <!-- 联系卡片 -->
       <div class="rounded-lg shadow-sm p-6 transition-all duration-[--transition-speed] hover:shadow-md"
-           :class="isDarkMode ? 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]' : 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]'">
+        :class="isDarkMode ? 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]' : 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]'">
         <h2 class="text-2xl font-semibold mb-4 text-[hsl(var(--foreground))]">联系我们</h2>
         <p class="mb-4 text-[hsl(var(--muted-foreground))]">
           如有任何问题或建议，请通过以下方式联系：
         </p>
         <div class="flex items-center space-x-3 transition-colors hover:text-[hsl(var(--primary))]"
-             :class="isDarkMode ? 'text-[hsl(var(--foreground))]' : 'text-[hsl(var(--foreground))]'">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          :class="isDarkMode ? 'text-[hsl(var(--foreground))]' : 'text-[hsl(var(--foreground))]'">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
             <polyline points="22,6 12,13 2,6"></polyline>
           </svg>
