@@ -10,7 +10,7 @@
           : 'bg-gradient-to-b from-[hsl(var(--background))] via-[hsl(var(--background))] via-80% to-transparent',
       ]"
     >
-      <div class="flex items-center h-full px-5">
+      <div v-if="sidebarCollapsed" class="flex items-center h-full px-5">
         <div class="flex items-center">
           <h1 class="text-xl font-semibold truncate font-serif italic items-center text-[hsl(var(--foreground))]">
             Scriptor

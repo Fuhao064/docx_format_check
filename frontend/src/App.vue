@@ -432,7 +432,7 @@ provide('showNotification', showNotification)
 provide('currentLanguage', currentLanguage)
 provide('updateChatHistory', updateChatHistory)
 provide('toggleTheme', toggleTheme)
-
+provide('isCollapsed', sidebarCollapsed)
 // 初始化主题
 onMounted(() => {
   // 检查用户保存的偏好设置
