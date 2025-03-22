@@ -1,21 +1,20 @@
 <template>
-<div class="min-h-screen flex" :class="isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-white text-zinc-900'">
+  <div class="min-h-screen flex" :class="isDarkMode ? 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))]' : 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))]'">
     <!-- 侧边栏 -->
-    <aside 
-      class="h-screen flex flex-col transition-all duration-300 overflow-hidden fixed z-50"
+    <aside
+      class="h-screen flex flex-col transition-all duration-[--transition-speed] overflow-hidden fixed z-50"
       :class="[
-        isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-50 border-zinc-200',
+        isDarkMode ? 'bg-[hsl(var(--sidebar-background))] border-[hsl(var(--sidebar-border))]' : 'bg-[hsl(var(--sidebar-background))] border-[hsl(var(--sidebar-border))]',
         'border-r',
         sidebarCollapsed ? 'w-12' : 'w-64'
       ]"
     >
       <!-- 顶部Logo和标题 -->
-      <div class="p-4 flex items-center" :class="isDarkMode ? 'border-zinc-800' : 'border-zinc-200'">
-        <h1 class="text-lg font-semibold truncate font-serif italic items-center" :class="sidebarCollapsed ? 'hidden' : ''">Scriptor</h1>
-        <button 
-          @click="toggleSidebar" 
-          :class="isDarkMode ? 'text-zinc-400 hover:text-zinc-100' : 'text-zinc-400 hover:text-zinc-600'"
-          class="ml-auto transition-colors sidebar-toggle-button"
+      <div class="p-4 flex items-center" :class="isDarkMode ? 'border-[hsl(var(--sidebar-border))]' : 'border-[hsl(var(--sidebar-border))]'">
+        <h1 class="text-lg font-semibold truncate font-serif italic items-center text-[hsl(var(--foreground))]" :class="sidebarCollapsed ? 'hidden' : ''">Scriptor</h1>
+        <button
+          @click="toggleSidebar"
+          :class="['text-[hsl(var(--sidebar-foreground))] hover:text-[hsl(var(--sidebar-primary))]', 'ml-auto transition-colors sidebar-toggle-button']"
         >
           <svg v-if="!sidebarCollapsed" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m15 18-6-6 6-6"></path>
@@ -25,14 +24,14 @@
           </svg>
         </button>
       </div>
-      
+
       <!-- 新增对话按钮 -->
       <div class="p-3">
-        <button 
+        <button
           @click="createNewChat"
-          class="w-full flex items-center justify-center gap-2 rounded-md py-2 transition-colors"
+          class="w-full flex items-center justify-center gap-2 rounded-md py-2 transition-colors duration-[--transition-speed]"
           :class="[
-            isDarkMode ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white',
+            'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
             sidebarCollapsed ? 'px-0' : 'px-3'
           ]"
         >
@@ -45,18 +44,18 @@
           <span v-if="!sidebarCollapsed">新增任务</span>
         </button>
       </div>
-      
+
       <!-- 历史对话记录 -->
       <div class="flex-1 overflow-y-auto scrollbar-thin py-2">
-        <div 
-          v-for="chat in chatHistory" 
-          :key="chat.id" 
+        <div
+          v-for="chat in chatHistory"
+          :key="chat.id"
           @click="selectChat(chat)"
-          class="flex items-center px-3 py-2 mx-2 rounded-md cursor-pointer transition-colors"
+          class="flex items-center px-3 py-2 mx-2 rounded-md cursor-pointer transition-colors duration-[--transition-speed]"
           :class="[
-            currentChat && currentChat.id === chat.id 
-              ? isDarkMode ? 'bg-blue-600/20 text-blue-100' : 'bg-blue-50 text-blue-900'
-              : isDarkMode ? 'text-zinc-300 hover:bg-zinc-700 hover:text-white' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+            currentChat && currentChat.id === chat.id
+              ? 'bg-[hsl(var(--primary)/0.2)] text-[hsl(var(--primary))]'
+              : 'text-[hsl(var(--sidebar-foreground))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-accent-foreground)))]'
           ]"
         >
           <div class="flex items-center space-x-2 w-full" :class="sidebarCollapsed ? 'justify-center' : ''">
@@ -72,26 +71,26 @@
             <div class="flex-1 overflow-hidden" v-if="!sidebarCollapsed">
               <div class="flex items-center">
                 <span class="truncate">{{ chat.docName || chat.title }}</span>
-                <span v-if="chat.colorClass" class="ml-1 w-2 h-2 rounded-full" :class="chat.colorClass.replace('text-green-400', '').replace('text-blue-400', '')"></span>
+                <span v-if="chat.colorClass" class="ml-1 w-2 h-2 rounded-full" :class="chat.colorClass"></span>
               </div>
-              <div v-if="chat.timestamp" class="text-xs opacity-60 mt-0.5">{{ new Date(chat.timestamp).toLocaleTimeString() }}</div>
+              <div v-if="chat.timestamp" class="text-xs opacity-60 mt-0.5 text-[hsl(var(--muted-foreground))]">{{ new Date(chat.timestamp).toLocaleTimeString() }}</div>
             </div>
           </div>
         </div>
       </div>
-      
+
       <!-- 底部菜单 -->
-      <div :class="[isDarkMode ? 'border-zinc-800' : 'border-zinc-200', 'border-t py-2']">
-        <router-link 
-          v-for="item in menuItems" 
-          :key="item.id" 
+      <div :class="['border-t border-[hsl(var(--sidebar-border))]', 'py-2']">
+        <router-link
+          v-for="item in menuItems"
+          :key="item.id"
           :to="item.href"
-          class="flex items-center transition-colors rounded-md group relative"
+          class="flex items-center transition-colors duration-[--transition-speed] rounded-md group relative"
           :class="[
             sidebarCollapsed ? 'justify-center py-2 mx-2' : 'px-3 py-2 mx-2',
             route.path === item.href && currentChat === null
-              ? isDarkMode ? 'bg-blue-600/20 text-blue-100' : 'bg-blue-50 text-blue-900'
-              : isDarkMode ? 'text-zinc-300 hover:bg-zinc-700 hover:text-white' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+              ? 'bg-[hsl(var(--primary)/0.2)] text-[hsl(var(--primary))]'
+              : 'text-[hsl(var(--sidebar-foreground))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-accent-foreground))]'
           ]"
         >
           <div class="w-5 h-5 flex items-center justify-center">
@@ -108,7 +107,7 @@
 
 
     <!-- 主内容区域 -->
-    <main class="flex-1 flex flex-col h-screen overflow-auto transition-all duration-300" :class="sidebarCollapsed ? 'ml-12' : 'ml-64'">
+    <main class="flex-1 flex flex-col h-screen overflow-auto transition-all duration-[--transition-speed]" :class="sidebarCollapsed ? 'ml-12' : 'ml-64'">
       <div class="flex-1 flex flex-col overflow-hidden">
         <router-view v-slot="{ Component }">
           <transition name="fade" mode="out-in">
@@ -117,17 +116,16 @@
         </router-view>
       </div>
     </main>
-    
-  
+
+
     <!-- 通知容器 -->
     <div class="fixed top-4 right-4 flex flex-row-reverse items-start gap-4 z-50">
       <!-- 通知组件 -->
-      <div 
-        v-if="notification.show" 
-        class="flex-shrink-0 w-80 overflow-hidden transition-all duration-300 transform rounded-lg shadow-lg"
+      <div
+        v-if="notification.show"
+        class="flex-shrink-0 w-80 overflow-hidden transition-all duration-[--transition-speed] transform rounded-lg shadow-lg"
         :class="[
-          isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200',
-          'border',
+          'bg-[hsl(var(--card))] border border-[hsl(var(--border))]',
           notification.show ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
         ]"
       >
@@ -144,18 +142,18 @@
             </svg>
           </div>
           <div class="ml-3 w-0 flex-1">
-            <p class="text-sm font-medium" :class="isDarkMode ? 'text-zinc-100' : 'text-zinc-900'">{{ notification.title }}</p>
-            <p class="mt-1 text-sm" :class="isDarkMode ? 'text-zinc-400' : 'text-zinc-500'">{{ notification.message }}</p>
+            <p class="text-sm font-medium text-[hsl(var(--foreground))]">{{ notification.title }}</p>
+            <p class="mt-1 text-sm text-[hsl(var(--muted-foreground))]">{{ notification.message }}</p>
           </div>
           <div class="ml-4 flex-shrink-0 flex">
-            <button @click="closeNotification" class="inline-flex transition-colors" :class="isDarkMode ? 'text-zinc-400 hover:text-zinc-100' : 'text-zinc-400 hover:text-zinc-600'">
+            <button @click="closeNotification" class="inline-flex transition-colors text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
               <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
               </svg>
             </button>
           </div>
         </div>
-        <div :class="notification.type === 'success' ? 'bg-success' : notification.type === 'error' ? 'bg-destructive' : notification.type === 'warning' ? 'bg-warning' : 'bg-brand'" class="h-1" :style="{ width: `${notification.progress}%` }"></div>
+        <div :class="notification.type === 'success' ? 'bg-green-500' : notification.type === 'error' ? 'bg-red-500' : notification.type === 'warning' ? 'bg-yellow-500' : 'bg-[hsl(var(--primary))]'" class="h-1" :style="{ width: `${notification.progress}%` }"></div>
       </div>
     </div>
   </div>
@@ -360,7 +358,7 @@ function showNotification(type, title, message, duration = 5000) {
   if (notification.value.timeout) {
     clearTimeout(notification.value.timeout)
   }
-  
+
   // 设置新通知
   notification.value = {
     show: true,
@@ -370,13 +368,13 @@ function showNotification(type, title, message, duration = 5000) {
     progress: 100,
     timeout: null
   }
-  
+
   if (duration > 0) {
     const startTime = Date.now()
     const animate = () => {
       const elapsed = Date.now() - startTime
       const remaining = duration - elapsed
-      
+
       if (remaining <= 0) {
         closeNotification()
       } else {
@@ -384,7 +382,7 @@ function showNotification(type, title, message, duration = 5000) {
         notification.value.timeout = requestAnimationFrame(animate)
       }
     }
-    
+
     notification.value.timeout = requestAnimationFrame(animate)
   }
 }
@@ -403,7 +401,7 @@ function updateChatHistory(docName, colorClass) {
   if (currentChat.value) {
     currentChat.value.docName = docName
     currentChat.value.colorClass = colorClass
-    
+
     // 更新聊天历史中对应的项
     const chatIndex = chatHistory.value.findIndex(chat => chat.id === currentChat.value.id)
     if (chatIndex !== -1) {
@@ -415,7 +413,7 @@ function updateChatHistory(docName, colorClass) {
 // 切换主题
 function toggleTheme() {
   isDarkMode.value = !isDarkMode.value
-  
+
   // 将主题状态添加到 HTML 元素，方便全局样式访问
   if (isDarkMode.value) {
     document.documentElement.classList.add('dark')
@@ -424,7 +422,7 @@ function toggleTheme() {
     document.documentElement.classList.add('light')
     document.documentElement.classList.remove('dark')
   }
-  
+
   // 存储用户主题偏好
   localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light')
 }
@@ -439,7 +437,7 @@ provide('toggleTheme', toggleTheme)
 onMounted(() => {
   // 检查用户保存的偏好设置
   const savedTheme = localStorage.getItem('theme')
-  
+
   // 如果用户有保存的主题设置，应用它
   if (savedTheme) {
     isDarkMode.value = savedTheme === 'dark'
@@ -448,7 +446,7 @@ onMounted(() => {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
     isDarkMode.value = prefersDark
   }
-  
+
   // 应用主题样式
   if (isDarkMode.value) {
     document.documentElement.classList.add('dark')
@@ -458,23 +456,24 @@ onMounted(() => {
 })
 </script>
 
-<style>
+<style scoped>
 /* 自定义滚动条样式 */
 .scrollbar-thin::-webkit-scrollbar {
-  width: 4px;
+  width: 6px; /* Width of the scrollbar */
+  height: 6px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
+  background: hsl(var(--background)); /* Color of the track */
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: rgba(59, 130, 246, 0.5);
-  border-radius: 2px;
+  background: hsl(var(--border)); /* Color of the scroll thumb */
+  border-radius: 3px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(59, 130, 246, 0.8);
+  background: hsl(var(--foreground)/0.7);
 }
 
 /* 添加页面过渡动画 */
@@ -488,20 +487,6 @@ onMounted(() => {
   opacity: 0;
 }
 
-/* 设置CSS变量 */
-:root {
-  --border-radius-sm: 4px;
-  --border-radius-md: 6px;
-  --border-radius-lg: 8px;
-  --transition-speed: 300ms;
-  --brand: #3b82f6;
-  --brand-dark: #2563eb;
-}
-
-.dark {
-  --brand: #60a5fa;
-  --brand-dark: #3b82f6;
-}
 
 /* 侧边栏折叠按钮样式 */
 .sidebar-toggle-button {
@@ -524,4 +509,3 @@ onMounted(() => {
   font-style: italic;
 }
 </style>
-

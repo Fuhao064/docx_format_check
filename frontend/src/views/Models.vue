@@ -1,65 +1,66 @@
 <template>
-  <div class="p-6 overflow-y-auto h-full" :class="{ 'bg-white text-zinc-900': !isDarkMode, 'bg-zinc-950 text-zinc-100': isDarkMode }">
+  <div class="p-6 overflow-y-auto h-full transition-colors duration-[--transition-speed]"
+       :class="isDarkMode ? 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))]' : 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))]'">
     <div class="mb-6">
-      <h1 class="text-2xl font-semibold mb-2">模型管理</h1>
-      <p :class="isDarkMode ? 'text-zinc-400' : 'text-zinc-600'">管理和配置可用的AI模型</p>
+      <h1 class="text-2xl font-semibold mb-2 text-[hsl(var(--foreground))]">模型管理</h1>
+      <p class="text-[hsl(var(--muted-foreground))]">管理和配置可用的AI模型</p>
     </div>
-    
+
     <!-- 当前选择的模型 -->
-    <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-zinc-100', 'rounded-md p-4 mb-6']">
+    <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-4 mb-6']">
       <div class="flex items-center justify-between">
         <div>
-          <h2 class="text-lg font-medium mb-1">当前选择的模型</h2>
-          <p :class="isDarkMode ? 'text-zinc-400' : 'text-zinc-600'">{{ currentModel || '未选择模型' }}</p>
+          <h2 class="text-lg font-medium mb-1 text-[hsl(var(--foreground))]">当前选择的模型</h2>
+          <p class="text-[hsl(var(--muted-foreground))]">{{ currentModel || '未选择模型' }}</p>
         </div>
-        <button 
+        <button
           v-if="currentModel"
           @click="refreshModels"
           :class="[
-            isDarkMode ? 'bg-brand hover:bg-brand-dark text-white' : 'bg-brand hover:bg-brand-dark text-white',
-            'px-3 py-1.5 rounded-md transition-colors text-sm'
+            'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
+            'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm'
           ]"
         >
           刷新
         </button>
       </div>
     </div>
-    
+
     <!-- 模型列表 -->
-    <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-white border border-zinc-200', 'rounded-md overflow-hidden mb-6']">
+    <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md overflow-hidden mb-6 border border-[hsl(var(--border))]']">
       <div class="overflow-x-auto">
         <table class="w-full border-collapse">
           <thead>
-            <tr :class="isDarkMode ? 'bg-zinc-800' : 'bg-gray-50'">
-              <th :class="[isDarkMode ? 'text-zinc-300' : 'text-gray-700', 'px-6 py-3 text-left font-medium']">模型提供商</th>
-              <th :class="[isDarkMode ? 'text-zinc-300' : 'text-gray-700', 'px-6 py-3 text-left font-medium']">模型名称</th>
-              <th :class="[isDarkMode ? 'text-zinc-300' : 'text-gray-700', 'px-6 py-3 text-left font-medium']">API Key</th>
-              <th :class="[isDarkMode ? 'text-zinc-300' : 'text-gray-700', 'px-6 py-3 text-left font-medium']">操作</th>
+            <tr :class="isDarkMode ? 'bg-[hsl(var(--secondary))]' : 'bg-[hsl(var(--secondary))]'">
+              <th :class="['text-[hsl(var(--secondary-foreground))]', 'px-6 py-3 text-left font-medium']">模型提供商</th>
+              <th :class="['text-[hsl(var(--secondary-foreground))]', 'px-6 py-3 text-left font-medium']">模型名称</th>
+              <th :class="['text-[hsl(var(--secondary-foreground))]', 'px-6 py-3 text-left font-medium']">API Key</th>
+              <th :class="['text-[hsl(var(--secondary-foreground))]', 'px-6 py-3 text-left font-medium']">操作</th>
             </tr>
           </thead>
-          <tbody :class="isDarkMode ? 'divide-y divide-zinc-800' : 'divide-y divide-gray-200'">
-            <tr v-for="(model, key) in models" :key="key" :class="isDarkMode ? 'hover:bg-zinc-800/50' : 'hover:bg-gray-50'">
-              <td class="px-6 py-4">{{ getProviderName(key) }}</td>
-              <td class="px-6 py-4">{{ model.model_name }}</td>
+          <tbody :class="isDarkMode ? 'divide-y divide-[hsl(var(--border))]' : 'divide-y divide-[hsl(var(--border))]'">
+            <tr v-for="(model, key) in models" :key="key" :class="isDarkMode ? 'hover:bg-[hsl(var(--secondary))/0.5]' : 'hover:bg-[hsl(var(--secondary))/0.5]'">
+              <td class="px-6 py-4 text-[hsl(var(--foreground))]">{{ getProviderName(key) }}</td>
+              <td class="px-6 py-4 text-[hsl(var(--foreground))]">{{ model.model_name }}</td>
               <td class="px-6 py-4">
-                <span class="font-mono text-sm">{{ maskApiKey(model.api_key) }}</span>
+                <span class="font-mono text-sm text-[hsl(var(--foreground))]">{{ maskApiKey(model.api_key) }}</span>
               </td>
               <td class="px-6 py-4">
                 <div class="flex space-x-2">
-                  <button 
+                  <button
                     @click="selectModel(key)"
                     :class="[
-                      isDarkMode ? 'bg-teal-600/80 hover:bg-teal-600 text-zinc-100' : 'bg-indigo-500 hover:bg-indigo-600 text-white',
-                      'px-3 py-1 rounded-md transition-colors text-sm'
+                      'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
+                      'px-3 py-1 rounded-md transition-colors duration-[--transition-speed] text-sm'
                     ]"
                   >
                     选择
                   </button>
-                  <button 
+                  <button
                     @click="confirmDeleteModel(key)"
                     :class="[
-                      isDarkMode ? 'bg-red-600/20 hover:bg-red-600/30 text-red-400' : 'bg-red-100 hover:bg-red-200 text-red-600',
-                      'px-3 py-1 rounded-md transition-colors text-sm'
+                      'bg-[hsl(var(--destructive)/0.2)] hover:bg-[hsl(var(--destructive)/0.3)] text-[hsl(var(--destructive))]',
+                      'px-3 py-1 rounded-md transition-colors duration-[--transition-speed] text-sm'
                     ]"
                   >
                     删除
@@ -68,7 +69,7 @@
               </td>
             </tr>
             <tr v-if="Object.keys(models).length === 0">
-              <td colspan="4" :class="[isDarkMode ? 'text-zinc-500' : 'text-gray-500', 'px-6 py-4 text-center']">
+              <td colspan="4" :class="['text-[hsl(var(--muted-foreground))]', 'px-6 py-4 text-center']">
                 暂无模型数据
               </td>
             </tr>
@@ -76,74 +77,70 @@
         </table>
       </div>
     </div>
-    
+
     <!-- 添加模型表单 -->
-    <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-zinc-100', 'rounded-md p-6']">
-      <h2 class="text-lg font-medium mb-4">添加新模型</h2>
-      
+    <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-6']">
+      <h2 class="text-lg font-medium mb-4 text-[hsl(var(--foreground))]">添加新模型</h2>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-zinc-600', 'block text-sm font-medium mb-1']">模型名称</label>
-          <input 
-            v-model="newModel.name" 
-            type="text" 
+          <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">模型名称</label>
+          <input
+            v-model="newModel.name"
+            type="text"
             :class="[
-              isDarkMode ? 'bg-zinc-800 text-zinc-100' : 'bg-white text-zinc-900 border border-zinc-300',
-              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-              isDarkMode ? 'focus:ring-brand' : 'focus:ring-brand'
+              'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
             ]"
             placeholder="例如: gpt-4"
           />
         </div>
-        
+
         <div>
-          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-zinc-600', 'block text-sm font-medium mb-1']">API 基础 URL</label>
-          <input 
-            v-model="newModel.base_url" 
-            type="text" 
+          <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">API 基础 URL</label>
+          <input
+            v-model="newModel.base_url"
+            type="text"
             :class="[
-              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-black border border-gray-300',
-              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-              isDarkMode ? 'focus:ring-teal-600' : 'focus:ring-indigo-500'
+              'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
             ]"
             placeholder="例如: https://api.openai.com"
           />
         </div>
-        
+
         <div>
-          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-zinc-600', 'block text-sm font-medium mb-1']">API Key</label>
-          <input 
-            v-model="newModel.api_key" 
-            type="text" 
+          <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">API Key</label>
+          <input
+            v-model="newModel.api_key"
+            type="text"
             :class="[
-              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-black border border-gray-300',
-              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-              isDarkMode ? 'focus:ring-teal-600' : 'focus:ring-indigo-500'
+             'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
             ]"
             placeholder="输入API密钥"
           />
         </div>
-        
+
         <div>
-          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-zinc-600', 'block text-sm font-medium mb-1']">模型标识符</label>
-          <input 
-            v-model="newModel.model_name" 
-            type="text" 
+          <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">模型标识符</label>
+          <input
+            v-model="newModel.model_name"
+            type="text"
             :class="[
-              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-black border border-gray-300',
-              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-              isDarkMode ? 'focus:ring-teal-600' : 'focus:ring-indigo-500'
+              'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
             ]"
             placeholder="例如: gpt-3.5-turbo"
           />
         </div>
       </div>
-      
-      <button 
+
+      <button
         @click="addModel"
         :class="[
-          isDarkMode ? 'bg-brand hover:bg-brand-dark text-white' : 'bg-brand hover:bg-brand-dark text-white',
-          'px-4 py-2 rounded-md transition-colors',
+          'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
+          'px-4 py-2 rounded-md transition-colors duration-[--transition-speed]',
           isAddButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''
         ]"
         :disabled="isAddButtonDisabled"
@@ -151,27 +148,27 @@
         添加模型
       </button>
     </div>
-    
+
     <!-- 确认删除对话框 -->
     <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-white', 'rounded-md p-6 max-w-md w-full mx-4']">
-        <h3 class="text-xl font-semibold mb-4">确认删除</h3>
-        <p class="mb-6" :class="isDarkMode ? 'text-zinc-400' : 'text-zinc-600'">确定要删除模型 "{{ modelToDelete }}" 吗？此操作无法撤销。</p>
+      <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-6 max-w-md w-full mx-4']">
+        <h3 class="text-xl font-semibold mb-4 text-[hsl(var(--foreground))]">确认删除</h3>
+        <p class="mb-6 text-[hsl(var(--muted-foreground))]">确定要删除模型 "{{ modelToDelete }}" 吗？此操作无法撤销。</p>
         <div class="flex justify-end space-x-3">
-          <button 
+          <button
             @click="showDeleteConfirm = false"
             :class="[
-              isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300' : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-700',
-              'px-4 py-2 rounded-md transition-colors'
+              'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))]',
+              'px-4 py-2 rounded-md transition-colors duration-[--transition-speed]'
             ]"
           >
             取消
           </button>
-          <button 
+          <button
             @click="deleteModel"
             :class="[
-              isDarkMode ? 'bg-destructive hover:bg-destructive/90 text-white' : 'bg-destructive hover:bg-destructive/90 text-white',
-              'px-4 py-2 rounded-md transition-colors'
+              'bg-[hsl(var(--destructive))] hover:bg-[hsl(var(--destructive)/0.9)] text-[hsl(var(--destructive-foreground))]',
+              'px-4 py-2 rounded-md transition-colors duration-[--transition-speed]'
             ]"
           >
             删除
@@ -208,9 +205,9 @@ const isDarkMode = inject('isDarkMode', ref(true))
 
 // 计算属性：添加按钮是否禁用
 const isAddButtonDisabled = computed(() => {
-  return !newModel.value.name || 
-         !newModel.value.base_url || 
-         !newModel.value.api_key || 
+  return !newModel.value.name ||
+         !newModel.value.base_url ||
+         !newModel.value.api_key ||
          !newModel.value.model_name
 })
 
@@ -225,14 +222,14 @@ function getProviderName(key) {
     'gemini': 'Gemini (Google)',
     'deepseek-r1': 'DeepSeek R1'
   }
-  
+
   // 尝试从key中提取提供商名称
   for (const [provider, name] of Object.entries(providerMap)) {
     if (key.toLowerCase().includes(provider)) {
       return name
     }
   }
-  
+
   // 如果没有匹配到任何已知提供商，返回原始key
   return key
 }
@@ -250,7 +247,7 @@ async function fetchModels() {
     // 获取模型列表
     const modelsResponse = await axios.get('/api/models')
     models.value = modelsResponse.data.models || {}
-    
+
     // 获取当前选中的模型
     try {
       const currentModelResponse = await axios.get('/api/current-model')
@@ -302,7 +299,7 @@ async function deleteModel() {
 // 添加模型
 async function addModel() {
   if (isAddButtonDisabled.value) return
-  
+
   try {
     const modelData = {
       name: newModel.value.name,
@@ -310,9 +307,9 @@ async function addModel() {
       api_key: newModel.value.api_key,
       model_name: newModel.value.model_name
     }
-    
+
     await axios.post('/api/models', modelData)
-    
+
     // 重置表单
     newModel.value = {
       name: '',
@@ -320,7 +317,7 @@ async function addModel() {
       api_key: '',
       model_name: ''
     }
-    
+
     // 刷新模型列表
     await fetchModels()
     showNotification('success', '添加成功', `已添加新模型: ${modelData.name}`)

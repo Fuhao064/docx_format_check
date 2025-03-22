@@ -1,62 +1,62 @@
 <template>
-  <div class="p-6 overflow-y-auto" :class="{ 'bg-white text-black': !isDarkMode, 'bg-zinc-950 text-zinc-100': isDarkMode }">
+  <div class="p-6 overflow-y-auto transition-colors duration-[--transition-speed]"
+       :class="isDarkMode ? 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))]' : 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))]'">
     <div class="mb-6">
-      <h1 class="text-2xl font-semibold mb-2">格式配置</h1>
-      <p :class="isDarkMode ? 'text-zinc-400' : 'text-gray-600'">管理文档格式规范和样式配置</p>
+      <h1 class="text-2xl font-semibold mb-2 text-[hsl(var(--foreground))]">格式配置</h1>
+      <p class="text-[hsl(var(--muted-foreground))]">管理文档格式规范和样式配置</p>
     </div>
-    
+
     <!-- 配置编辑器 -->
-    <div :class="[isDarkMode ? 'bg-zinc-800' : 'bg-gray-100', 'rounded-lg p-6 mb-6']">
+    <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-lg p-6 mb-6']">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-medium">配置编辑器</h2>
+        <h2 class="text-lg font-medium text-[hsl(var(--foreground))]">配置编辑器</h2>
         <div class="flex space-x-3">
-          <button 
+          <button
             @click="loadExampleConfig"
             :class="[
-              isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600' : 'bg-gray-200 hover:bg-gray-300',
-              'px-3 py-1.5 text-sm rounded-md transition-colors'
+              isDarkMode ? 'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))]' : 'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))]',
+              'px-3 py-1.5 text-sm rounded-md transition-colors duration-[--transition-speed]'
             ]"
           >
             加载示例配置
           </button>
-          <button 
+          <button
             @click="saveConfig"
             :class="[
-              isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600' : 'bg-blue-500 hover:bg-blue-600 text-white',
-              'px-3 py-1.5 text-sm rounded-md transition-colors'
+              'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
+              'px-3 py-1.5 text-sm rounded-md transition-colors duration-[--transition-speed]'
             ]"
           >
             保存配置
           </button>
-          <button 
+          <button
             @click="toggleAdvancedMode"
             :class="[
-              isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600' : 'bg-gray-200 hover:bg-gray-300',
-              advancedMode ? (isDarkMode ? 'ring-1 ring-blue-500' : 'ring-1 ring-blue-500') : '',
-              'px-3 py-1.5 text-sm rounded-md transition-colors'
+              isDarkMode ? 'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))]' : 'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))]',
+              advancedMode ? 'ring-1 ring-[hsl(var(--primary))]' : '',
+              'px-3 py-1.5 text-sm rounded-md transition-colors duration-[--transition-speed]'
             ]"
           >
             高级模式
           </button>
         </div>
       </div>
-      
+
       <!-- 基本模式：表单编辑器 -->
       <div v-if="!advancedMode && configData">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <!-- 纸张设置 -->
-          <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-white border border-gray-200', 'rounded-lg p-4']">
-            <h3 class="text-md font-medium mb-3 pb-2" :class="[isDarkMode ? 'border-zinc-700' : 'border-gray-200', 'border-b']">纸张设置</h3>
-            
+          <div :class="[isDarkMode ? 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]' : 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]', 'rounded-lg p-4']">
+            <h3 class="text-md font-medium mb-3 pb-2 text-[hsl(var(--foreground))]" :class="[ 'border-b border-[hsl(var(--border))]']">纸张设置</h3>
+
             <div class="space-y-3">
               <div>
-                <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">纸张大小</label>
-                <select 
+                <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm mb-1']">纸张大小</label>
+                <select
                   v-model="configData.paper.size"
                   :class="[
-                    isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
-                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-                    isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+                    'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
                   ]"
                 >
                   <option value="A4">A4</option>
@@ -64,76 +64,71 @@
                   <option value="Legal">Legal</option>
                 </select>
               </div>
-              
+
               <div>
-                <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">方向</label>
-                <select 
+                <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm mb-1']">方向</label>
+                <select
                   v-model="configData.paper.orientation"
                   :class="[
-                    isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
-                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-                    isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+                    'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
                   ]"
                 >
                   <option value="portrait">纵向</option>
                   <option value="landscape">横向</option>
                 </select>
               </div>
-              
+
               <div>
-                <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">上边距</label>
-                <input 
+                <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm mb-1']">上边距</label>
+                <input
                   v-model="configData.paper.margins.top"
                   type="text"
                   :class="[
-                    isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
-                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-                    isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+                    'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
                   ]"
                 />
               </div>
-              
+
               <div>
-                <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">下边距</label>
-                <input 
+                <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm mb-1']">下边距</label>
+                <input
                   v-model="configData.paper.margins.bottom"
                   type="text"
                   :class="[
-                    isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
-                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-                    isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+                    'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
                   ]"
                 />
               </div>
-              
+
               <div>
-                <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">左边距</label>
-                <input 
+                <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm mb-1']">左边距</label>
+                <input
                   v-model="configData.paper.margins.left"
                   type="text"
                   :class="[
-                    isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
-                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-                    isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+                   'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
                   ]"
                 />
               </div>
-              
+
               <div>
-                <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">右边距</label>
-                <input 
+                <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm mb-1']">右边距</label>
+                <input
                   v-model="configData.paper.margins.right"
                   type="text"
                   :class="[
-                    isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-gray-900 border border-gray-300',
-                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-                    isDarkMode ? 'focus:ring-zinc-600' : 'focus:ring-blue-500'
+                    'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
                   ]"
                 />
               </div>
             </div>
           </div>
-          
+
           <!-- 中文标题 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -141,7 +136,7 @@
             :config="configData.title_zh"
             @update:config="val => configData.title_zh = val"
           />
-          
+
           <!-- 中文摘要 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -149,7 +144,7 @@
             :config="configData.abstract_zh"
             @update:config="val => configData.abstract_zh = val"
           />
-          
+
           <!-- 中文摘要内容 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -157,7 +152,7 @@
             :config="configData.abstract_content_zh"
             @update:config="val => configData.abstract_content_zh = val"
           />
-          
+
           <!-- 中文关键词 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -165,7 +160,7 @@
             :config="configData.keywords_zh"
             @update:config="val => configData.keywords_zh = val"
           />
-          
+
           <!-- 中文关键词内容 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -173,7 +168,7 @@
             :config="configData.keywords_content_zh"
             @update:config="val => configData.keywords_content_zh = val"
           />
-          
+
           <!-- 英文标题 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -181,7 +176,7 @@
             :config="configData.title_en"
             @update:config="val => configData.title_en = val"
           />
-          
+
           <!-- 英文摘要 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -189,7 +184,7 @@
             :config="configData.abstract_en"
             @update:config="val => configData.abstract_en = val"
           />
-          
+
           <!-- 英文摘要内容 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -197,7 +192,7 @@
             :config="configData.abstract_content_en"
             @update:config="val => configData.abstract_content_en = val"
           />
-          
+
           <!-- 英文关键词 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -205,7 +200,7 @@
             :config="configData.keywords_en"
             @update:config="val => configData.keywords_en = val"
           />
-          
+
           <!-- 英文关键词内容 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -213,7 +208,7 @@
             :config="configData.keywords_content_en"
             @update:config="val => configData.keywords_content_en = val"
           />
-          
+
           <!-- 一级标题 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -221,7 +216,7 @@
             :config="configData.heading1"
             @update:config="val => configData.heading1 = val"
           />
-          
+
           <!-- 二级标题 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -229,7 +224,7 @@
             :config="configData.heading2"
             @update:config="val => configData.heading2 = val"
           />
-          
+
           <!-- 三级标题 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -237,7 +232,7 @@
             :config="configData.heading3"
             @update:config="val => configData.heading3 = val"
           />
-          
+
           <!-- 正文 -->
           <FormatSection
             :isDarkMode="isDarkMode"
@@ -247,51 +242,51 @@
           />
         </div>
       </div>
-      
+
       <!-- 高级模式：JSON编辑器 -->
       <div v-else-if="advancedMode && configData" class="space-y-4">
         <div class="flex justify-end space-x-3 mb-2">
-          <button 
+          <button
             @click="exportConfig"
             :class="[
-              isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600' : 'bg-gray-200 hover:bg-gray-300',
-              'px-3 py-1.5 text-sm rounded-md transition-colors'
+              isDarkMode ? 'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))]' : 'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))]',
+              'px-3 py-1.5 text-sm rounded-md transition-colors duration-[--transition-speed]'
             ]"
           >
             导出配置
           </button>
-          <label 
+          <label
             :class="[
-              isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 cursor-pointer' : 'bg-gray-200 hover:bg-gray-300 cursor-pointer',
-              'px-3 py-1.5 text-sm rounded-md transition-colors'
+              isDarkMode ? 'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))] cursor-pointer' : 'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))] cursor-pointer',
+              'px-3 py-1.5 text-sm rounded-md transition-colors duration-[--transition-speed]'
             ]"
           >
             导入配置
-            <input 
-              type="file" 
-              accept=".json" 
-              class="hidden" 
+            <input
+              type="file"
+              accept=".json"
+              class="hidden"
               @change="importConfig"
             />
           </label>
         </div>
-        
-        <textarea 
-          v-model="jsonConfig" 
+
+        <textarea
+          v-model="jsonConfig"
           :class="[
-            isDarkMode ? 'bg-zinc-900 text-zinc-100 border-zinc-700' : 'bg-white text-gray-900 border-gray-300',
-            'w-full h-[60vh] font-mono text-sm p-4 rounded-md border focus:outline-none',
-            jsonError ? (isDarkMode ? 'border-red-500' : 'border-red-500') : ''
+            'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+            'w-full h-[60vh] font-mono text-sm p-4 rounded-md border focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]',
+            jsonError ? 'border-red-500' : '' // Keep red border for error
           ]"
           @input="validateJson"
         ></textarea>
-        
+
         <div v-if="jsonError" class="text-red-500 text-sm mt-2">
           {{ jsonError }}
         </div>
       </div>
-      
-      <div v-else class="text-center py-12" :class="isDarkMode ? 'text-zinc-500' : 'text-gray-500'">
+
+      <div v-else class="text-center py-12 text-[hsl(var(--muted-foreground))]">
         未加载配置数据，请点击"加载示例配置"按钮。
       </div>
     </div>
@@ -303,7 +298,7 @@ import { ref, computed, inject, onMounted, watch } from 'vue'
 import axios from 'axios'
 import FormatSection from '../components/FormatSection.vue'
 
-// 获取主题模式
+// 获取主题模式和通知函数
 const isDarkMode = inject('isDarkMode', ref(true))
 const showNotification = inject('showNotification', null)
 
@@ -350,9 +345,9 @@ function validateJson() {
 function exportConfig() {
   const dataStr = JSON.stringify(configData.value, null, 2)
   const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr)
-  
+
   const exportFileDefaultName = 'config.json'
-  
+
   const linkElement = document.createElement('a')
   linkElement.setAttribute('href', dataUri)
   linkElement.setAttribute('download', exportFileDefaultName)
@@ -363,7 +358,7 @@ function exportConfig() {
 function importConfig(event) {
   const file = event.target.files[0]
   if (!file) return
-  
+
   const reader = new FileReader()
   reader.onload = (e) => {
     try {
@@ -399,14 +394,14 @@ async function loadExampleConfig() {
 // 保存配置
 async function saveConfig() {
   if (!configData.value) return
-  
+
   // 如果在高级模式下，先验证并应用JSON编辑器中的更改
   if (advancedMode.value) {
     if (jsonError.value) {
       showNotification('error', 'JSON格式错误', '请先修复JSON格式错误')
       return
     }
-    
+
     try {
       configData.value = JSON.parse(jsonConfig.value)
     } catch (error) {
@@ -414,11 +409,11 @@ async function saveConfig() {
       return
     }
   }
-  
+
   loading.value = true
   try {
     const response = await axios.post('/api/set-config', configData.value)
-    
+
     if (response.data.message === '配置保存成功') {
       showNotification('success', '保存成功', '配置已保存')
     } else {

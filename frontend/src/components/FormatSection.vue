@@ -1,20 +1,19 @@
 <template>
-  <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-white border border-gray-200', 'rounded-lg p-4']">
-    <h3 class="text-md font-medium mb-3 pb-2" :class="[isDarkMode ? 'border-zinc-700' : 'border-gray-200', 'border-b']">{{ title }}</h3>
-    
+  <div :class="[isDarkMode ? 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]' : 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]', 'rounded-lg p-4']">
+    <h3 class="text-md font-medium mb-3 pb-2 text-[hsl(var(--foreground))]" :class="['border-b border-[hsl(var(--border))]']">{{ title }}</h3>
+
     <div class="space-y-3">
       <!-- 段落格式设置 -->
       <div v-if="config.paragraph_format">
-        <h4 :class="[isDarkMode ? 'text-zinc-300' : 'text-gray-700', 'text-sm font-medium mb-2']">段落格式</h4>
+        <h4 class="text-[hsl(var(--muted-foreground))] text-sm font-medium mb-2">段落格式</h4>
         <div class="space-y-3">
           <div>
-            <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">对齐方式</label>
-            <select 
+            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">对齐方式</label>
+            <select
               v-model="config.paragraph_format.alignment"
               :class="[
-                isDarkMode ? 'bg-zinc-800 text-zinc-100' : 'bg-gray-50 text-gray-900 border border-gray-300',
-                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-2',
-                isDarkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
               ]"
             >
               <option value="left">左对齐</option>
@@ -25,55 +24,51 @@
           </div>
 
           <div>
-            <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">首行缩进</label>
-            <input 
+            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">首行缩进</label>
+            <input
               v-model="config.paragraph_format.indentation.first_line"
               type="number"
               step="0.1"
               :class="[
-                isDarkMode ? 'bg-zinc-800 text-zinc-100' : 'bg-gray-50 text-gray-900 border border-gray-300',
-                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-2',
-                isDarkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
               ]"
             />
           </div>
 
           <div>
-            <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">段前间距</label>
-            <input 
+            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">段前间距</label>
+            <input
               v-model="config.paragraph_format.before_spacing"
               type="number"
               step="1"
               :class="[
-                isDarkMode ? 'bg-zinc-800 text-zinc-100' : 'bg-gray-50 text-gray-900 border border-gray-300',
-                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-2',
-                isDarkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
               ]"
             />
           </div>
 
           <div>
-            <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">段后间距</label>
-            <input 
+            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">段后间距</label>
+            <input
               v-model="config.paragraph_format.after_spacing"
               type="number"
               step="1"
               :class="[
-                isDarkMode ? 'bg-zinc-800 text-zinc-100' : 'bg-gray-50 text-gray-900 border border-gray-300',
-                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-2',
-                isDarkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
+               'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
               ]"
             />
           </div>
 
           <div>
-            <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">行间距</label>
-            <select 
+            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">行间距</label>
+            <select
               v-model="config.paragraph_format.line_spacing"
               :class="[
-                isDarkMode ? 'bg-zinc-800 text-zinc-100' : 'bg-gray-50 text-gray-900 border border-gray-300',
-                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-2',
-                isDarkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
               ]"
             >
               <option value="单倍行距">单倍行距</option>
@@ -86,98 +81,95 @@
 
       <!-- 字体设置 -->
       <div v-if="config.fonts">
-        <h4 :class="[isDarkMode ? 'text-zinc-300' : 'text-gray-700', 'text-sm font-medium mb-2']">字体设置</h4>
+        <h4 class="text-[hsl(var(--muted-foreground))] text-sm font-medium mb-2">字体设置</h4>
         <div class="space-y-3">
           <div>
-            <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">中文字体</label>
-            <input 
+            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">中文字体</label>
+            <input
               v-model="config.fonts.zh_family"
               type="text"
               :class="[
-                isDarkMode ? 'bg-zinc-800 text-zinc-100' : 'bg-gray-50 text-gray-900 border border-gray-300',
-                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-2',
-                isDarkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
               ]"
             />
           </div>
 
           <div>
-            <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">英文字体</label>
-            <input 
+            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">英文字体</label>
+            <input
               v-model="config.fonts.en_family"
               type="text"
               :class="[
-                isDarkMode ? 'bg-zinc-800 text-zinc-100' : 'bg-gray-50 text-gray-900 border border-gray-300',
-                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-2',
-                isDarkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
               ]"
             />
           </div>
 
           <div>
-            <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">字体大小</label>
-            <input 
+            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">字体大小</label>
+            <input
               v-model="config.fonts.size"
               type="number"
               :class="[
-                isDarkMode ? 'bg-zinc-800 text-zinc-100' : 'bg-gray-50 text-gray-900 border border-gray-300',
-                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-2',
-                isDarkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
               ]"
             />
           </div>
 
           <div>
-            <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm mb-1']">字体颜色</label>
-            <input 
+            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">字体颜色</label>
+            <input
               v-model="config.fonts.color"
               type="color"
               :class="[
-                isDarkMode ? 'bg-zinc-800' : 'bg-gray-50 border border-gray-300',
-                'w-full h-10 rounded-md px-2 focus:outline-none focus:ring-2',
-                isDarkMode ? 'focus:ring-blue-500' : 'focus:ring-blue-600'
+                'bg-[hsl(var(--input))]',  
+                'w-full h-10 rounded-md px-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]',
+                'appearance-none' 
               ]"
             />
           </div>
 
           <div class="flex space-x-4">
             <div class="flex items-center">
-              <input 
+              <input
                 v-model="config.fonts.bold"
                 type="checkbox"
                 :class="[
-                  isDarkMode ? 'bg-zinc-800 border-zinc-600' : 'bg-gray-50 border-gray-300',
-                  'w-4 h-4 rounded focus:ring-2',
-                  isDarkMode ? 'focus:ring-blue-500 text-blue-600' : 'focus:ring-blue-600 text-blue-600'
+                  'bg-[hsl(var(--input))] border border-[hsl(var(--border))] text-[hsl(var(--primary))]',
+                  'w-4 h-4 rounded focus:ring-2 focus:ring-[hsl(var(--ring))]',
+                  'checked:bg-[hsl(var(--primary))] checked:border-[hsl(var(--primary))]' 
                 ]"
               />
-              <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'ml-2 text-sm']">粗体</label>
+              <label class="text-[hsl(var(--muted-foreground))] ml-2 text-sm">粗体</label>
             </div>
 
             <div class="flex items-center">
-              <input 
+              <input
                 v-model="config.fonts.italic"
                 type="checkbox"
                 :class="[
-                  isDarkMode ? 'bg-zinc-800 border-zinc-600' : 'bg-gray-50 border-gray-300',
-                  'w-4 h-4 rounded focus:ring-2',
-                  isDarkMode ? 'focus:ring-blue-500 text-blue-600' : 'focus:ring-blue-600 text-blue-600'
+                  'bg-[hsl(var(--input))] border border-[hsl(var(--border))] text-[hsl(var(--primary))]',
+                  'w-4 h-4 rounded focus:ring-2 focus:ring-[hsl(var(--ring))]',
+                  'checked:bg-[hsl(var(--primary))] checked:border-[hsl(var(--primary))]'
                 ]"
               />
-              <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'ml-2 text-sm']">斜体</label>
+              <label class="text-[hsl(var(--muted-foreground))] ml-2 text-sm">斜体</label>
             </div>
 
             <div class="flex items-center">
-              <input 
+              <input
                 v-model="config.fonts.isAllcaps"
                 type="checkbox"
                 :class="[
-                  isDarkMode ? 'bg-zinc-800 border-zinc-600' : 'bg-gray-50 border-gray-300',
-                  'w-4 h-4 rounded focus:ring-2',
-                  isDarkMode ? 'focus:ring-blue-500 text-blue-600' : 'focus:ring-blue-600 text-blue-600'
+                  'bg-[hsl(var(--input))] border border-[hsl(var(--border))] text-[hsl(var(--primary))]',
+                  'w-4 h-4 rounded focus:ring-2 focus:ring-[hsl(var(--ring))]',
+                  'checked:bg-[hsl(var(--primary))] checked:border-[hsl(var(--primary))]'
                 ]"
               />
-              <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'ml-2 text-sm']">全大写</label>
+              <label class="text-[hsl(var(--muted-foreground))] ml-2 text-sm">全大写</label>
             </div>
           </div>
         </div>
@@ -211,3 +203,27 @@ watch(() => props.config, (newVal) => {
   emit('update:config', newVal)
 }, { deep: true })
 </script>
+
+<style scoped>
+/* Remove default appearance for color input */
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: inherit; /* Inherit border-radius from the input */
+}
+input[type="color"] {
+    -webkit-appearance: none;
+    border: none;
+    width: 32px;
+    height: 32px;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+input[type="color"]::-webkit-color-swatch {
+    border: none;
+}
+</style>
