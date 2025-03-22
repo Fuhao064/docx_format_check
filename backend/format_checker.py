@@ -1,7 +1,8 @@
 import docx 
+from docx import Document
 import extract_para_info, docx_parser
 import json
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union, Optional
 from format_analysis import FormatAuxiliary
 from para_type import ParagraphManager,ParsedParaType
 import os,concurrent,re
@@ -14,90 +15,151 @@ def is_value_equal(expected, actual, key):
 def extract_number(value):
     return extract_number_from_string(value)
 
-def check_paper_format(doc_info: Dict, required_format: Dict) -> None:
-    paper_required_format = required_format.get('paper', {})
+def check_paper_format(doc_info: Dict, required_format: Dict) -> List[Dict]:
+    """检查文档基本格式"""
     errors = []
     
-    # 遍历要求格式中的每个字段
-    for key, expected in paper_required_format.items():
-        # 检查字段是否存在
-        if key not in doc_info:
-            errors.append(f"缺少必需字段: '{key}'")
-            continue
-            
-        actual = doc_info[key]
-        
-        # 递归处理嵌套字典
-        if isinstance(expected, dict):
-            if not isinstance(actual, dict):
-                errors.append(f"字段类型不匹配: '{key}' 应为字典类型，实际为 {type(actual).__name__}")
-                continue
-                
-            # 递归调用检查嵌套字段
-            nested_errors = check_paper_format(actual, {"paper": expected})
-            errors.extend([f"{key}.{err}" for err in nested_errors])
-                
-        # 检查值是否匹配
-        else:
-            if not is_value_equal(expected, actual, key):
-                errors.append(f"'{key}' 不匹配: 要求 {expected}, 实际 {actual}")
+    # 获取纸张设置
+    paper_format = required_format.get('paper_format', {})
+    if not paper_format:
+        return errors
     
-    # 打印错误信息
-    if errors:
-        print("\n页面格式检查错误:")
-        for err in errors:
-            print(f"- {err}")
+    # 检查页面大小
+    expected_page_size = paper_format.get('page_size', None)
+    if expected_page_size:
+        actual_width = doc_info.get('page_width', None)
+        actual_height = doc_info.get('page_height', None)
+        
+        expected_width = extract_number(expected_page_size.get('width', '0'))
+        expected_height = extract_number(expected_page_size.get('height', '0'))
+        
+        if expected_width and expected_height:
+            if actual_width and actual_height:
+                width_diff = abs(actual_width - expected_width)
+                height_diff = abs(actual_height - expected_height)
+                
+                if width_diff > 0.5 or height_diff > 0.5:  # 允许0.5cm的误差
+                    errors.append({
+                        'message': f'页面大小不符合要求，要求{expected_width}×{expected_height}厘米，实际为{actual_width}×{actual_height}厘米',
+                        'location': '文档全局设置'
+                    })
+    
+    # 检查页边距
+    expected_margins = paper_format.get('margins', None)
+    if expected_margins:
+        margin_keys = ['top', 'bottom', 'left', 'right']
+        
+        for key in margin_keys:
+            expected_value = extract_number(expected_margins.get(key, '0'))
+            actual_value = doc_info.get(f'margin_{key}', None)
+            
+            if expected_value and actual_value:
+                margin_diff = abs(actual_value - expected_value)
+                
+                if margin_diff > 0.1:  # 允许0.1cm的误差
+                    margin_name = {
+                        'top': '上边距',
+                        'bottom': '下边距',
+                        'left': '左边距',
+                        'right': '右边距'
+                    }.get(key, key)
+                    
+                    errors.append({
+                        'message': f'{margin_name}不符合要求，要求{expected_value}厘米，实际为{actual_value}厘米',
+                        'location': '文档全局设置'
+                    })
     
     return errors
 
-def check_reference_format(doc_path: str, required_format: Dict) -> List[str]:
-    """
-    检查参考文献格式是否符合指定标准
-    支持检查GB/T 7714-2005、GB/T 7714-2015、APA、MLA等多种标准
-    """
+def check_reference_format(doc_path: str, required_format: Dict) -> List[Dict]:
+    """检查引用和参考文献格式"""
     errors = []
-    doc = docx.Document(doc_path)
     
-    # 获取参考文献部分的要求格式
-    reference_required_format = required_format.get('references', {})
-    reference_standard = reference_required_format.get('standard', 'GB/T 7714-2015')
-    
-    # 查找参考文献部分
-    references_paragraphs = []
-    found_references_section = False
-    
-    for para in doc.paragraphs:
-        # 检查是否是参考文献标题段落
-        if not found_references_section and re.search(r'参考文献|REFERENCES', para.text, re.IGNORECASE):
-            found_references_section = True
-            continue
+    try:
+        doc = docx.Document(doc_path)
         
-        # 收集参考文献段落
-        if found_references_section and para.text.strip():
-            references_paragraphs.append(para.text.strip())
+        # 获取参考文献格式要求
+        reference_format = required_format.get('reference_format', {})
+        if not reference_format:
+            return errors
+        
+        # 获取引用样式
+        citation_style = reference_format.get('citation_style', '').lower()
+        if not citation_style:
+            return errors
+        
+        # 查找参考文献部分
+        references_start = False
+        references = []
+        
+        for para in doc.paragraphs:
+            text = para.text.strip()
+            
+            # 标识参考文献部分的开始
+            if text.startswith('参考文献') or text.lower().startswith('references'):
+                references_start = True
+                continue
+            
+            # 收集参考文献条目
+            if references_start and text:
+                references.append(text)
+        
+        # 检查是否有参考文献
+        if not references:
+            errors.append({
+                'message': '未找到参考文献部分或参考文献为空',
+                'location': '文档末尾部分'
+            })
+            return errors
+        
+        # 根据不同引用样式检查参考文献格式
+        if 'gb' in citation_style or 'gbt' in citation_style:
+            # 检查GB/T格式
+            ref_errors = _check_gbt_references(references, citation_style)
+            for i, error in enumerate(ref_errors):
+                if isinstance(error, dict):
+                    errors.append(error)
+                else:
+                    errors.append({
+                        'message': error,
+                        'location': f"参考文献[{i+1}]"
+                    })
+        
+        elif 'apa' in citation_style:
+            # 检查APA格式
+            ref_errors = _check_apa_references(references)
+            for i, error in enumerate(ref_errors):
+                if isinstance(error, dict):
+                    errors.append(error)
+                else:
+                    errors.append({
+                        'message': error,
+                        'location': f"参考文献[{i+1}]"
+                    })
+        
+        elif 'mla' in citation_style:
+            # 检查MLA格式
+            ref_errors = _check_mla_references(references)
+            for i, error in enumerate(ref_errors):
+                if isinstance(error, dict):
+                    errors.append(error)
+                else:
+                    errors.append({
+                        'message': error,
+                        'location': f"参考文献[{i+1}]"
+                    })
+        
+        else:
+            errors.append({
+                'message': f"不支持的引用样式: {citation_style}",
+                'location': '参考文献格式设置'
+            })
     
-    if not references_paragraphs:
-        errors.append("未找到参考文献部分")
-        return errors
-    
-    # 根据不同标准检查参考文献格式
-    if reference_standard.startswith('GB/T 7714'):
-        gbt_errors = _check_gbt_references(references_paragraphs, reference_standard)
-        errors.extend(gbt_errors)
-    elif reference_standard == 'APA':
-        apa_errors = _check_apa_references(references_paragraphs)
-        errors.extend(apa_errors)
-    elif reference_standard == 'MLA':
-        mla_errors = _check_mla_references(references_paragraphs)
-        errors.extend(mla_errors)
-    else:
-        errors.append(f"不支持的参考文献标准: {reference_standard}")
-    
-    # 打印错误信息
-    if errors:
-        print("\n参考文献格式检查错误:")
-        for err in errors:
-            print(f"- {err}")
+    except Exception as e:
+        errors.append({
+            'message': f"检查参考文献格式时出错: {str(e)}",
+            'location': '参考文献部分'
+        })
     
     return errors
 
@@ -194,63 +256,79 @@ def _check_mla_references(references: List[str]) -> List[str]:
     
     return errors
 
-def check_table_format(doc_path: str, required_format: Dict) -> List[str]:
-    """
-    检查表格格式是否符合要求
-    """
+def check_table_format(doc_path: str, required_format: Dict) -> List[Dict]:
+    """检查表格格式"""
     errors = []
-    doc = docx.Document(doc_path)
     
-    # 获取表格部分的要求格式
-    table_required_format = required_format.get('tables', {})
+    try:
+        doc = docx.Document(doc_path)
+        
+        # 获取表格格式要求
+        table_format = required_format.get('table_format', {})
+        if not table_format:
+            return errors
+        
+        # 遍历文档中的表格
+        table_count = 0
+        for table in doc.tables:
+            table_count += 1
+            
+            # 检查表格内容格式
+            content_errors = _check_table_content_format(table)
+            for error in content_errors:
+                if isinstance(error, dict):
+                    error['location'] = f"表{table_count}: {error.get('location', '')}"
+                    errors.append(error)
+                else:
+                    errors.append({
+                        'message': error,
+                        'location': f"表{table_count}"
+                    })
+        
+        # 遍历文档中的段落，查找表格标题
+        for i, para in enumerate(doc.paragraphs):
+            text = para.text.strip()
+            
+            # 检查是否为表格标题
+            if text.startswith('表') or text.lower().startswith('table'):
+                # 检查标题格式
+                caption_errors = _check_caption_format(para, table_format, 'table')
+                
+                # 匹配表格编号
+                match = re.search(r'表\s*(\d+[-.]?\d*)', text)
+                table_num = match.group(1) if match else f"{i+1}"
+                
+                for error in caption_errors:
+                    if isinstance(error, dict):
+                        error['location'] = f"表{table_num}标题: {error.get('location', '')}"
+                        errors.append(error)
+                    else:
+                        errors.append({
+                            'message': error,
+                            'location': f"表{table_num}标题"
+                        })
+                
+                # 检查表格编号格式
+                number_errors = _check_table_number_format(text)
+                for error in number_errors:
+                    if isinstance(error, dict):
+                        error['location'] = f"表{table_num}编号: {error.get('location', '')}"
+                        errors.append(error)
+                    else:
+                        errors.append({
+                            'message': error,
+                            'location': f"表{table_num}编号"
+                        })
     
-    # 检查表格标题和内容
-    table_count = 0
-    for i, table in enumerate(doc.tables):
-        table_count += 1
-        
-        # 查找表格标题段落（通常在表格前的段落）
-        table_caption = None
-        for j, para in enumerate(doc.paragraphs):
-            # 尝试定位表格标题
-            if re.search(r'表\s*\d+[-－]\d+|Table\s*\d+[-－]\d+', para.text, re.IGNORECASE):
-                # 检查标题是否在表格前面
-                if j < len(doc.paragraphs) - 1:
-                    # 简单检查：如果下一段是空的，可能表示表格位置
-                    if not doc.paragraphs[j+1].text.strip():
-                        table_caption = para
-                        break
-        
-        # 检查是否找到表格标题
-        if not table_caption:
-            errors.append(f"表格 #{i+1} 缺少标题或标题格式不正确")
-            continue
-        
-        # 检查表格标题格式
-        caption_errors = _check_caption_format(table_caption, table_required_format.get('caption', {}), "表格")
-        errors.extend(caption_errors)
-        
-        # 检查表格内容格式
-        content_errors = _check_table_content_format(table)
-        errors.extend(content_errors)
-        
-        # 检查表格编号是否按章节顺序
-        number_errors = _check_table_number_format(table_caption.text)
-        errors.extend(number_errors)
-    
-    # 检查是否有表格
-    if table_count == 0:
-        errors.append("文档中未找到表格")
-    
-    # 打印错误信息
-    if errors:
-        print("\n表格格式检查错误:")
-        for err in errors:
-            print(f"- {err}")
+    except Exception as e:
+        errors.append({
+            'message': f"检查表格格式时出错: {str(e)}",
+            'location': '全文表格'
+        })
     
     return errors
 
-def _check_caption_format(caption_para, required_format: Dict, caption_type: str) -> List[str]:
+def _check_caption_format(caption_para, required_format: Dict, caption_type: str) -> List[Dict]:
     """
     检查标题格式
     """
@@ -266,7 +344,10 @@ def _check_caption_format(caption_para, required_format: Dict, caption_type: str
         required_en_font = required_format.get('fonts', {}).get('en_family')
         
         if required_zh_font and not any(font in font_name for font in [required_zh_font, '黑体']):
-            errors.append(f"{caption_type}标题中文字体不符合要求，应为{required_zh_font}")
+            errors.append({
+                'message': f"{caption_type}标题中文字体不符合要求，应为{required_zh_font}",
+                'location': '标题字体'
+            })
         
         # 检查字体大小
         font_size = run.font.size
@@ -275,58 +356,92 @@ def _check_caption_format(caption_para, required_format: Dict, caption_type: str
             required_pt = extract_number(required_size)
             actual_pt = font_size.pt
             if abs(actual_pt - required_pt) > 0.5:
-                errors.append(f"{caption_type}标题字体大小不符合要求，应为{required_size}")
+                errors.append({
+                    'message': f"{caption_type}标题字体大小不符合要求，应为{required_size}",
+                    'location': '标题字体大小'
+                })
     
     # 检查对齐方式
     alignment = caption_para.alignment
     required_alignment = required_format.get('paragraph_format', {}).get('alignment')
     if required_alignment and required_alignment.lower() == 'center' and alignment != 1:  # 1表示居中
-        errors.append(f"{caption_type}标题未居中显示")
+        errors.append({
+            'message': f"{caption_type}标题未居中显示",
+            'location': '标题对齐'
+        })
     
     # 检查是否同时包含中英文标题
     if not (re.search(r'[\u4e00-\u9fa5]', caption_para.text) and 
             re.search(r'[a-zA-Z]', caption_para.text)):
-        errors.append(f"{caption_type}标题应同时包含中英文")
+        errors.append({
+            'message': f"{caption_type}标题应同时包含中英文",
+            'location': '标题语言'
+        })
     
     return errors
 
-def _check_table_content_format(table) -> List[str]:
-    """
-    检查表格内容格式
-    """
+def _check_table_content_format(table) -> List[Dict]:
+    """检查表格内容格式"""
     errors = []
     
-    # 检查表头是否使用黑体
-    if table.rows and table.rows[0].cells:
-        for cell in table.rows[0].cells:
-            for para in cell.paragraphs:
-                for run in para.runs:
-                    if not any(font in run.font.name for font in ['黑体', 'SimHei']):
-                        errors.append("表格表头应使用黑体")
-                        break
+    try:
+        row_count = len(table.rows)
+        col_count = len(table.columns)
+        
+        # 检查表格是否为空
+        if row_count == 0 or col_count == 0:
+            errors.append({
+                'message': '表格为空',
+                'location': '表格内容'
+            })
+            return errors
+        
+        # 检查表格单元格是否为空
+        empty_cells = []
+        for i, row in enumerate(table.rows):
+            for j, cell in enumerate(row.cells):
+                if not cell.text.strip():
+                    empty_cells.append(f"行{i+1}列{j+1}")
+        
+        if empty_cells:
+            if len(empty_cells) <= 3:
+                cell_str = '、'.join(empty_cells)
+            else:
+                cell_str = f"{empty_cells[0]}、{empty_cells[1]}等{len(empty_cells)}处"
+            
+            errors.append({
+                'message': f'表格存在空单元格',
+                'location': f"表格内容: {cell_str}"
+            })
+        
+        # 检查表格行列一致性
+        inconsistent_rows = []
+        first_row_cell_count = len(table.rows[0].cells)
+        
+        for i, row in enumerate(table.rows):
+            if len(row.cells) != first_row_cell_count:
+                inconsistent_rows.append(i+1)
+        
+        if inconsistent_rows:
+            if len(inconsistent_rows) <= 3:
+                rows_str = '、'.join(map(str, inconsistent_rows))
+            else:
+                rows_str = f"{inconsistent_rows[0]}、{inconsistent_rows[1]}等{len(inconsistent_rows)}行"
+            
+            errors.append({
+                'message': '表格行列不一致',
+                'location': f"表格内容: 第{rows_str}"
+            })
     
-    # 检查表格内容字体大小
-    for row_idx, row in enumerate(table.rows):
-        if row_idx == 0:  # 跳过表头
-            continue
-        for cell in row.cells:
-            for para in cell.paragraphs:
-                for run in para.runs:
-                    # 检查中文字体
-                    if re.search(r'[\u4e00-\u9fa5]', run.text) and not any(font in run.font.name for font in ['宋体', 'SimSun']):
-                        errors.append("表格内容中文应使用宋体")
-                    
-                    # 检查英文字体
-                    if re.search(r'[a-zA-Z]', run.text) and 'Times New Roman' not in run.font.name:
-                        errors.append("表格内容英文应使用Times New Roman")
-                    
-                    # 检查字体大小
-                    if run.font.size and (run.font.size.pt < 9 or run.font.size.pt > 10.5):
-                        errors.append("表格内容字体大小应为5号或小5号（约10.5pt或9pt）")
+    except Exception as e:
+        errors.append({
+            'message': f"检查表格内容时出错: {str(e)}",
+            'location': '表格内容'
+        })
     
     return errors
 
-def _check_table_number_format(caption_text: str) -> List[str]:
+def _check_table_number_format(caption_text: str) -> List[Dict]:
     """
     检查表格编号是否按章节顺序
     """
@@ -335,7 +450,10 @@ def _check_table_number_format(caption_text: str) -> List[str]:
     # 匹配表格编号格式：表x-y 或 Table x-y
     match = re.search(r'表\s*(\d+)[-－](\d+)|Table\s*(\d+)[-－](\d+)', caption_text, re.IGNORECASE)
     if not match:
-        errors.append(f"表格编号格式不正确，应为'表x-y'或'Table x-y'格式")
+        errors.append({
+            'message': f"表格编号格式不正确，应为'表x-y'或'Table x-y'格式",
+            'location': '表格编号'
+        })
         return errors
     
     # 提取章节号和表格序号
@@ -348,7 +466,10 @@ def _check_table_number_format(caption_text: str) -> List[str]:
     
     # 检查章节号和表格序号是否合理
     if chapter_num <= 0 or table_num <= 0:
-        errors.append(f"表格编号中章节号和表格序号应为正整数")
+        errors.append({
+            'message': f"表格编号中章节号和表格序号应为正整数",
+            'location': '表格编号'
+        })
     
     return errors
 
@@ -427,98 +548,142 @@ def _check_figure_number_format(caption_text: str) -> List[str]:
     return errors
 
 def check_abstract(paragraph_manager:ParagraphManager):
+    """检查摘要格式"""
     errors = []
-    # 获取摘要的内容
-    abstract_content_zh = paragraph_manager.get_by_type(ParsedParaType.ABSTRACT_CONTENT_ZH)
-    # 如果没有获取到摘要，则报错
-    if abstract_content_zh is None:
-        errors.append("中文摘要内容缺失")
-    # 统计摘要的字数是否合适
-    if abstract_content_zh is not None:        
-        if len(abstract_content_zh) < 100 or len(abstract_content_zh) > 500:
-            errors.append("中文摘要字数不合适")
-    # 获取英文摘要内容
-    abstract_content_en = paragraph_manager.get_by_type(ParsedParaType.ABSTRACT_CONTENT_EN)   
-    # 如果没有获取到英文摘要，则报错
-    if abstract_content_en is None:
-        errors.append("英文摘要内容缺失")
-    if abstract_content_en is not None:        
-        if len(abstract_content_en) < 100 or len(abstract_content_en) > 500:
-            errors.append("英文摘要字数不合适")
+    
+    # 查找摘要段落
+    abstract_paras = []
+    for para in paragraph_manager.paragraphs:
+        if para.content.strip().startswith('摘要'):
+            abstract_paras.append(para)
+    
+    # 检查是否存在摘要
+    if not abstract_paras:
+        errors.append({
+            'message': '文档中缺少摘要',
+            'location': '文档开头部分'
+        })
+        return errors
+    
+    # 检查摘要内容
+    abstract_para = abstract_paras[0]
+    abstract_text = abstract_para.content.strip()
+    
+    # 检查摘要长度
+    if len(abstract_text) < 10:  # 假设摘要至少应该有10个字符
+        errors.append({
+            'message': '摘要内容过短',
+            'location': '摘要部分'
+        })
+    
+    # 检查摘要格式
+    # 这里可以添加更多摘要格式检查，如字体、字号等
+    
     return errors
 
 def check_keywords(paragraph_manager:ParagraphManager):
+    """检查关键词格式"""
     errors = []
-    # 获取关键词的内容
-    keywords_content_zh = paragraph_manager.get_by_type(ParsedParaType.KEYWORDS_CONTENT_ZH)
-    if keywords_content_zh is None:
-        errors.append("中文关键词内容缺失")
-    # 对中文关键词按照标点分割(,或、或；)
-    if keywords_content_zh is not None:        
-        keywords_list = keywords_content_zh.split(',')
-        if len(keywords_list) < 2 or len(keywords_list) > 5:
-            errors.append("中文关键词个数不合适")
+    
+    # 查找关键词段落
+    keyword_paras = []
+    for para in paragraph_manager.paragraphs:
+        para_text = para.content.strip()
+        if para_text.startswith('关键词') or para_text.startswith('Keywords'):
+            keyword_paras.append(para)
+    
+    # 检查是否存在关键词
+    if not keyword_paras:
+        errors.append({
+            'message': '文档中缺少关键词',
+            'location': '摘要之后'
+        })
+        return errors
+    
+    # 检查关键词内容
+    keyword_para = keyword_paras[0]
+    keyword_text = keyword_para.content.strip()
+    
+    # 检查是否有足够的关键词（假设至少3个）
+    if '：' in keyword_text:
+        keywords = keyword_text.split('：')[1].split('；')
+    elif ':' in keyword_text:
+        keywords = keyword_text.split(':')[1].split(';')
+    else:
+        keywords = []
+    
+    if len(keywords) < 3:
+        errors.append({
+            'message': '关键词数量不足，建议至少提供3个关键词',
+            'location': '关键词部分'
+        })
+    
     return errors
 
-def check_main_format(paragraph_manager, required_format):
-    """
-    主检查函数，整合字体检查和格式检查。
-    """
-    errors = {}
-
-    # 获取段落信息
-    paras_format_info = paragraph_manager.to_dict()
-
-    # 检查每个段落的格式
-    for para in paras_format_info:
-        para_id = para.get("id")  # 段落唯一标识
-        para_type = para.get("type")
-        para_meta = para.get("meta", {})
-        required_meta = required_format.get(para_type, {})
+def check_main_format(paragraph_manager:ParagraphManager, required_format:Dict) -> List[Dict]:
+    """检查主要文档格式"""
+    errors = []
+    
+    # 检查摘要格式
+    abstract_errors = check_abstract(paragraph_manager)
+    if abstract_errors:
+        errors.extend(abstract_errors)
+    
+    # 检查关键词格式
+    keyword_errors = check_keywords(paragraph_manager)
+    if keyword_errors:
+        errors.extend(keyword_errors)
+    
+    # 获取段落格式要求
+    paragraph_format = required_format.get('paragraph_format', {})
+    if not paragraph_format:
+        return errors
+    
+    # 获取各类型段落的格式要求
+    title_format = paragraph_format.get('title', {})
+    heading1_format = paragraph_format.get('heading1', {})
+    heading2_format = paragraph_format.get('heading2', {})
+    heading3_format = paragraph_format.get('heading3', {})
+    body_format = paragraph_format.get('body', {})
+    
+    # 遍历所有段落，检查格式 - 修改为正确的列表迭代方式
+    for para in paragraph_manager.paragraphs:
+        para_type = para.type.value if hasattr(para, 'type') else ''
+        para_text = para.content if hasattr(para, 'content') else ''
+        para_attributes = para.meta if hasattr(para, 'meta') else {}
         
-        # 如果段落类型为other，则跳过格式检查
-        if para_type == "other":
+        # 根据段落类型选择相应的格式要求
+        expected_format = {}
+        location_prefix = ""
+        
+        if para_type == 'title_zh' or para_type == 'title_en':
+            expected_format = title_format
+            location_prefix = "标题"
+        elif para_type == 'heading1':
+            expected_format = heading1_format
+            location_prefix = "一级标题"
+        elif para_type == 'heading2':
+            expected_format = heading2_format
+            location_prefix = "二级标题"
+        elif para_type == 'heading3':
+            expected_format = heading3_format
+            location_prefix = "三级标题"
+        elif para_type == 'body':
+            expected_format = body_format
+            location_prefix = "正文"
+        
+        if not expected_format:
             continue
-
-        # 遍历要求格式中的每个字段
-        for key, expected in required_meta.items():
-            actual = para_meta.get(key)
-
-            # 如果字段不存在
-            if actual is None:
-                _add_error(errors, para_id, f"缺少必需字段: '{key}'")
-                continue
-
-            # 如果字段是列表类型，优先检查长度
-            if isinstance(actual, list):
-                if len(actual) > 1:
-                    _add_error(errors, para_id, f"字段 '{key}' 存在多个值: {actual}")
-                    continue
-                actual = actual[0]  # 取第一个值进行比较
-
-            # 递归处理嵌套字典
-            if isinstance(expected, dict):
-                if not isinstance(actual, dict):
-                    _add_error(errors, para_id, f"字段类型不匹配: '{key}' 应为字典类型，实际为 {type(actual).__name__}")
-                    continue
-
-                # 递归检查嵌套字段
-                nested_errors = _recursive_check(actual, expected)
-                for err in nested_errors:
-                    _add_error(errors, para_id, f"{key}.{err}")
-
-            # 检查值是否匹配
-            else:
-                if not is_value_equal(expected, actual, key):
-                    _add_error(errors, para_id, f"'{key}' 不匹配: 要求 {expected}, 实际 {actual}")
-
-    # 打印错误信息
-    if errors:
-        print("\n页面格式检查错误:")
-        for para_id, error_list in errors.items():
-            print(f"- 段落 ID: {para_id}")
-            for err in error_list:
-                print(f"  - {err}")
+        
+        # 递归检查格式
+        format_errors = _recursive_check(para_attributes, expected_format)
+        for error_key, error_msg in format_errors:
+            location = f"{location_prefix}: \"{para_text[:20]}{'...' if len(para_text) > 20 else ''}\""
+            errors.append({
+                'message': error_msg,
+                'location': location
+            })
+    
     return errors
 
 def _recursive_check(actual, expected):
@@ -562,14 +727,6 @@ def _recursive_check(actual, expected):
 
     return nested_errors
 
-def _add_error(errors, para_id, error_msg):
-    """
-    添加错误到错误字典中。
-    """
-    if para_id not in errors:
-        errors[para_id] = []
-    errors[para_id].append(error_msg)
-
 def remark_para_type(doc_path: str, model_name) -> ParagraphManager:
     # 初始化段落管理器
     paragraph_manager = ParagraphManager()
@@ -591,10 +748,9 @@ def remark_para_type(doc_path: str, model_name) -> ParagraphManager:
             format_auxiliary = FormatAuxiliary(model = model_name)
             # 调用大模型预测类型
             response = format_auxiliary.predict_location(doc_content, para_string, doc_content_sent)
-            response = response.strip()  # 去除首尾空白字符
             
-            # 解析 JSON 字符串
-            response_dict = json.loads(response)
+            # 直接使用response字典，无需再次解析
+            response_dict = response
             
             # 将返回的location转换为ParsedParaType枚举类型
             try:
@@ -640,44 +796,7 @@ def remark_para_type(doc_path: str, model_name) -> ParagraphManager:
     
     return paragraph_manager
 
-
-# debug
-# def check_format(doc_path:str, required_format:dict, llm:LLMs):
-#     print(f"[LOG] 当前工作目录: {os.getcwd()}")
-#     doc_path_full = os.path.abspath(doc_path)
-#     print(f"[LOG] 尝试打开文档: {doc_path_full}")
-#     if not os.path.exists(doc_path_full):
-#         print(f"[LOG] 文档文件不存在: {doc_path_full}")
-#     doc_info = docx_parser.extract_section_info(doc_path)
-#     # 初始化段落管理器
-#     paragraph_manager = ParagraphManager()
-#     # 读取doc的段落信息
-#     paragraph_manager = extract_para_info.extract_para_format_info(doc_path, paragraph_manager)
-#     # 重分配段落类型
-#     # paragraph_manager = remark_para_type(doc_path, llm)
-#     # 修改rusult到英文
-#     with open("../result.json", "r", encoding="utf-8") as f:
-#         data = json.load(f)
-#         result = paragraph_manager.to_english_dict(data)
-#     # 写回json
-#     with open("../result.json", "w", encoding="utf-8") as f:
-#         json.dump(result, f, ensure_ascii=False, indent=4)
-#     paragraph_manager = ParagraphManager.build_from_json_file("../result.json")
-#     # paras_info_json_zh = paragraph_manager.to_chinese_dict()
-#     # 对齐段落信息和格式信息同Config
-#     # print(paras_info_dict)
-#     # 检查格式是否符合要求
-#     check_paper_format(doc_info, required_format)
-#     #  检查段落格式
-#     check_main_format(paragraph_manager, required_format)
-#     #  检查表格样式
-#     check_table_format(doc_path, required_format)
-#     # 检查图片样式
-#     check_figure_format(doc_path, required_format)
-#     # 检查引用样式和参考文献
-#     check_reference_format(doc_path, required_format)
-
-def check_format(doc_path: str, config_path: str, model_name: str) -> List[str]:
+def check_format(doc_path: str, config_path: str, model_name: str) -> List[dict]:
     # 加载配置
     required_format = load_config(config_path)
     
@@ -719,8 +838,37 @@ def check_format(doc_path: str, config_path: str, model_name: str) -> List[str]:
     if ref_errors:
         errors.extend(ref_errors)
     
-    print(f"[LOG] 文件格式检查结果: {errors}")
-    return errors
+    # 转换错误格式为包含message和location的字典
+    formatted_errors = []
+    for error in errors:
+        if isinstance(error, dict) and 'message' in error and 'location' in error:
+            # 如果错误已经是正确格式，直接添加
+            formatted_errors.append(error)
+        elif isinstance(error, str):
+            # 尝试从字符串中提取位置信息
+            location_match = re.search(r'位置[:：]?\s*(.+?)\s*$', error)
+            if location_match:
+                message = error[:location_match.start()].strip()
+                location = location_match.group(1).strip()
+                formatted_errors.append({
+                    'message': message,
+                    'location': location
+                })
+            else:
+                # 无法提取位置信息，使用通用位置
+                formatted_errors.append({
+                    'message': error,
+                    'location': '未指定位置'
+                })
+        else:
+            # 处理其他类型的错误
+            formatted_errors.append({
+                'message': str(error),
+                'location': '未指定位置'
+            })
+    
+    print(f"[LOG] 文件格式检查结果: {formatted_errors}")
+    return formatted_errors
 
 # llm = LLMs()
 # llm.set_model('qwen-plus')

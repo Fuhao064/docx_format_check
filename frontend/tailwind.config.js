@@ -8,6 +8,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        // 重新定义暗色模式色调为蓝灰色系
         zinc: {
           '950': 'var(--bg-primary)',
           '900': 'var(--bg-secondary)',
@@ -20,6 +21,12 @@ export default {
           '200': '#e4e4e7',
           '100': '#f4f4f5',
           '50': '#fafafa'
+        },
+        // 新增品牌色调
+        brand: {
+          DEFAULT: 'var(--brand-color)',
+          light: 'var(--brand-color-light)',
+          dark: 'var(--brand-color-dark)',
         },
         background: 'var(--bg-primary)',
         foreground: 'var(--text-primary)',

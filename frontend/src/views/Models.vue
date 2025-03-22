@@ -1,22 +1,22 @@
 <template>
-  <div class="p-6 overflow-y-auto h-full" :class="{ 'bg-white text-black': !isDarkMode, 'bg-zinc-950 text-zinc-100': isDarkMode }">
+  <div class="p-6 overflow-y-auto h-full" :class="{ 'bg-white text-zinc-900': !isDarkMode, 'bg-zinc-950 text-zinc-100': isDarkMode }">
     <div class="mb-6">
       <h1 class="text-2xl font-semibold mb-2">模型管理</h1>
-      <p :class="isDarkMode ? 'text-zinc-400' : 'text-gray-600'">管理和配置可用的AI模型</p>
+      <p :class="isDarkMode ? 'text-zinc-400' : 'text-zinc-600'">管理和配置可用的AI模型</p>
     </div>
     
     <!-- 当前选择的模型 -->
-    <div :class="[isDarkMode ? 'bg-zinc-800' : 'bg-gray-100', 'rounded-md p-4 mb-6']">
+    <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-zinc-100', 'rounded-md p-4 mb-6']">
       <div class="flex items-center justify-between">
         <div>
           <h2 class="text-lg font-medium mb-1">当前选择的模型</h2>
-          <p :class="isDarkMode ? 'text-zinc-400' : 'text-gray-600'">{{ currentModel || '未选择模型' }}</p>
+          <p :class="isDarkMode ? 'text-zinc-400' : 'text-zinc-600'">{{ currentModel || '未选择模型' }}</p>
         </div>
         <button 
           v-if="currentModel"
           @click="refreshModels"
           :class="[
-            isDarkMode ? 'bg-teal-600/80 hover:bg-teal-700 text-zinc-100' : 'bg-indigo-500 hover:bg-indigo-600 text-white',
+            isDarkMode ? 'bg-brand hover:bg-brand-dark text-white' : 'bg-brand hover:bg-brand-dark text-white',
             'px-3 py-1.5 rounded-md transition-colors text-sm'
           ]"
         >
@@ -26,7 +26,7 @@
     </div>
     
     <!-- 模型列表 -->
-    <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-white border border-gray-200', 'rounded-md overflow-hidden mb-6']">
+    <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-white border border-zinc-200', 'rounded-md overflow-hidden mb-6']">
       <div class="overflow-x-auto">
         <table class="w-full border-collapse">
           <thead>
@@ -78,26 +78,26 @@
     </div>
     
     <!-- 添加模型表单 -->
-    <div :class="[isDarkMode ? 'bg-zinc-800' : 'bg-gray-100', 'rounded-md p-6']">
+    <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-zinc-100', 'rounded-md p-6']">
       <h2 class="text-lg font-medium mb-4">添加新模型</h2>
       
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm font-medium mb-1']">模型名称</label>
+          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-zinc-600', 'block text-sm font-medium mb-1']">模型名称</label>
           <input 
             v-model="newModel.name" 
             type="text" 
             :class="[
-              isDarkMode ? 'bg-zinc-700 text-zinc-100' : 'bg-white text-black border border-gray-300',
+              isDarkMode ? 'bg-zinc-800 text-zinc-100' : 'bg-white text-zinc-900 border border-zinc-300',
               'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1',
-              isDarkMode ? 'focus:ring-teal-600' : 'focus:ring-indigo-500'
+              isDarkMode ? 'focus:ring-brand' : 'focus:ring-brand'
             ]"
             placeholder="例如: gpt-4"
           />
         </div>
         
         <div>
-          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm font-medium mb-1']">API 基础 URL</label>
+          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-zinc-600', 'block text-sm font-medium mb-1']">API 基础 URL</label>
           <input 
             v-model="newModel.base_url" 
             type="text" 
@@ -111,7 +111,7 @@
         </div>
         
         <div>
-          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm font-medium mb-1']">API Key</label>
+          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-zinc-600', 'block text-sm font-medium mb-1']">API Key</label>
           <input 
             v-model="newModel.api_key" 
             type="text" 
@@ -125,7 +125,7 @@
         </div>
         
         <div>
-          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-gray-600', 'block text-sm font-medium mb-1']">模型标识符</label>
+          <label :class="[isDarkMode ? 'text-zinc-400' : 'text-zinc-600', 'block text-sm font-medium mb-1']">模型标识符</label>
           <input 
             v-model="newModel.model_name" 
             type="text" 
@@ -142,7 +142,7 @@
       <button 
         @click="addModel"
         :class="[
-          isDarkMode ? 'bg-teal-600 hover:bg-teal-700 text-zinc-100' : 'bg-indigo-500 hover:bg-indigo-600 text-white',
+          isDarkMode ? 'bg-brand hover:bg-brand-dark text-white' : 'bg-brand hover:bg-brand-dark text-white',
           'px-4 py-2 rounded-md transition-colors',
           isAddButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''
         ]"
@@ -156,12 +156,12 @@
     <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div :class="[isDarkMode ? 'bg-zinc-900' : 'bg-white', 'rounded-md p-6 max-w-md w-full mx-4']">
         <h3 class="text-xl font-semibold mb-4">确认删除</h3>
-        <p class="mb-6" :class="isDarkMode ? 'text-zinc-400' : 'text-gray-600'">确定要删除模型 "{{ modelToDelete }}" 吗？此操作无法撤销。</p>
+        <p class="mb-6" :class="isDarkMode ? 'text-zinc-400' : 'text-zinc-600'">确定要删除模型 "{{ modelToDelete }}" 吗？此操作无法撤销。</p>
         <div class="flex justify-end space-x-3">
           <button 
             @click="showDeleteConfirm = false"
             :class="[
-              isDarkMode ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-300' : 'bg-gray-200 hover:bg-gray-300 text-black',
+              isDarkMode ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300' : 'bg-zinc-200 hover:bg-zinc-300 text-zinc-700',
               'px-4 py-2 rounded-md transition-colors'
             ]"
           >
@@ -170,7 +170,7 @@
           <button 
             @click="deleteModel"
             :class="[
-              isDarkMode ? 'bg-red-600/80 hover:bg-red-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white',
+              isDarkMode ? 'bg-destructive hover:bg-destructive/90 text-white' : 'bg-destructive hover:bg-destructive/90 text-white',
               'px-4 py-2 rounded-md transition-colors'
             ]"
           >
