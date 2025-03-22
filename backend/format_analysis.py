@@ -7,8 +7,9 @@ class FormatAuxiliary:
     def __init__(self, model="qwen-plus"):
         self.llm = LLMs()  # 保存 LLMs 实例到类属性
         self.llm.model = model  # 设置模型名称
+        self.model = model  # 添加 model 属性
         self.client = self.llm.client  # 获取 OpenAI 客户端
-     
+        
     def parse_format(self, format_str: str, json_str: str) -> str:
         response = self.client.chat.completions.create(
             model=self.model,

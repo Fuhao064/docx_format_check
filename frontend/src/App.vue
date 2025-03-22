@@ -1,25 +1,20 @@
 <template>
-<div class="min-h-screen flex" :class="isDarkMode ? 'bg-slate-900 text-slate-100' : 'bg-slate-50 text-slate-900'">
+<div class="min-h-screen flex" :class="isDarkMode ? 'bg-zinc-950 text-zinc-100' : 'bg-white text-zinc-900'">
     <!-- 侧边栏 -->
     <aside 
-      class="h-screen flex flex-col transition-all duration-300 overflow-hidden fixed z-10"
+      class="h-screen flex flex-col transition-all duration-300 overflow-hidden fixed z-50"
       :class="[
-        isDarkMode ? 'bg-black border-slate-700' : 'bg-white border-slate-200',
+        isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-50 border-zinc-200',
         'border-r',
         sidebarCollapsed ? 'w-12' : 'w-64'
       ]"
     >
       <!-- 顶部Logo和标题 -->
-      <div class="p-4 flex items-center" :class="isDarkMode ? 'border-slate-700' : 'border-slate-200'">
-        <div v-if="!sidebarCollapsed" class="w-8 h-8 rounded-md flex items-center justify-center mr-3"
-          :class="isDarkMode ? 'bg-slate-700' : 'bg-slate-100'">
-          <img :src="logo" alt="Logo" class="w-full h-full" />
-        </div>
-        <h1 class="text-lg font-semibold truncate" v-show="!sidebarCollapsed">Putain le format</h1>
-        
+      <div class="p-4 flex items-center" :class="isDarkMode ? 'border-zinc-800' : 'border-zinc-200'">
+        <h1 class="text-lg font-semibold truncate font-serif italic items-center" :class="sidebarCollapsed ? 'hidden' : ''">Scriptor</h1>
         <button 
           @click="toggleSidebar" 
-          :class="isDarkMode ? 'text-slate-400 hover:text-slate-100' : 'text-slate-400 hover:text-slate-600'"
+          :class="isDarkMode ? 'text-zinc-400 hover:text-zinc-100' : 'text-zinc-400 hover:text-zinc-600'"
           class="ml-auto transition-colors sidebar-toggle-button"
         >
           <svg v-if="!sidebarCollapsed" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -61,20 +56,23 @@
           :class="[
             currentChat && currentChat.id === chat.id 
               ? isDarkMode ? 'bg-blue-600/20 text-blue-100' : 'bg-blue-50 text-blue-900'
-              : isDarkMode ? 'text-slate-300 hover:bg-slate-700 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              : isDarkMode ? 'text-zinc-300 hover:bg-zinc-700 hover:text-white' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
           ]"
         >
-          <div class="flex items-center space-x-2 w-full">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0" :class="sidebarCollapsed ? 'ml-auto mr-auto' : ''">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="9" y1="9" x2="15" y2="9"></line>
-              <line x1="9" y1="13" x2="15" y2="13"></line>
-              <line x1="9" y1="17" x2="15" y2="17"></line>
-            </svg>
+          <div class="flex items-center space-x-2 w-full" :class="sidebarCollapsed ? 'justify-center' : ''">
+            <div class="flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <path d="M14 2v6h6"/>
+                <path d="M16 13H8"/>
+                <path d="M16 17H8"/>
+                <path d="M10 9H8"/>
+              </svg>
+            </div>
             <div class="flex-1 overflow-hidden" v-if="!sidebarCollapsed">
               <div class="flex items-center">
-                <span class="truncate">{{ chat.title }}</span>
-                <span v-if="chat.docName" class="ml-1 text-xs px-1.5 py-0.5 rounded-full" :class="chat.colorClass || 'bg-green-500/20 text-green-400'">{{ chat.docName }}</span>
+                <span class="truncate">{{ chat.docName || chat.title }}</span>
+                <span v-if="chat.colorClass" class="ml-1 w-2 h-2 rounded-full" :class="chat.colorClass.replace('text-green-400', '').replace('text-blue-400', '')"></span>
               </div>
               <div v-if="chat.timestamp" class="text-xs opacity-60 mt-0.5">{{ new Date(chat.timestamp).toLocaleTimeString() }}</div>
             </div>
@@ -83,8 +81,7 @@
       </div>
       
       <!-- 底部菜单 -->
-      
-      <div :class="[isDarkMode ? 'border-slate-700' : 'border-slate-200', 'border-t py-2']">
+      <div :class="[isDarkMode ? 'border-zinc-800' : 'border-zinc-200', 'border-t py-2']">
         <router-link 
           v-for="item in menuItems" 
           :key="item.id" 
@@ -94,7 +91,7 @@
             sidebarCollapsed ? 'justify-center py-2 mx-2' : 'px-3 py-2 mx-2',
             route.path === item.href && currentChat === null
               ? isDarkMode ? 'bg-blue-600/20 text-blue-100' : 'bg-blue-50 text-blue-900'
-              : isDarkMode ? 'text-slate-300 hover:bg-slate-700 hover:text-white' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              : isDarkMode ? 'text-zinc-300 hover:bg-zinc-700 hover:text-white' : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
           ]"
         >
           <div class="w-5 h-5 flex items-center justify-center">
@@ -106,13 +103,6 @@
             {{ item.name[currentLanguage] }}
           </div>
         </router-link>
-        <div :class="[isDarkMode ? 'border-slate-700' : 'border-slate-200', 'border-t py-2 flex items-center justify-between px-3 mx-2 rounded-md']">
-          <span class="truncate">{{ isDarkMode ? '深色模式' : '浅色模式' }}</span>
-          <label class="inline-flex relative items-center cursor-pointer">
-            <input type="checkbox" value="" class="sr-only peer" @change="toggleTheme" :checked="isDarkMode">
-            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
       </div>
     </aside>
 
@@ -136,7 +126,7 @@
         v-if="notification.show" 
         class="flex-shrink-0 w-80 overflow-hidden transition-all duration-300 transform rounded-lg shadow-lg"
         :class="[
-          isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200',
+          isDarkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-200',
           'border',
           notification.show ? 'translate-y-0 opacity-100' : '-translate-y-4 opacity-0'
         ]"
@@ -154,18 +144,18 @@
             </svg>
           </div>
           <div class="ml-3 w-0 flex-1">
-            <p class="text-sm font-medium" :class="isDarkMode ? 'text-slate-100' : 'text-slate-900'">{{ notification.title }}</p>
-            <p class="mt-1 text-sm" :class="isDarkMode ? 'text-slate-400' : 'text-slate-500'">{{ notification.message }}</p>
+            <p class="text-sm font-medium" :class="isDarkMode ? 'text-zinc-100' : 'text-zinc-900'">{{ notification.title }}</p>
+            <p class="mt-1 text-sm" :class="isDarkMode ? 'text-zinc-400' : 'text-zinc-500'">{{ notification.message }}</p>
           </div>
           <div class="ml-4 flex-shrink-0 flex">
-            <button @click="closeNotification" class="inline-flex transition-colors" :class="isDarkMode ? 'text-slate-400 hover:text-slate-100' : 'text-slate-400 hover:text-slate-600'">
+            <button @click="closeNotification" class="inline-flex transition-colors" :class="isDarkMode ? 'text-zinc-400 hover:text-zinc-100' : 'text-zinc-400 hover:text-zinc-600'">
               <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
               </svg>
             </button>
           </div>
         </div>
-        <div :class="isDarkMode ? 'bg-slate-700' : 'bg-slate-200'" class="h-1" :style="{ width: `${notification.progress}%` }"></div>
+        <div :class="notification.type === 'success' ? 'bg-success' : notification.type === 'error' ? 'bg-destructive' : notification.type === 'warning' ? 'bg-warning' : 'bg-brand'" class="h-1" :style="{ width: `${notification.progress}%` }"></div>
       </div>
     </div>
   </div>
@@ -185,6 +175,7 @@ provide('isDarkMode', isDarkMode)
 
 // 侧边栏折叠状态
 const sidebarCollapsed = ref(true)
+provide('sidebarCollapsed', sidebarCollapsed)
 
 // 图标组件
 const ModelsIcon = h('svg', {
@@ -323,8 +314,8 @@ function toggleSidebar() {
 
 // 聊天历史
 const chatHistory = ref([
-  { id: 1, title: '文档格式分析 #1', docName: '望色.docx', colorClass: 'bg-green-500/20 text-green-400', timestamp: new Date().toISOString() },
-  { id: 2, title: '论文格式检查 #2', docName: 'test.docx', colorClass: 'bg-blue-500/20 text-blue-400', timestamp: new Date().toISOString() }
+  { id: 1,  docName: 'test2.docx', colorClass: 'bg-green-500/20 text-green-400', timestamp: new Date().toISOString() },
+  { id: 2,  docName: 'test.docx', colorClass: 'bg-blue-500/20 text-blue-400', timestamp: new Date().toISOString() }
 ])
 
 // 当前聊天
@@ -421,18 +412,50 @@ function updateChatHistory(docName, colorClass) {
   }
 }
 
+// 切换主题
+function toggleTheme() {
+  isDarkMode.value = !isDarkMode.value
+  
+  // 将主题状态添加到 HTML 元素，方便全局样式访问
+  if (isDarkMode.value) {
+    document.documentElement.classList.add('dark')
+    document.documentElement.classList.remove('light')
+  } else {
+    document.documentElement.classList.add('light')
+    document.documentElement.classList.remove('dark')
+  }
+  
+  // 存储用户主题偏好
+  localStorage.setItem('theme', isDarkMode.value ? 'dark' : 'light')
+}
+
 // 提供函数给子组件
 provide('showNotification', showNotification)
 provide('currentLanguage', currentLanguage)
 provide('updateChatHistory', updateChatHistory)
-
-// 切换主题
-function toggleTheme() {
-  isDarkMode.value = !isDarkMode.value
-}
-
-// 提供主题切换函数给子组件
 provide('toggleTheme', toggleTheme)
+
+// 初始化主题
+onMounted(() => {
+  // 检查用户保存的偏好设置
+  const savedTheme = localStorage.getItem('theme')
+  
+  // 如果用户有保存的主题设置，应用它
+  if (savedTheme) {
+    isDarkMode.value = savedTheme === 'dark'
+  } else {
+    // 否则检查系统主题偏好
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    isDarkMode.value = prefersDark
+  }
+  
+  // 应用主题样式
+  if (isDarkMode.value) {
+    document.documentElement.classList.add('dark')
+  } else {
+    document.documentElement.classList.add('light')
+  }
+})
 </script>
 
 <style>
@@ -471,6 +494,13 @@ provide('toggleTheme', toggleTheme)
   --border-radius-md: 6px;
   --border-radius-lg: 8px;
   --transition-speed: 300ms;
+  --brand: #3b82f6;
+  --brand-dark: #2563eb;
+}
+
+.dark {
+  --brand: #60a5fa;
+  --brand-dark: #3b82f6;
 }
 
 /* 侧边栏折叠按钮样式 */
@@ -483,6 +513,15 @@ provide('toggleTheme', toggleTheme)
 .sidebar-toggle-button svg {
   width: 100%;
   height: 100%;
+}
+
+/* 添加字体样式 */
+.font-serif {
+  font-family: 'Georgia', serif;
+}
+
+.italic {
+  font-style: italic;
 }
 </style>
 

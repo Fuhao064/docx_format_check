@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6" :class="{ 'bg-white text-black': !isDarkMode, 'bg-zinc-950 text-zinc-100': isDarkMode }">
+  <div class="p-6 overflow-y-auto" :class="{ 'bg-white text-black': !isDarkMode, 'bg-zinc-950 text-zinc-100': isDarkMode }">
     <div class="mb-6">
       <h1 class="text-2xl font-semibold mb-2">格式配置</h1>
       <p :class="isDarkMode ? 'text-zinc-400' : 'text-gray-600'">管理文档格式规范和样式配置</p>

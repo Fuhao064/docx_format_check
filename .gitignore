@@ -1,2 +1,5 @@
 frontend/node_modules
-__pycache__
+backend/__pycache__
+backend/uploads/
+backend/agents/__pycache__
+
