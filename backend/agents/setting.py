@@ -8,7 +8,6 @@ class LLMs:
         self.current_model = None
         self.client = None
         self.model = None
-        self.set_model('qwen-plus')  # 默认使用'qwen-plus'模型
 
     def load_models_config(self):
         with open(self.config_path, 'r') as f:

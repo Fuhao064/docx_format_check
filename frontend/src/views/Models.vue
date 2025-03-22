@@ -5,24 +5,119 @@
       <h1 class="text-2xl font-semibold mb-2 text-[hsl(var(--foreground))]">模型管理</h1>
       <p class="text-[hsl(var(--muted-foreground))]">管理和配置可用的AI模型</p>
     </div>
+    
 
-    <!-- 当前选择的模型 -->
+    <!-- 各代理模型配置 -->
     <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-4 mb-6']">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-lg font-medium mb-1 text-[hsl(var(--foreground))]">当前选择的模型</h2>
-          <p class="text-[hsl(var(--muted-foreground))]">{{ currentModel || '未选择模型' }}</p>
+      <h2 class="text-lg font-medium mb-3 text-[hsl(var(--foreground))]">代理模型配置</h2>
+      <div class="grid grid-cols-1 gap-4">
+        <!-- 格式代理 -->
+        <div class="p-3 border border-[hsl(var(--border))] rounded-md">
+          <h3 class="font-medium mb-2 text-[hsl(var(--foreground))]">格式代理 (Format Agent)</h3>
+          <div class="flex items-center justify-between">
+            <select 
+              v-model="agentModels.format" 
+              class="bg-[hsl(var(--input))] text-[hsl(var(--foreground))] rounded-md px-3 py-2 border border-[hsl(var(--border))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+            >
+              <option value="">请选择模型</option>
+              <option v-for="(model, key) in models" :key="`format-${key}`" :value="key">
+                {{ key }} ({{ model.model_name }})
+              </option>
+            </select>
+            <button 
+              @click="updateAgentModel('format', agentModels.format)"
+              :disabled="!agentModels.format"
+              :class="[
+                'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
+                'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm ml-2',
+                !agentModels.format ? 'opacity-50 cursor-not-allowed' : ''
+              ]"
+            >
+              应用
+            </button>
+          </div>
         </div>
-        <button
-          v-if="currentModel"
-          @click="refreshModels"
-          :class="[
-            'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
-            'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm'
-          ]"
-        >
-          刷新
-        </button>
+
+        <!-- 编辑代理 -->
+        <div class="p-3 border border-[hsl(var(--border))] rounded-md">
+          <h3 class="font-medium mb-2 text-[hsl(var(--foreground))]">编辑代理 (Editor Agent)</h3>
+          <div class="flex items-center justify-between">
+            <select 
+              v-model="agentModels.editor" 
+              class="bg-[hsl(var(--input))] text-[hsl(var(--foreground))] rounded-md px-3 py-2 border border-[hsl(var(--border))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+            >
+              <option value="">请选择模型</option>
+              <option v-for="(model, key) in models" :key="`editor-${key}`" :value="key">
+                {{ key }} ({{ model.model_name }})
+              </option>
+            </select>
+            <button 
+              @click="updateAgentModel('editor', agentModels.editor)"
+              :disabled="!agentModels.editor"
+              :class="[
+                'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
+                'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm ml-2',
+                !agentModels.editor ? 'opacity-50 cursor-not-allowed' : ''
+              ]"
+            >
+              应用
+            </button>
+          </div>
+        </div>
+
+        <!-- 建议代理 -->
+        <div class="p-3 border border-[hsl(var(--border))] rounded-md">
+          <h3 class="font-medium mb-2 text-[hsl(var(--foreground))]">建议代理 (Advice Agent)</h3>
+          <div class="flex items-center justify-between">
+            <select 
+              v-model="agentModels.advice" 
+              class="bg-[hsl(var(--input))] text-[hsl(var(--foreground))] rounded-md px-3 py-2 border border-[hsl(var(--border))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+            >
+              <option value="">请选择模型</option>
+              <option v-for="(model, key) in models" :key="`advice-${key}`" :value="key">
+                {{ key }} ({{ model.model_name }})
+              </option>
+            </select>
+            <button 
+              @click="updateAgentModel('advice', agentModels.advice)"
+              :disabled="!agentModels.advice"
+              :class="[
+                'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
+                'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm ml-2',
+                !agentModels.advice ? 'opacity-50 cursor-not-allowed' : ''
+              ]"
+            >
+              应用
+            </button>
+          </div>
+        </div>
+
+        <!-- 通信代理 -->
+        <div class="p-3 border border-[hsl(var(--border))] rounded-md">
+          <h3 class="font-medium mb-2 text-[hsl(var(--foreground))]">通信代理 (Communicate Agent)</h3>
+          <div class="flex items-center justify-between">
+            <select 
+              v-model="agentModels.communicate" 
+              class="bg-[hsl(var(--input))] text-[hsl(var(--foreground))] rounded-md px-3 py-2 border border-[hsl(var(--border))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+            >
+              <option value="">请选择模型</option>
+              <option v-for="(model, key) in models" :key="`communicate-${key}`" :value="key">
+                {{ key }} ({{ model.model_name }})
+              </option>
+            </select>
+            <button 
+              @click="updateAgentModel('communicate', agentModels.communicate)"
+              :disabled="!agentModels.communicate"
+              :class="[
+                'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
+                'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm ml-2',
+                !agentModels.communicate ? 'opacity-50 cursor-not-allowed' : ''
+              ]"
+            >
+              应用
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -47,15 +142,6 @@
               </td>
               <td class="px-6 py-4">
                 <div class="flex space-x-2">
-                  <button
-                    @click="selectModel(key)"
-                    :class="[
-                      'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
-                      'px-3 py-1 rounded-md transition-colors duration-[--transition-speed] text-sm'
-                    ]"
-                  >
-                    选择
-                  </button>
                   <button
                     @click="confirmDeleteModel(key)"
                     :class="[
@@ -185,7 +271,14 @@ import axios from 'axios'
 
 // 模型数据
 const models = ref({})
-const currentModel = ref('')
+
+// 代理模型配置
+const agentModels = ref({
+  format: '',
+  editor: '',
+  advice: '',
+  communicate: ''
+})
 
 // 新模型表单
 const newModel = ref({
@@ -241,20 +334,25 @@ function maskApiKey(apiKey) {
   return apiKey.slice(0, 4) + '*'.repeat(apiKey.length - 8) + apiKey.slice(-4)
 }
 
-// 获取所有模型
+// 获取所有模型和当前配置
 async function fetchModels() {
   try {
     // 获取模型列表
     const modelsResponse = await axios.get('/api/models')
     models.value = modelsResponse.data.models || {}
-
-    // 获取当前选中的模型
+    
+    // 获取所有代理的当前模型配置
     try {
-      const currentModelResponse = await axios.get('/api/current-model')
-      currentModel.value = currentModelResponse.data.current_model || ''
+      const agentConfigResponse = await axios.get('/api/agent-models')
+      const config = agentConfigResponse.data
+      
+      // 更新本地配置
+      if (config.format_model) agentModels.value.format = config.format_model
+      if (config.editor_model) agentModels.value.editor = config.editor_model
+      if (config.advice_model) agentModels.value.advice = config.advice_model
+      if (config.communicate_model) agentModels.value.communicate = config.communicate_model
     } catch (err) {
-      console.error('获取当前模型失败:', err)
-      // 如果无法获取当前模型，不阻止页面显示
+      console.error('获取代理模型配置失败:', err)
     }
   } catch (error) {
     console.error('获取模型列表失败:', error)
@@ -262,16 +360,43 @@ async function fetchModels() {
   }
 }
 
-// 选择模型
+// 选择默认模型
 async function selectModel(modelName) {
   try {
     await axios.post('/api/set-model', { model_name: modelName })
     currentModel.value = modelName
-    showNotification('success', '选择成功', `已选择模型: ${modelName}`)
+    showNotification('success', '选择成功', `已选择默认模型: ${modelName}`)
   } catch (error) {
     console.error('选择模型失败:', error)
     showNotification('error', '选择失败', '无法选择该模型，请稍后重试')
   }
+}
+
+// 更新代理模型
+async function updateAgentModel(agentType, modelName) {
+  if (!modelName) return
+  
+  try {
+    await axios.post('/api/set-agent-model', { 
+      agent_type: agentType,
+      model_name: modelName
+    })
+    showNotification('success', '更新成功', `已将${getAgentDisplayName(agentType)}模型设置为: ${modelName}`)
+  } catch (error) {
+    console.error('更新代理模型失败:', error)
+    showNotification('error', '更新失败', '无法更新代理模型，请稍后重试')
+  }
+}
+
+// 获取代理显示名称
+function getAgentDisplayName(agentType) {
+  const agentNames = {
+    format: '格式代理',
+    editor: '编辑代理',
+    advice: '建议代理',
+    communicate: '通信代理'
+  }
+  return agentNames[agentType] || agentType
 }
 
 // 确认删除模型
@@ -283,13 +408,20 @@ function confirmDeleteModel(modelName) {
 // 删除模型
 async function deleteModel() {
   try {
-    await axios.delete(`/api/models/${modelToDelete.value}`)
+    await axios.delete(`/api/delete-model/${modelToDelete.value}`)
     if (currentModel.value === modelToDelete.value) {
       currentModel.value = ''
     }
     delete models.value[modelToDelete.value]
     showDeleteConfirm.value = false
     showNotification('success', '删除成功', `已删除模型: ${modelToDelete.value}`)
+    
+    // 删除后检查所有代理的模型设置并重置已被删除的模型
+    Object.keys(agentModels.value).forEach(agentType => {
+      if (agentModels.value[agentType] === modelToDelete.value) {
+        agentModels.value[agentType] = ''
+      }
+    })
   } catch (error) {
     console.error('删除模型失败:', error)
     showNotification('error', '删除失败', '无法删除该模型，请稍后重试')

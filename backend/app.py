@@ -3,9 +3,11 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
 from typing import List, Dict, Optional
-import os,time
+import os,time,sys
 import json
 from agents.setting import LLMs
+from format_editor import generate_formatted_doc
+from para_type import ParagraphManager
 from format_checker import check_format
 from datetime import datetime
 import docx_parser
@@ -14,12 +16,20 @@ from docx import Document
 from docx.shared import RGBColor
 import tempfile
 from docx.enum.text import WD_COLOR_INDEX
+
+# 导入agents包中的功能
+import agents
+
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # 创建一个全局的LLMs实例
 llm = LLMs()
+
+# 配置处理的ParagraphManager和文件名
+analysised_para_manager = []
 
 # 配置上传文件夹
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
@@ -42,6 +52,9 @@ execution_steps = [
     {"id": 3, "text": "检查格式规范", "status": "pending"},
     {"id": 4, "text": "生成分析报告", "status": "pending"}
 ]
+
+# 初始化代理模型配置
+agents.init_agents()
 
 # 检查文件类型是否允许
 def allowed_file(filename):
@@ -99,6 +112,53 @@ def upload_file():
             'message': f"文件上传失败: {str(e)}"
         }), 500
 
+# 获取所有代理的模型配置
+@app.route('/api/agent-models')
+def get_agent_models():
+    try:
+        # 获取当前代理配置
+        config = {
+            "format_model": agents._config.get("format_model", "qwen-plus"),
+            "editor_model": agents._config.get("editor_model", "qwen-plus"),
+            "advice_model": agents._config.get("advice_model", "qwen-plus"),
+            "communicate_model": agents._config.get("communicate_model", "qwen-plus")
+        }
+        return jsonify(config)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# 设置指定代理的模型
+@app.route('/api/set-agent-model', methods=['POST'])
+def set_agent_model():
+    data = request.get_json()
+    if not data or 'agent_type' not in data or 'model_name' not in data:
+        return jsonify({'error': '未提供代理类型或模型名称'}), 400
+    
+    agent_type = data['agent_type']
+    model_name = data['model_name']
+    
+    if agent_type not in ["format", "editor", "advice", "communicate"]:
+        return jsonify({'error': '无效的代理类型'}), 400
+    
+    try:
+        # 更新代理模型配置
+        agents.update_model_config(agent_type, model_name)
+        return jsonify({'message': f'已将{agent_type}代理的模型更新为 {model_name}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# 初始化所有代理
+@app.route('/api/init-agents', methods=['POST'])
+def initialize_agents():
+    data = request.get_json()
+    
+    try:
+        # 使用提供的配置初始化代理，或使用默认配置
+        agents.init_agents(data)
+        return jsonify({'message': '所有代理初始化成功'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # 获取所有可用模型
 @app.route('/api/models')
 def get_models():
@@ -106,30 +166,6 @@ def get_models():
         # 使用全局的LLMs实例
         models_config = llm.models_config
         return jsonify({"models": models_config})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# 获取当前使用的模型
-@app.route('/api/current-model')
-def get_current_model():
-    try:
-        # 使用全局的LLMs实例
-        current_model = llm.current_model
-        return jsonify({'current_model': current_model})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# 设置当前使用的模型
-@app.route('/api/set-model', methods=['POST'])
-def set_model():
-    data = request.get_json()
-    if not data or 'model_name' not in data:
-        return jsonify({'error': '未提供模型名称'}), 400
-    
-    try:
-        # 使用全局的LLMs实例
-        llm.set_model(data['model_name'])
-        return jsonify({'message': f'已切换到模型 {data["model_name"]}'})    
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -385,8 +421,11 @@ def start_check_format():
             return jsonify({"success": False, "message": "配置文件不存在"}), 404
             
         # 处理文件信息
-        docx_errors = check_format(file_path, config_path, llm.model)
+        docx_errors, para_manager = check_format(file_path, config_path, llm.model)
         
+        # 存储当前的para_manager
+        analysised_para_manager.append({"doc_path": file_path, "para_manager": para_manager})
+
         # 以json格式返回错误信息
         if docx_errors:
             return jsonify({
@@ -405,6 +444,7 @@ def start_check_format():
             "success": False,
             "message": f"格式检查失败: {str(e)}"
         }), 500
+
 # 生成分析报告
 @app.route('/api/generate-report', methods=['POST'])
 def generate_report():
@@ -638,6 +678,57 @@ def download_marked_document():
             "success": False,
             "message": f"下载标记文档失败: {str(e)}"
         }), 500
+    
+# 应用格式
+@app.route('/api/apply-format', methods=['POST'])
+def apply_format():
+    try:
+        data = request.get_json()
+        if not data or 'doc_path' not in data or 'config_path' not in data:
+            return jsonify({"success": False, "message": "缺少必要参数"}), 400
+        
+        doc_path = data.get('doc_path')
+        config_path = data.get('config_path')
+        
+        # 验证文件存在
+        if not os.path.exists(doc_path):
+            return jsonify({"success": False, "message": "文档文件不存在"}), 404
+        
+        if not os.path.exists(config_path):
+            return jsonify({"success": False, "message": "配置文件不存在"}), 404
+        
+        # 找到对应的para_manager
+        para_manager = next((item['para_manager'] for item in analysised_para_manager if item['doc_path'] == doc_path), None)
+        if not para_manager:
+            return jsonify({"success": False, "message": "未找到对应的段落管理器"}), 404
+        
+        # 将输出目录输出为doc_path的文件名
+        output_path = os.path.join(os.path.dirname(doc_path), os.path.basename(doc_path).split(".")[0] + "_formatted.docx")
+
+        # 应用格式
+        output_path = generate_formatted_doc(config_path, para_manager, output_path)
+        
+        # 返回文件
+        return jsonify({"success": True, "message": "格式应用成功", "output_path": output_path})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+                
+
+# 和大模型交互
+@app.route('/api/send-message', methods=['POST'])
+def send_message():
+    try:
+        data = request.get_json()
+        if not data or 'message' not in data:
+            return jsonify({"success": False, "message": "缺少必要参数"}), 400
+        message = data.get('message')
+        
+        # 使用大模型处理消息
+        response = llm.model.invoke(message)
+        
+        return jsonify({"success": True, "message": response})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=8000, debug=True)

@@ -3,7 +3,7 @@ from docx import Document
 import extract_para_info, docx_parser
 import json
 from typing import Dict, List, Tuple, Union, Optional
-from format_analysis import FormatAuxiliary
+from agents.format_agent import FormatAgent
 from para_type import ParagraphManager,ParsedParaType
 import os,concurrent,re
 from utils import are_values_equal, extract_number_from_string
@@ -745,9 +745,9 @@ def remark_para_type(doc_path: str, model_name) -> ParagraphManager:
             # 提取当前段落信息
             para_string = para["content"]
             # 使用大模型预测段落类型
-            format_auxiliary = FormatAuxiliary(model = model_name)
+            format_agent = FormatAgent(model = model_name)
             # 调用大模型预测类型
-            response = format_auxiliary.predict_location(doc_content, para_string, doc_content_sent)
+            response = format_agent.predict_location(doc_content, para_string, doc_content_sent)
             
             # 直接使用response字典，无需再次解析
             response_dict = response
@@ -868,9 +868,4 @@ def check_format(doc_path: str, config_path: str, model_name: str) -> List[dict]
             })
     
     print(f"[LOG] 文件格式检查结果: {formatted_errors}")
-    return formatted_errors
-
-# llm = LLMs()
-# llm.set_model('qwen-plus')
-# required_format = load_config('..//config.json')
-# check_format('..//test.docx', required_format, llm)
+    return formatted_errors, paragraph_manager
