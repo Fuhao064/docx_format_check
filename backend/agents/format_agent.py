@@ -1,16 +1,16 @@
-import json,re
-import os
+import json, re
 from para_type import ParsedParaType
 from agents.setting import LLMs
 
-class FormatAuxiliary:
+class FormatAgent:
     def __init__(self, model="qwen-plus"):
         self.llm = LLMs()  # 保存 LLMs 实例到类属性
-        self.llm.model = model  # 设置模型名称
+        self.llm.set_model(model)  # 设置模型名称
         self.model = model  # 添加 model 属性
         self.client = self.llm.client  # 获取 OpenAI 客户端
         
     def parse_format(self, format_str: str, json_str: str) -> str:
+        """解析格式要求字符串，转换为JSON格式"""
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
@@ -20,8 +20,9 @@ class FormatAuxiliary:
             ]
         )
         return response.choices[0].message.content
-    # 获取段落位置信息
-    def predict_location_context(self, last_fragment_str, fragment_str: str, next_fragment_str) -> str: # 返回类型可以改为 dict，或者仍然返回 json 字符串
+    
+    def predict_location_context(self, last_fragment_str, fragment_str: str, next_fragment_str) -> str:
+        """预测段落位置信息（带上下文）"""
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
@@ -30,18 +31,15 @@ class FormatAuxiliary:
                 "content": f"段落的上文是：{last_fragment_str}， 段落的下文是：{next_fragment_str}请你依据段落的格式同字体大小等判断这个内容在文章中属于什么位置，只返回该段落的结果，内容如下：\n{fragment_str}"}
             ]
         )
-        predict_json_str = response.choices[0].message.content  # 模型返回的是 JSON 格式的字符串
+        predict_json_str = response.choices[0].message.content
         try:
-            # predict_json = json.loads(predict_json_str) # 将 JSON 字符串解析为 Python 字典
-            return predict_json_str # 返回 Python 字典
-            # return predict_json_str
+            return predict_json_str
         except json.JSONDecodeError:
-            # 错误处理：如果模型没有返回有效的 JSON 格式，则进行错误处理
             print(f"Error decoding JSON: {predict_json_str}")
-            return {"location": "解析错误", "confidence": 0.0} # 返回一个包含错误信息的 JSON，或者根据您的需求返回其他内容
-    # 重载prediction_location
-    def predict_location(self, doc_content, fragment_str: str, flag:bool) -> dict:  # 改为返回dict类型
-        # 明确的示例结构
+            return {"location": "解析错误", "confidence": 0.0}
+    
+    def predict_location(self, doc_content, fragment_str: str, flag:bool) -> dict:
+        """预测段落位置信息（不带上下文）"""
         example_data = {
             "location": "title_zh",
             "confidence": 0.95,
@@ -73,9 +71,10 @@ class FormatAuxiliary:
 
         json_str = json_str.replace("'", '"').replace("#.*", "")
         print(json_str)
-        return json.loads(json_str)        
-    # 解析文档中的表格内容
+        return json.loads(json_str)
+        
     def parse_table(self, table_str: str) -> str:
+        """解析表格内容"""
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[

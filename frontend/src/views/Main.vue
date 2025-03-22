@@ -303,6 +303,12 @@
                   </svg>
                   标记文档
                 </button>
+                <button
+                  @click="applyFormat"
+                  class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-medium bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary-foreground))] transition-all duration-[--transition-speed]"
+                >
+                  应用格式
+                </button>
               </div>
             </div>
 
@@ -350,16 +356,16 @@
   const hasUploadedFile = ref(false)
   const hasUploadedFormat = ref(false)
   const uploadedFile = ref(null)
-    const uploadedFileName = ref('')
-
+  const uploadedFileName = ref('')
+  const formattedFilePath = ref('')
   // 对话相关
   const messagesContainer = ref(null)
   const userInput = ref('')
   const messages = ref([])
-    const currentDocumentPath = ref('')
-    const currentConfigPath = ref('')
-    const currentStep = ref(0)
-    const processingComplete = ref(false)
+  const currentDocumentPath = ref('')
+  const currentConfigPath = ref('')
+  const currentStep = ref(0)
+  const processingComplete = ref(false)
   const processingSteps = ref([
     { id: 1, title: '上传文档', description: '上传需要检查格式的文档', status: 'pending' },
     { id: 2, title: '上传格式要求', description: '上传格式要求文档或使用默认格式', status: 'pending' },
@@ -590,7 +596,6 @@
       return
     }
     try {
-      showNotification('info', '发送中', '正在发送消息...', 0)
       const response = await axios.post('/api/send-message', {
         message: userInput.value
       })
@@ -600,7 +605,6 @@
           sender: 'assistant',
           timestamp: new Date()
         })
-        showNotification('success', '发送成功', '消息已成功发送', 3000)
         userInput.value = ''
       } else {
         throw new Error(response.data.message || '发送失败')
@@ -608,6 +612,32 @@
     } catch (error) {
       console.error('发送消息时出错:', error)
       showNotification('error', '发送失败', `发送消息时出错: ${error.message || error}`, 5000)
+    }
+  }
+//应用格式
+async function applyFormat() {
+  try {
+    showNotification('info', '应用格式中', '正在应用格式...', 0)
+    const response = await axios.post('/api/apply-format', {
+      doc_path: currentDocumentPath.value,
+      config_path: currentConfigPath.value,
+    })
+    if (response.data.success) {
+      formattedFilePath.value = response.data.output_path
+      //自动下载格式化文档
+      const link = document.createElement('a')
+      link.href = formattedFilePath.value
+      link.setAttribute('download', `${uploadedFileName.value.split('.')[0]}_formatted.docx`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      showNotification('success', '应用格式完成', '格式已成功应用', 3000)
+    } else {
+      throw new Error(response.data.message || '应用格式失败')
+    }
+  } catch (error) {
+      console.error('应用格式时出错:', error)
+      showNotification('error', '应用格式失败', `应用格式时出错: ${error.message || error}`, 5000)
     }
   }
 
