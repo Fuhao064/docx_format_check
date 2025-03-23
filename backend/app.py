@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
@@ -12,6 +12,10 @@ from format_checker import check_format
 from datetime import datetime
 import docx_parser
 from agents.advice_agent import AdviceAgent
+from agents.editor_agent import EditorAgent
+from agents.format_agent import FormatAgent
+from agents.communicate_agent import CommunicateAgent
+from agents.setting import LLMs
 from docx import Document
 from docx.shared import RGBColor
 import tempfile
@@ -25,7 +29,21 @@ CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# 创建一个全局的LLMs实例
+
+# 创建一个全局的Agent中心
+agents_config = {
+    "format_model": "qwen-plus",
+    "editor_model": "qwen-plus",
+    "advice_model": "qwen-plus",
+    "communicate_model": "qwen-plus"
+}
+agents = {
+    "format": FormatAgent(agents_config["format_model"]),
+    "editor": EditorAgent(agents_config["editor_model"]),
+    "advice": AdviceAgent(agents_config["advice_model"]),
+    "communicate": CommunicateAgent(agents_config["communicate_model"])
+}
+
 llm = LLMs()
 
 # 配置处理的ParagraphManager和文件名
@@ -53,8 +71,6 @@ execution_steps = [
     {"id": 4, "text": "生成分析报告", "status": "pending"}
 ]
 
-# 初始化代理模型配置
-agents.init_agents()
 
 # 检查文件类型是否允许
 def allowed_file(filename):
@@ -118,10 +134,10 @@ def get_agent_models():
     try:
         # 获取当前代理配置
         config = {
-            "format_model": agents._config.get("format_model", "qwen-plus"),
-            "editor_model": agents._config.get("editor_model", "qwen-plus"),
-            "advice_model": agents._config.get("advice_model", "qwen-plus"),
-            "communicate_model": agents._config.get("communicate_model", "qwen-plus")
+            "format_model": agents["format"].model,
+            "editor_model": agents["editor"].model,
+            "advice_model": agents["advice"].model,
+            "communicate_model": agents["communicate"].model
         }
         return jsonify(config)
     except Exception as e:
@@ -142,22 +158,11 @@ def set_agent_model():
     
     try:
         # 更新代理模型配置
-        agents.update_model_config(agent_type, model_name)
+        agents[agent_type].model = model_name
         return jsonify({'message': f'已将{agent_type}代理的模型更新为 {model_name}'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# 初始化所有代理
-@app.route('/api/init-agents', methods=['POST'])
-def initialize_agents():
-    data = request.get_json()
-    
-    try:
-        # 使用提供的配置初始化代理，或使用默认配置
-        agents.init_agents(data)
-        return jsonify({'message': '所有代理初始化成功'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 # 获取所有可用模型
 @app.route('/api/models')
@@ -421,7 +426,7 @@ def start_check_format():
             return jsonify({"success": False, "message": "配置文件不存在"}), 404
             
         # 处理文件信息
-        docx_errors, para_manager = check_format(file_path, config_path, llm.model)
+        docx_errors, para_manager = check_format(file_path, config_path, agents["format"])
         
         # 存储当前的para_manager
         analysised_para_manager.append({"doc_path": file_path, "para_manager": para_manager})
@@ -729,6 +734,20 @@ def send_message():
         return jsonify({"success": True, "message": response})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+# 获取docx文档内容API
+@app.route('/api/get-docx-content', methods=['GET'])
+def get_docx_content():
+    try:
+        file_path = request.args.get('file_path')
+        if not file_path or not os.path.exists(file_path):
+            return jsonify({"success": False, "message": "文件不存在"}), 404
+        
+        # 直接返回文件内容
+        return send_file(file_path, as_attachment=False)
+    except Exception as e:
+        app.logger.error(f"获取文档内容时出错: {str(e)}")
+        return jsonify({"success": False, "message": f"获取文档内容时出错: {str(e)}"}), 500
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=8000, debug=True)

@@ -727,7 +727,7 @@ def _recursive_check(actual, expected):
 
     return nested_errors
 
-def remark_para_type(doc_path: str, model_name) -> ParagraphManager:
+def remark_para_type(doc_path: str, format_agent: FormatAgent) -> ParagraphManager:
     # 初始化段落管理器
     paragraph_manager = ParagraphManager()
     
@@ -744,8 +744,7 @@ def remark_para_type(doc_path: str, model_name) -> ParagraphManager:
                 pass
             # 提取当前段落信息
             para_string = para["content"]
-            # 使用大模型预测段落类型
-            format_agent = FormatAgent(model = model_name)
+
             # 调用大模型预测类型
             response = format_agent.predict_location(doc_content, para_string, doc_content_sent)
             
@@ -796,7 +795,7 @@ def remark_para_type(doc_path: str, model_name) -> ParagraphManager:
     
     return paragraph_manager
 
-def check_format(doc_path: str, config_path: str, model_name: str) -> List[dict]:
+def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> List[dict]:
     # 加载配置
     required_format = load_config(config_path)
     
@@ -808,7 +807,7 @@ def check_format(doc_path: str, config_path: str, model_name: str) -> List[dict]
     paragraph_manager = extract_para_info.extract_para_format_info(doc_path, paragraph_manager)
     
     # 重新标记段落类型
-    paragraph_manager = remark_para_type(doc_path, model_name)
+    paragraph_manager = remark_para_type(doc_path, format_agent)
     
     # 收集所有错误
     errors = []
