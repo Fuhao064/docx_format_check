@@ -6,7 +6,7 @@
       <!-- 段落格式设置 -->
       <div v-if="config.paragraph_format">
         <h4 class="text-[hsl(var(--muted-foreground))] text-sm font-medium mb-2">段落格式</h4>
-        <div class="space-y-3">
+        <div class="grid grid-cols-3 gap-4">
           <div>
             <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">对齐方式</label>
             <select
@@ -27,8 +27,7 @@
             <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">首行缩进</label>
             <input
               v-model="config.paragraph_format.indentation.first_line"
-              type="number"
-              step="0.1"
+              type="string"
               :class="[
                 'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
                 'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
@@ -39,9 +38,8 @@
           <div>
             <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">段前间距</label>
             <input
-              v-model="config.paragraph_format.before_spacing"
-              type="number"
-              step="1"
+              v-model="config.paragraph_format.indentation.space_before"
+              type="string"
               :class="[
                 'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
                 'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
@@ -52,17 +50,40 @@
           <div>
             <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">段后间距</label>
             <input
-              v-model="config.paragraph_format.after_spacing"
-              type="number"
-              step="1"
+              v-model="config.paragraph_format.indentation.space_after"
+              type="string"
               :class="[
-               'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
                 'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
               ]"
             />
           </div>
 
           <div>
+            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">段左距</label>
+            <input
+              v-model="config.paragraph_format.indentation.left"
+              type="string"
+              :class="[
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
+              ]"
+            />
+          </div>
+
+          <div>
+            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">段右距</label>
+            <input
+              v-model="config.paragraph_format.indentation.right"
+              type="string"
+              :class="[
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
+              ]"
+            />
+          </div>
+
+          <div class="flex col-span-3 flex-col">
             <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">行间距</label>
             <select
               v-model="config.paragraph_format.line_spacing"
@@ -71,9 +92,9 @@
                 'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
               ]"
             >
-              <option value="单倍行距">单倍行距</option>
-              <option value="1.5倍行距">1.5倍行距</option>
-              <option value="2倍行距">2倍行距</option>
+              <option value="1">单倍行距</option>
+              <option value="1.5">1.5倍行距</option>
+              <option value="2">2倍行距</option>
             </select>
           </div>
         </div>
@@ -82,7 +103,7 @@
       <!-- 字体设置 -->
       <div v-if="config.fonts">
         <h4 class="text-[hsl(var(--muted-foreground))] text-sm font-medium mb-2">字体设置</h4>
-        <div class="space-y-3">
+        <div class="grid grid-cols-3 gap-4">
           <div>
             <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">中文字体</label>
             <input
@@ -111,7 +132,7 @@
             <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">字体大小</label>
             <input
               v-model="config.fonts.size"
-              type="number"
+              type="text"
               :class="[
                 'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
                 'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
@@ -119,8 +140,8 @@
             />
           </div>
 
-          <div>
-            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">字体颜色</label>
+          <div class="flex items-center col-span-3">
+            <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1 mr-2">字体颜色</label>
             <input
               v-model="config.fonts.color"
               type="color"
@@ -132,8 +153,8 @@
             />
           </div>
 
-          <div class="flex space-x-4">
-            <div class="flex items-center">
+          <div class="flex items-center col-span-3">
+            <div class="flex items-center mr-4">
               <input
                 v-model="config.fonts.bold"
                 type="checkbox"
@@ -146,7 +167,7 @@
               <label class="text-[hsl(var(--muted-foreground))] ml-2 text-sm">粗体</label>
             </div>
 
-            <div class="flex items-center">
+            <div class="flex items-center mr-4">
               <input
                 v-model="config.fonts.italic"
                 type="checkbox"

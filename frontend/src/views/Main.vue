@@ -8,6 +8,7 @@
         isDarkMode
           ? 'bg-gradient-to-b from-[hsl(var(--background))] via-[hsl(var(--background))] via-80% to-transparent'
           : 'bg-gradient-to-b from-[hsl(var(--background))] via-[hsl(var(--background))] via-80% to-transparent',
+        showDocPreview ? 'preview-open' : '',
       ]">
       <div v-if="sidebarCollapsed" class="flex items-center h-full px-5">
         <div class="flex items-center">
@@ -46,13 +47,63 @@
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
           </svg>
         </button>
+        <button
+          class="p-2 rounded-full hover:bg-[hsl(var(--secondary))] 
+                 transition-colors duration-[--transition-speed]"
+          @click="docPreview"
+          :class="{ 'bg-[hsl(var(--primary)/0.15)] text-[hsl(var(--primary))]': showDocPreview }"
+        >
+          <svg 
+            width="20" 
+            height="20" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            xmlns="http://www.w3.org/2000/svg"
+            class="stroke-[2] transition-colors duration-[--transition-speed]"
+            :class="showDocPreview ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--primary))]'"
+          >
+            <path 
+              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" 
+              stroke="currentColor" 
+              stroke-linecap="round" 
+              stroke-linejoin="round"
+            />
+            <polyline 
+              points="14 2 14 8 20 8" 
+              stroke="currentColor" 
+              stroke-linecap="round" 
+              stroke-linejoin="round"
+            />
+            <line 
+              x1="16" 
+              y1="13" 
+              x2="8" 
+              y2="13" 
+              stroke="currentColor" 
+              stroke-linecap="round" 
+              stroke-linejoin="round"
+            />
+            <line 
+              x1="16" 
+              y1="17" 
+              x2="8" 
+              y2="17" 
+              stroke="currentColor" 
+              stroke-linecap="round" 
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
       </div>
     </div>
 
     <!-- 主体内容 -->
-    <main class="flex-1 flex flex-col overflow-hidden"
-      :class="isDarkMode ? 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))])' : 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))])'">
-      <div class="flex-1 flex flex-col items-center h-full overflow-y-auto scrollbar-thin pt-20 pb-16 px-5"
+    <main class="flex-1 flex flex-col overflow-hidden transition-all duration-400 ease-in-out"
+      :class="[
+        isDarkMode ? 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))])' : 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))])',
+        showDocPreview ? 'content-shifted' : ''
+      ]">
+      <div class="flex-1 flex flex-col items-center h-full overflow-y-auto scrollbar-thin pt-20 pb-28 px-5"
         ref="messagesContainer">
         <!-- 格式错误提示 -->
         <div v-if="formatErrors.length > 0" class="w-full max-w-3xl mb-6">
@@ -191,8 +242,13 @@
       </div>
     </main>
     <!-- 底部输入框 -->
-    <div v-if="currentStep >= 5" class="relative flex justify-center px-4 py-6 w-full">
-      <div class="w-full max-w-3xl mx-auto">
+    <div v-if="currentStep >= 5" 
+         class="fixed bottom-0 left-0 right-0 flex justify-center pb-4 pt-2 z-30 bg-gradient-to-t from-[hsl(var(--background))] via-[hsl(var(--background))] to-transparent backdrop-blur-sm transition-all duration-400 ease-in-out"
+         :class="[
+           showDocPreview ? 'mr-[clamp(350px,45%,900px)]' : '',
+           sidebarCollapsed ? 'ml-12' : 'ml-64'
+         ]">
+      <div class="w-full max-w-3xl mx-auto px-4">
         <div
           class="query-bar group bg-[hsl(var(--card)/0.9)] duration-[--transition-speed] relative w-full ring-1 ring-[hsl(var(--border))] rounded-2xl shadow-lg backdrop-blur-md overflow-hidden hover:ring-[hsl(var(--ring)/0.5)] focus-within:ring-2 focus-within:ring-[hsl(var(--primary))]">
           <div class="relative z-10 px-3 py-2">
@@ -260,6 +316,11 @@
     </div>
     <input type="file" ref="fileInput" @change="handleFileUpload" accept=".docx" class="hidden" />
     <input type="file" ref="formatInput" @change="handleFormatUpload" accept=".json" class="hidden" />
+    <DocxPreview 
+      v-if="showDocPreview" 
+      :docPath="currentDocumentPath"
+      @close="showDocPreview = false"
+    />
   </div>
 </template>
 
@@ -267,6 +328,7 @@
 import { ref, computed, onMounted, inject, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
+import DocxPreview from '../components/DocxPreview.vue'
 
 // 获取主题模式和通知函数
 const isDarkMode = inject('isDarkMode', ref(true))
@@ -315,6 +377,9 @@ const suggestions = [
   '帮我优化文档的整体格式'
 ]
 
+// 文档预览相关
+const showDocPreview = ref(false)
+
 // 监听消息变化，自动滚动到底部
 watch(messages, () => {
   nextTick(() => {
@@ -333,7 +398,35 @@ function triggerFileUpload() {
 function triggerFormatUpload() {
   formatInput.value.click()
 }
+// 重置进度
+function resetProcess() {
+  processingSteps.value.forEach(step => {
+    step.status = 'pending'
+  })
+  currentStep.value = 0
+  hasUploadedFile.value = false
+  hasUploadedFormat.value = false
+  uploadedFile.value = null
+  uploadedFileName.value = ''
+  formattedFilePath.value = ''
+  currentDocumentPath.value = ''
+  currentConfigPath.value = ''
+  userInput.value = ''
+  messages.value = []
+  processingComplete.value = false
+  formatErrors.value = []
+  showNotification('info', '进度重置', '进度已重置，请重新开始', 3000)
+}
 
+// 处理文档预览，在侧边显示文档预览
+async function docPreview() {
+  if (!currentDocumentPath.value) {
+    showNotification('warning', '未上传文档', '请先上传文档后再查看预览', 3000)
+    return
+  }
+  
+  showDocPreview.value = !showDocPreview.value
+}
 // 处理文件上传
 async function handleFileUpload(event) {
   const file = event.target.files[0]
@@ -581,3 +674,32 @@ function handleEnterKey(event) {
   }
 }
 </script>
+
+<style scoped>
+.content-shifted {
+  margin-right: clamp(350px, 45%, 900px);
+}
+
+.preview-open {
+  margin-right: clamp(350px, 45%, 900px);
+}
+
+/* 添加动画过渡 */
+.duration-400 {
+  transition-duration: 400ms;
+}
+
+.ease-in-out {
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 修复底部输入框 */
+.mr-\[clamp\(350px\,45\%\,900px\)\] {
+  margin-right: clamp(350px, 45%, 900px);
+}
+
+/* 主内容区域留出底部输入框的空间 */
+.flex-1.flex.flex-col.items-center.h-full {
+  padding-bottom: 100px;
+}
+</style>
