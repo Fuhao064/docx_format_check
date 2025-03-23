@@ -729,7 +729,7 @@ def send_message():
         message = data.get('message')
         
         # 使用大模型处理消息
-        response = llm.model.invoke(message)
+        response = agents["communicate"].chat(message)
         
         return jsonify({"success": True, "message": response})
     except Exception as e:

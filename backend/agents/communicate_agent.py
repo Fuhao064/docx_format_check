@@ -127,7 +127,7 @@ class CommunicateAgent:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "你是一个友好的学术写作助手，提供有关文档格式、内容编辑和写作建议的帮助。"},
+                    {"role": "system", "content": "你是一个友好的学术写作助手，提供有关文档格式、内容编辑和写作建议的帮助。或者在用户提出任何问题时，你都可以回答。"},
                     {"role": "user", "content": user_message}
                 ]
             )
