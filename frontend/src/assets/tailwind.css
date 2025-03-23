@@ -163,3 +163,86 @@
 .fade-leave-to {
   opacity: 0;
 }
+
+/* 消息样式 */
+.message-container {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+}
+
+.system-message {
+  position: relative;
+  width: 100%;
+}
+
+.system-message h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: hsl(var(--foreground));
+}
+
+.system-message h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.625rem;
+  color: hsl(var(--foreground));
+}
+
+.system-message h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: hsl(var(--foreground));
+}
+
+.system-message p {
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.system-message ul, .system-message ol {
+  margin-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.system-message ul {
+  list-style-type: disc;
+}
+
+.system-message ol {
+  list-style-type: decimal;
+}
+
+.system-message pre {
+  background-color: hsl(var(--secondary));
+  border-radius: var(--border-radius-md);
+  padding: 1rem;
+  margin: 0.75rem 0;
+  overflow-x: auto;
+}
+
+.system-message code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+  background-color: hsl(var(--secondary));
+  padding: 0.2em 0.4em;
+  border-radius: var(--border-radius-sm);
+}
+
+.user-message {
+  position: relative;
+  padding: 1rem;
+  background-color: hsl(var(--primary)/0.1);
+  color: hsl(var(--foreground));
+  border-radius: var(--border-radius-lg);
+  border: 1px solid hsl(var(--primary)/0.2);
+  margin-left: auto;
+  margin-right: 0;
+  font-size: 14px;
+  max-width: 60%;
+}

@@ -130,6 +130,23 @@
           </div>
         </div>
 
+        <!-- 消息区域 -->
+        <div v-if="messages.length > 0" class="w-full max-w-3xl mb-6 space-y-10">
+          <div v-for="(message, index) in messages" :key="index" class="message-container">
+            <!-- 系统消息 - 渲染为Markdown格式 -->
+            <div v-if="message.sender === 'system'" class="system-message prose prose-sm max-w-none mb-4 text-[hsl(var(--foreground))]">
+              <div v-html="renderMarkdown(message.content)" class="pl-1"></div>
+            </div>
+            
+            <!-- 用户消息 - 圆角矩形气泡 -->
+            <div v-else class="user-message bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--foreground))] rounded-lg p-4 border border-[hsl(var(--primary)/0.2)]">
+              {{ message.content }}
+            </div>
+          </div>
+          <!-- 添加一个空div来占位 -->
+          <div class="h-10"></div>  
+        </div>
+
         <!-- 未上传文件 -->
         <div v-if="!hasUploadedFile" class="flex-1 flex flex-col items-center justify-center w-full max-w-3xl p-6">
           <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
@@ -329,6 +346,7 @@ import { ref, computed, onMounted, inject, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import DocxPreview from '../components/DocxPreview.vue'
+import { marked } from 'marked'
 
 // 获取主题模式和通知函数
 const isDarkMode = inject('isDarkMode', ref(true))
@@ -339,6 +357,8 @@ const sidebarCollapsed = inject('sidebarCollapsed', ref(true)) // 注入侧边�
 const toggleTheme = inject('toggleTheme', () => {
   isDarkMode.value = !isDarkMode.value
 })
+
+
 
 // 路由
 const router = useRouter()
@@ -382,9 +402,10 @@ const showDocPreview = ref(false)
 
 // 监听消息变化，自动滚动到底部
 watch(messages, () => {
+  console.log('messages', messages.value)
   nextTick(() => {
     if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight + 50
     }
   })
 }, { deep: true })
@@ -531,12 +552,27 @@ async function generateReport() {
       processingSteps.value[3].status = 'completed'
       processingComplete.value = true
       currentStep.value = 5
+      
+      // 使用Markdown格式的系统消息
+      const initialMessage = `# 文档格式分析完成
+      
+## 检查结果
+
+我发现了${formatErrors.value ? formatErrors.value.length : '一些'}个格式问题。
+
+您可以询问我关于文档格式的任何问题，例如：
+- 请分析文档中的格式问题
+- 如何修复文档中的格式错误？
+- 生成格式修正报告
+- 帮我优化文档的整体格式
+`
+      
       messages.value.push({
-        content: '文档格式分析已完成，我发现了' + (formatErrors.value ? formatErrors.value.length : '一些') +
-          '个格式问题。您可以询问我关于文档格式的任何问题，或者请我帮您修复这些问题。',
+        content: initialMessage,
         sender: 'system',
         timestamp: new Date()
       })
+      
       showNotification('success', '处理完成', '文档格式分析已完成', 3000)
     } else {
       throw new Error(response.data.message || '生成报告失败')
@@ -620,23 +656,44 @@ async function sendMessage() {
     showNotification('warning', '请输入消息', '消息不能为空', 3000)
     return
   }
+  
+  // 先添加用户消息到列表
+  const userMessage = userInput.value.trim()
+  messages.value.push({
+    content: userMessage,
+    sender: 'user',
+    timestamp: new Date()
+  })
+  
+  // 清空输入框
+  userInput.value = ''
+  
   try {
+    // 显示加载状态或等待动画可以在这里添加
+    
     const response = await axios.post('/api/send-message', {
-      message: userInput.value
+      message: userMessage
     })
+    
     if (response.data.success) {
       messages.value.push({
         content: response.data.message,
-        sender: 'assistant',
+        sender: 'system',
         timestamp: new Date()
       })
-      userInput.value = ''
     } else {
       throw new Error(response.data.message || '发送失败')
     }
   } catch (error) {
     console.error('发送消息时出错:', error)
     showNotification('error', '发送失败', `发送消息时出错: ${error.message || error}`, 5000)
+    
+    // 添加错误消息到对话
+    messages.value.push({
+      content: `发送消息时出错: ${error.message || '未知错误'}`,
+      sender: 'system',
+      timestamp: new Date()
+    })
   }
 }
 //应用格式
@@ -672,6 +729,12 @@ function handleEnterKey(event) {
     event.preventDefault()
     sendMessage()
   }
+}
+
+// Markdown渲染函数
+function renderMarkdown(content) {
+  if (!content) return '';
+  return marked(content);
 }
 </script>
 
