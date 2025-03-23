@@ -347,6 +347,19 @@ import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import DocxPreview from '../components/DocxPreview.vue'
 import { marked } from 'marked'
+import { 
+  initializeDB, 
+  getAppState, 
+  updateAppState, 
+  resetAppState, 
+  saveFileInfo, 
+  saveMessage, 
+  saveMessages, 
+  getAllMessages, 
+  clearAllMessages,
+  saveFormatErrors,
+  getFormatErrors
+} from '../lib/db.js'
 
 // 获取主题模式和通知函数
 const isDarkMode = inject('isDarkMode', ref(true))
@@ -357,8 +370,6 @@ const sidebarCollapsed = inject('sidebarCollapsed', ref(true)) // 注入侧边�
 const toggleTheme = inject('toggleTheme', () => {
   isDarkMode.value = !isDarkMode.value
 })
-
-
 
 // 路由
 const router = useRouter()
@@ -389,54 +400,176 @@ const processingSteps = ref([
 // 格式错误信息
 const formatErrors = ref([])
 
-// 对话建议
-const suggestions = [
-  '请分析文档中的格式问题',
-  '如何修复文档中的格式错误？',
-  '生成格式修正报告',
-  '帮我优化文档的整体格式'
-]
-
 // 文档预览相关
 const showDocPreview = ref(false)
 
-// 监听消息变化，自动滚动到底部
-watch(messages, () => {
-  console.log('messages', messages.value)
-  nextTick(() => {
-    if (messagesContainer.value) {
-      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight + 50
+// 在onMounted中初始化数据库并读取数据
+onMounted(async () => {
+  try {
+    // 初始化数据库
+    await initializeDB();
+    
+    // 读取应用状态
+    const appState = await getAppState();
+    
+    // 恢复应用状态
+    hasUploadedFile.value = appState.hasUploadedFile;
+    hasUploadedFormat.value = appState.hasUploadedFormat;
+    uploadedFileName.value = appState.uploadedFileName;
+    formattedFilePath.value = appState.formattedFilePath;
+    currentDocumentPath.value = appState.currentDocumentPath;
+    currentConfigPath.value = appState.currentConfigPath;
+    currentStep.value = appState.currentStep;
+    processingComplete.value = appState.processingComplete;
+    
+    // 恢复消息记录
+    const savedMessages = await getAllMessages();
+    if (savedMessages && savedMessages.length > 0) {
+      messages.value = savedMessages;
     }
-  })
-}, { deep: true })
+    
+    // 恢复格式错误信息
+    try {
+      const savedErrors = await getFormatErrors();
+      if (savedErrors && savedErrors.length > 0) {
+        formatErrors.value = savedErrors;
+      }
+    } catch (error) {
+      console.error('读取格式错误信息失败:', error);
+    }
+    
+    // 根据步骤恢复处理步骤状态
+    if (currentStep.value > 0) {
+      updateProcessingSteps();
+    }
+  } catch (error) {
+    console.error('初始化数据库失败:', error);
+    showNotification('error', '数据加载失败', '无法加载保存的数据', 3000);
+  }
+});
 
-//触发文件上传
+// 更新处理步骤状态
+function updateProcessingSteps() {
+  // 根据currentStep更新处理步骤的状态
+  for (let i = 0; i < processingSteps.value.length; i++) {
+    if (i < currentStep.value) {
+      processingSteps.value[i].status = 'completed';
+    } else if (i === currentStep.value) {
+      processingSteps.value[i].status = 'in_progress';
+    } else {
+      processingSteps.value[i].status = 'pending';
+    }
+  }
+}
+
+// 监听应用状态变化，保存到数据库
+watch([
+  hasUploadedFile, 
+  hasUploadedFormat, 
+  uploadedFileName, 
+  formattedFilePath, 
+  currentDocumentPath, 
+  currentConfigPath, 
+  currentStep, 
+  processingComplete
+], async () => {
+  try {
+    await updateAppState({
+      hasUploadedFile: hasUploadedFile.value,
+      hasUploadedFormat: hasUploadedFormat.value,
+      uploadedFileName: uploadedFileName.value,
+      formattedFilePath: formattedFilePath.value,
+      currentDocumentPath: currentDocumentPath.value,
+      currentConfigPath: currentConfigPath.value,
+      currentStep: currentStep.value,
+      processingComplete: processingComplete.value
+    });
+  } catch (error) {
+    console.error('保存应用状态失败:', error);
+  }
+}, { deep: true });
+
+// 监听消息变化，保存到数据库
+watch(messages, async () => {
+  try {
+    await clearAllMessages();
+    if (messages.value.length > 0) {
+      await saveMessages(messages.value);
+    }
+    
+    console.log('messages', messages.value);
+    nextTick(() => {
+      if (messagesContainer.value) {
+        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight + 50;
+      }
+    });
+  } catch (error) {
+    console.error('保存消息记录失败:', error);
+  }
+}, { deep: true });
+
+// 监听格式错误变化，保存到数据库
+watch(formatErrors, async (newErrors) => {
+  // 避免保存复杂对象到数据库
+  if (newErrors && newErrors.length > 0) {
+    try {
+      // 确保错误对象是简单的可序列化对象
+      const simpleErrors = newErrors.map(err => ({
+        message: String(err.message || '未知错误'),
+        location: err.location ? String(err.location) : null
+      }));
+      
+      await saveFormatErrors(simpleErrors);
+    } catch (error) {
+      console.error('保存格式错误信息失败:', error);
+    }
+  } else {
+    // 当错误列表为空时，清空数据库中的错误
+    try {
+      await saveFormatErrors([]);
+    } catch (error) {
+      console.error('清空格式错误信息失败:', error);
+    }
+  }
+}, { deep: true });
+
+// 触发文件上传
 function triggerFileUpload() {
-  fileInput.value.click()
+  fileInput.value.click();
 }
 
 // 触发格式要求上传
 function triggerFormatUpload() {
-  formatInput.value.click()
+  formatInput.value.click();
 }
-// 重置进度
-function resetProcess() {
-  processingSteps.value.forEach(step => {
-    step.status = 'pending'
-  })
-  currentStep.value = 0
-  hasUploadedFile.value = false
-  hasUploadedFormat.value = false
-  uploadedFile.value = null
-  uploadedFileName.value = ''
-  formattedFilePath.value = ''
-  currentDocumentPath.value = ''
-  currentConfigPath.value = ''
-  userInput.value = ''
-  messages.value = []
-  processingComplete.value = false
-  formatErrors.value = []
-  showNotification('info', '进度重置', '进度已重置，请重新开始', 3000)
+
+// 修改重置进度函数
+async function resetProcess() {
+  try {
+    await resetAppState();
+    
+    processingSteps.value.forEach(step => {
+      step.status = 'pending';
+    });
+    currentStep.value = 0;
+    hasUploadedFile.value = false;
+    hasUploadedFormat.value = false;
+    uploadedFile.value = null;
+    uploadedFileName.value = '';
+    formattedFilePath.value = '';
+    currentDocumentPath.value = '';
+    currentConfigPath.value = '';
+    userInput.value = '';
+    messages.value = [];
+    processingComplete.value = false;
+    formatErrors.value = [];
+    
+    await clearAllMessages();
+    showNotification('info', '进度重置', '进度已重置，请重新开始', 3000);
+  } catch (error) {
+    console.error('重置进度失败:', error);
+    showNotification('error', '重置失败', '重置进度时出错', 3000);
+  }
 }
 
 // 处理文档预览，在侧边显示文档预览
@@ -468,6 +601,27 @@ async function handleFileUpload(event) {
       processingSteps.value[0].status = 'completed'
       currentStep.value = 1
       currentDocumentPath.value = response.data.file_path || response.data.file.path
+      
+      // 保存文件信息到数据库
+      try {
+        await saveFileInfo({
+          name: file.name,
+          path: currentDocumentPath.value,
+          type: 'document',
+          size: file.size
+        });
+      } catch (dbError) {
+        console.error('保存文件信息失败:', dbError);
+      }
+      
+      // 更新应用状态
+      await updateAppState({
+        hasUploadedFile: true,
+        uploadedFileName: file.name,
+        currentDocumentPath: currentDocumentPath.value,
+        currentStep: 1
+      });
+      
       showNotification('success', '上传成功', `文件 "${file.name}" 已成功上传`, 3000)
     } else {
       throw new Error(response.data.message || '上传失败')
@@ -498,6 +652,26 @@ async function handleFormatUpload(event) {
       currentConfigPath.value = response.data.file_path || response.data.config_path
       processingSteps.value[1].status = 'completed'
       currentStep.value = 2
+      
+      // 保存文件信息到数据库
+      try {
+        await saveFileInfo({
+          name: file.name,
+          path: currentConfigPath.value,
+          type: 'format',
+          size: file.size
+        });
+      } catch (dbError) {
+        console.error('保存格式文件信息失败:', dbError);
+      }
+      
+      // 更新应用状态
+      await updateAppState({
+        hasUploadedFormat: true,
+        currentConfigPath: currentConfigPath.value,
+        currentStep: 2
+      });
+      
       showNotification('success', '上传成功', `格式要求 "${file.name}" 已成功上传`, 3000)
       processDocument()
     } else {
@@ -516,42 +690,81 @@ async function handleFormatUpload(event) {
 // 处理文档格式检查
 async function processDocument() {
   try {
-    showNotification('info', '文档处理中', '正在检查文档格式，请稍候...', 0)
-    processingSteps.value[2].status = 'in_progress'
+    showNotification('info', '文档处理中', '正在检查文档格式，请稍候...', 0);
+    processingSteps.value[2].status = 'in_progress';
+    
+    // 更新应用状态
+    await updateAppState({
+      currentStep: 3
+    });
+    
     const response = await axios.post('/api/check-format', {
       doc_path: currentDocumentPath.value,
       config_path: currentConfigPath.value
-    })
+    });
 
     if (response.data.success) {
-      formatErrors.value = response.data.errors || []
-      processingSteps.value[2].status = 'completed'
-      currentStep.value = 3
-      generateReport()
+      // 提取简单错误信息，避免复杂对象引起的序列化问题
+      const rawErrors = response.data.errors || [];
+      formatErrors.value = rawErrors.map(err => ({
+        message: String(err.message || '未知错误'),
+        location: err.location ? String(err.location) : null
+      }));
+      
+      processingSteps.value[2].status = 'completed';
+      currentStep.value = 3;
+      
+      // 保存格式错误到数据库
+      try {
+        await saveFormatErrors(formatErrors.value);
+      } catch (dbError) {
+        console.error('保存格式错误到数据库失败:', dbError);
+        // 错误不影响主流程继续
+      }
+      
+      generateReport();
     } else {
-      throw new Error(response.data.message || '格式检查失败')
+      throw new Error(response.data.message || '格式检查失败');
     }
   } catch (error) {
-    console.error('处理文档时出错:', error)
-    showNotification('error', '处理失败', `格式检查时出错: ${error.message || error}`, 5000)
-    processingSteps.value[2].status = 'error'
+    console.error('处理文档时出错:', error);
+    showNotification('error', '处理失败', `格式检查时出错: ${error.message || error}`, 5000);
+    processingSteps.value[2].status = 'error';
   }
 }
 
 // 生成报告
 async function generateReport() {
   try {
-    showNotification('info', '生成报告中', '正在生成格式分析报告，请稍候...', 0)
-    processingSteps.value[3].status = 'in_progress'
+    showNotification('info', '生成报告中', '正在生成格式分析报告，请稍候...', 0);
+    processingSteps.value[3].status = 'in_progress';
+    
+    // 更新应用状态
+    await updateAppState({
+      currentStep: 4
+    });
+    
+    // 使用简化的错误对象，避免复杂对象序列化问题
+    const simplifiedErrors = formatErrors.value.map(err => ({
+      message: String(err.message || ''),
+      location: err.location ? String(err.location) : null
+    }));
+    
     const response = await axios.post('/api/generate-report', {
       doc_path: currentDocumentPath.value,
-      errors: formatErrors.value
-    })
+      errors: simplifiedErrors
+    });
 
     if (response.data.success) {
-      processingSteps.value[3].status = 'completed'
-      processingComplete.value = true
-      currentStep.value = 5
+      processingSteps.value[3].status = 'completed';
+      processingComplete.value = true;
+      currentStep.value = 5;
+      
+      // 更新应用状态
+      await updateAppState({
+        processingComplete: true,
+        currentStep: 5
+      });
       
       // 使用Markdown格式的系统消息
       const initialMessage = `# 文档格式分析完成
@@ -565,22 +778,31 @@ async function generateReport() {
 - 如何修复文档中的格式错误？
 - 生成格式修正报告
 - 帮我优化文档的整体格式
-`
+`;
       
-      messages.value.push({
+      const systemMessage = {
         content: initialMessage,
         sender: 'system',
         timestamp: new Date()
-      })
+      };
       
-      showNotification('success', '处理完成', '文档格式分析已完成', 3000)
+      messages.value.push(systemMessage);
+      
+      // 保存系统消息到数据库
+      try {
+        await saveMessage(systemMessage);
+      } catch (dbError) {
+        console.error('保存系统消息失败:', dbError);
+      }
+      
+      showNotification('success', '处理完成', '文档格式分析已完成', 3000);
     } else {
-      throw new Error(response.data.message || '生成报告失败')
+      throw new Error(response.data.message || '生成报告失败');
     }
   } catch (error) {
-    console.error('生成报告时出错:', error)
-    showNotification('error', '处理失败', `生成报告时出错: ${error.message || error}`, 5000)
-    processingSteps.value[3].status = 'error'
+    console.error('生成报告时出错:', error);
+    showNotification('error', '处理失败', `生成报告时出错: ${error.message || error}`, 5000);
+    processingSteps.value[3].status = 'error';
   }
 }
 
@@ -659,11 +881,20 @@ async function sendMessage() {
   
   // 先添加用户消息到列表
   const userMessage = userInput.value.trim()
-  messages.value.push({
+  const newMessage = {
     content: userMessage,
     sender: 'user',
     timestamp: new Date()
-  })
+  }
+  
+  messages.value.push(newMessage)
+  
+  // 保存消息到数据库
+  try {
+    await saveMessage(newMessage)
+  } catch (error) {
+    console.error('保存用户消息失败:', error)
+  }
   
   // 清空输入框
   userInput.value = ''
@@ -676,11 +907,20 @@ async function sendMessage() {
     })
     
     if (response.data.success) {
-      messages.value.push({
+      const systemResponse = {
         content: response.data.message,
         sender: 'system',
         timestamp: new Date()
-      })
+      }
+      
+      messages.value.push(systemResponse)
+      
+      // 保存系统回复到数据库
+      try {
+        await saveMessage(systemResponse)
+      } catch (dbError) {
+        console.error('保存系统回复失败:', dbError)
+      }
     } else {
       throw new Error(response.data.message || '发送失败')
     }
@@ -689,14 +929,24 @@ async function sendMessage() {
     showNotification('error', '发送失败', `发送消息时出错: ${error.message || error}`, 5000)
     
     // 添加错误消息到对话
-    messages.value.push({
+    const errorMessage = {
       content: `发送消息时出错: ${error.message || '未知错误'}`,
       sender: 'system',
       timestamp: new Date()
-    })
+    }
+    
+    messages.value.push(errorMessage)
+    
+    // 保存错误消息到数据库
+    try {
+      await saveMessage(errorMessage)
+    } catch (dbError) {
+      console.error('保存错误消息失败:', dbError)
+    }
   }
 }
-//应用格式
+
+// 应用格式
 async function applyFormat() {
   try {
     showNotification('info', '应用格式中', '正在应用格式...', 0)

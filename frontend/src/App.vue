@@ -36,11 +36,10 @@
           ]">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="9" y1="9" x2="15" y2="9"></line>
-            <line x1="9" y1="13" x2="15" y2="13"></line>
-            <line x1="9" y1="17" x2="15" y2="17"></line>
+            <line x1="12" y1="8" x2="12" y2="16"></line>
+            <line x1="8" y1="12" x2="16" y2="12"></line>
           </svg>
+
           <span v-if="!sidebarCollapsed">新增任务</span>
         </button>
       </div>
@@ -169,7 +168,6 @@
 <script setup>
 import { ref, computed, onMounted, h, provide } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-
 // 路由配置
 const router = useRouter()
 const route = useRoute()
@@ -307,10 +305,6 @@ const menuItems = [
 // 语言设置
 const currentLanguage = ref('zh-CN')
 
-// 切换语言
-function changeLanguage(lang) {
-  currentLanguage.value = lang
-}
 
 // 切换侧边栏
 function toggleSidebar() {
