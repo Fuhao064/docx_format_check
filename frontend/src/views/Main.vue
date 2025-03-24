@@ -105,88 +105,10 @@
       ]">
       <div class="flex-1 flex flex-col items-center h-full overflow-y-auto scrollbar-thin pt-20 pb-28 px-5"
         ref="messagesContainer">
-        <!-- 格式错误提示 -->
-        <div v-if="formatErrors.length > 0" class="w-full max-w-3xl mb-6">
-          <div
-            class="rounded-3xl bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.3)] p-5 shadow-md">
-            <div class="flex items-center mb-3">
-              <svg class="w-5 h-5 text-[hsl(var(--destructive))] mr-2" fill="none" stroke="currentColor"
-                viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
-                </path>
-              </svg>
-              <h4 class="font-medium text-[hsl(var(--destructive))]">发现以下格式问题：</h4>
-            </div>
-            <ul class="space-y-2">
-              <li v-for="(error, index) in formatErrors" :key="index"
-                class="text-sm text-[hsl(var(--destructive))] bg-[hsl(var(--destructive)/0.15)] rounded-lg p-2.5 transition-colors hover:bg-[hsl(var(--destructive)/0.25)]">
-                {{ error.message }}
-                <div v-if="error.location" class="text-xs mt-1 text-[hsl(var(--muted-foreground))]">
-                  位置: {{ error.location }}
-                </div>
-              </li>
-            </ul>
-          </div>
-        </div>
 
-        <!-- 消息区域 -->
-        <div v-if="messages.length > 0" class="w-full max-w-3xl mb-6 space-y-10">
-          <div v-for="(message, index) in messages" :key="index" class="message-container">
-            <!-- 系统消息 - 渲染为Markdown格式 -->
-            <div v-if="message.sender === 'system'" class="system-message prose prose-sm max-w-none mb-4 text-[hsl(var(--foreground))]">
-              <div v-html="renderMarkdown(message.content)" class="pl-1"></div>
-            </div>
-            
-            <!-- 用户消息 - 圆角矩形气泡 -->
-            <div v-else class="user-message bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--foreground))] rounded-lg p-4 border border-[hsl(var(--primary)/0.2)]">
-              {{ message.content }}
-            </div>
-          </div>
-          <!-- 添加一个空div来占位 -->
-          <div class="h-10"></div>  
-        </div>
-
-        <!-- 未上传文件 -->
-        <div v-if="!hasUploadedFile" class="flex-1 flex flex-col items-center justify-center w-full max-w-3xl p-6">
-          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="1.5" class="mb-6 text-[hsl(var(--primary))]">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
-            <polyline points="10 9 9 9 8 9"></polyline>
-          </svg>
-          <p class="text-xl font-medium text-[hsl(var(--foreground))]">开始文档处理</p>
-          <p class="text-sm mt-2 mb-6 text-[hsl(var(--muted-foreground))]">请上传文档开始与Agent交互</p>
-          <button @click="triggerFileUpload"
-            class="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))] transition-colors duration-[--transition-speed]">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="17 8 12 3 7 8"></polyline>
-              <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-            上传文档
-          </button>
-        </div>
-        <!-- 未上传格式要求 -->
-        <div v-if="hasUploadedFile && !hasUploadedFormat"
-          class="flex-1 flex flex-col items-center justify-center w-full max-w-3xl p-6">
-          <p class="text-xl font-medium text-[hsl(var(--foreground))]">上传格式要求</p>
-          <p class="text-sm mt-2 mb-6 text-[hsl(var(--muted-foreground))]">请上传格式要求文档以继续处理</p>
-          <button @click="triggerFormatUpload"
-            class="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))] transition-colors duration-[--transition-speed]">
-            上传格式要求
-          </button>
-          <button @click="useDefaultFormat"
-            class="mt-4 px-5 py-2.5 rounded-full bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))] transition-colors duration-[--transition-speed]">
-            使用默认格式
-          </button>
-        </div>
         <!-- 处理进度 -->
-        <div v-else class="w-full max-w-3xl flex-1 flex flex-col">
-          <div v-if="currentStep >= 0 && currentStep < 5" class="mb-6">
+        <div class="w-full max-w-3xl flex-1 flex flex-col">
+          <div class="mb-6">
             <div
               class="rounded-3xl shadow-md overflow-hidden transition-shadow hover:shadow-lg border border-[hsl(var(--border))]">
               <div
@@ -255,7 +177,84 @@
             </div>
           </div>
         </div>
+        <!-- 格式错误提示 -->
+        <div v-if="formatErrors.length > 0" class="w-full max-w-3xl mb-6">
+          <div
+            class="rounded-3xl bg-[hsl(var(--destructive)/0.1)] border border-[hsl(var(--destructive)/0.3)] p-5 shadow-md">
+            <div class="flex items-center mb-3">
+              <svg class="w-5 h-5 text-[hsl(var(--destructive))] mr-2" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
+                </path>
+              </svg>
+              <h4 class="font-medium text-[hsl(var(--destructive))]">发现以下格式问题：</h4>
+            </div>
+            <ul class="space-y-2">
+              <li v-for="(error, index) in formatErrors" :key="index"
+                class="text-sm text-[hsl(var(--destructive))] bg-[hsl(var(--destructive)/0.15)] rounded-lg p-2.5 transition-colors hover:bg-[hsl(var(--destructive)/0.25)]">
+                {{ error.message }}
+                <div v-if="error.location" class="text-xs mt-1 text-[hsl(var(--muted-foreground))]">
+                  位置: {{ error.location }}
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <!-- 消息区域 -->
+        <div v-if="messages.length > 0" class="w-full max-w-3xl mb-6 space-y-10">
+          <div v-for="(message, index) in messages" :key="index" class="message-container">
+            <!-- 系统消息 - 渲染为Markdown格式 -->
+            <div v-if="message.sender === 'system'" class="system-message prose prose-sm max-w-none mb-4 text-[hsl(var(--foreground))]">
+              <div v-html="renderMarkdown(message.content)" class="pl-1"></div>
+            </div>
+            
+            <!-- 用户消息 - 圆角矩形气泡 -->
+            <div v-else class="user-message bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--foreground))] rounded-lg p-4 border border-[hsl(var(--primary)/0.2)]">
+              {{ message.content }}
+            </div>
+          </div>
+          <!-- 添加一个空div来占位 -->
+          <div class="h-10"></div>  
+        </div>
 
+        <!-- 未上传文件 -->
+        <div v-if="!hasUploadedFile" class="flex-1 flex flex-col items-center justify-center w-full max-w-3xl p-6">
+          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="1.5" class="mb-6 text-[hsl(var(--primary))]">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <p class="text-xl font-medium text-[hsl(var(--foreground))]">开始文档处理</p>
+          <p class="text-sm mt-2 mb-6 text-[hsl(var(--muted-foreground))]">请上传文档开始与Agent交互</p>
+          <button @click="triggerFileUpload"
+            class="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))] transition-colors duration-[--transition-speed]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            上传文档
+          </button>
+        </div>
+        <!-- 未上传格式要求 -->
+        <div v-if="hasUploadedFile && !hasUploadedFormat"
+          class="flex-1 flex flex-col items-center justify-center w-full max-w-3xl p-6">
+          <p class="text-xl font-medium text-[hsl(var(--foreground))]">上传格式要求</p>
+          <p class="text-sm mt-2 mb-6 text-[hsl(var(--muted-foreground))]">请上传格式要求文档以继续处理</p>
+          <button @click="triggerFormatUpload"
+            class="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))] transition-colors duration-[--transition-speed]">
+            上传格式要求
+          </button>
+          <button @click="useDefaultFormat"
+            class="mt-4 px-5 py-2.5 rounded-full bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))] transition-colors duration-[--transition-speed]">
+            使用默认格式
+          </button>
+        </div>
       </div>
     </main>
     <!-- 底部输入框 -->
@@ -289,34 +288,39 @@
                 </svg>
               </button>
 
-              <div v-if="processingComplete" class="flex gap-2">
-                <button @click="downloadReport"
-                  class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-medium bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary-foreground))] transition-all duration-[--transition-speed]">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
-                    class="stroke-[1.5]">
-                    <path d="M21 15v4a2 2 0 1 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" />
-                    <path d="M7 10l5 5 5-5" stroke="currentColor" />
-                    <path d="M12 15V3" stroke="currentColor" />
-                  </svg>
-                  下载报告
-                </button>
-                <button @click="downloadMarkedDocument"
-                  class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-medium bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary-foreground))] transition-all duration-[--transition-speed]">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
-                    class="stroke-[1.5]">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" />
-                    <path d="M14 2v6h6" stroke="currentColor" />
-                    <path d="M16 13H8" stroke="currentColor" />
-                    <path d="M16 17H8" stroke="currentColor" />
-                    <path d="M10 9H9H8" stroke="currentColor" />
-                  </svg>
-                  标记文档
-                </button>
-                <button @click="applyFormat"
-                  class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-medium bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary-foreground))] transition-all duration-[--transition-speed]">
-                  应用格式
-                </button>
-              </div>
+<div v-if="processingComplete" class="flex gap-2">
+  <button @click="downloadReport"
+    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-medium bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary-foreground))] transition-all duration-[--transition-speed]">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stroke-[1.5]">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M7 10l5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M12 15V3" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    下载报告
+  </button>
+  <button @click="downloadMarkedDocument"
+    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-medium bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary-foreground))] transition-all duration-[--transition-speed]">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stroke-[1.5]">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M14 2v6h6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M16 13H8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M16 17H8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M10 9H8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    标记文档
+  </button>
+  <button @click="applyFormat"
+    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-medium bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary-foreground))] transition-all duration-[--transition-speed]">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stroke-[1.5]">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M14 2v6h6" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M16 13H8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M16 17H8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M10 9H8" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    应用格式
+  </button>
+</div>
             </div>
 
             <button
