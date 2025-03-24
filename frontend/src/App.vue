@@ -46,33 +46,47 @@
 
       <!-- 历史对话记录 -->
       <div class="flex-1 overflow-y-auto scrollbar-thin py-2">
-        <div v-for="chat in chatHistory" :key="chat.id" @click="selectChat(chat)"
-          class="flex items-center px-3 py-2 mx-2 rounded-md cursor-pointer transition-colors duration-[--transition-speed]"
-          :class="[
-            currentChat && currentChat.id === chat.id
-              ? 'bg-[hsl(var(--primary)/0.2)] text-[hsl(var(--primary))]'
-              : 'text-[hsl(var(--sidebar-foreground))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-accent-foreground)))]'
-          ]">
-          <div class="flex items-center space-x-2 w-full" :class="sidebarCollapsed ? 'justify-center' : ''">
-            <div class="flex-shrink-0">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <path d="M14 2v6h6" />
-                <path d="M16 13H8" />
-                <path d="M16 17H8" />
-                <path d="M10 9H8" />
-              </svg>
-            </div>
-            <div class="flex-1 overflow-hidden" v-if="!sidebarCollapsed">
-              <div class="flex items-center">
-                <span class="truncate">{{ chat.docName || chat.title }}</span>
-                <span v-if="chat.colorClass" class="ml-1 w-2 h-2 rounded-full" :class="chat.colorClass"></span>
+        <div v-for="chat in chatHistory" :key="chat.id" class="group relative">
+          <div @click="selectChat(chat)"
+            class="flex items-center px-3 py-2 mx-2 rounded-md cursor-pointer transition-colors duration-[--transition-speed]"
+            :class="[
+              currentChat && currentChat.id === chat.id
+                ? 'bg-[hsl(var(--primary)/0.2)] text-[hsl(var(--primary))]'
+                : 'text-[hsl(var(--sidebar-foreground))] hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--sidebar-accent-foreground)))]'
+            ]">
+            <div class="flex items-center space-x-2 w-full" :class="sidebarCollapsed ? 'justify-center' : ''">
+              <div class="flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6" />
+                  <path d="M16 13H8" />
+                  <path d="M16 17H8" />
+                  <path d="M10 9H8" />
+                </svg>
               </div>
-              <div v-if="chat.timestamp" class="text-xs opacity-60 mt-0.5 text-[hsl(var(--muted-foreground))]">{{ new
-                Date(chat.timestamp).toLocaleTimeString() }}</div>
+              <div class="flex-1 overflow-hidden" v-if="!sidebarCollapsed">
+                <div class="flex items-center">
+                  <span class="truncate">{{ chat.docName || chat.title }}</span>
+                  <span v-if="chat.colorClass" class="ml-1 w-2 h-2 rounded-full" :class="chat.colorClass"></span>
+                </div>
+                <div v-if="chat.timestamp" class="text-xs opacity-60 mt-0.5 text-[hsl(var(--muted-foreground))]">{{ new
+                  Date(chat.timestamp).toLocaleTimeString() }}</div>
+              </div>
             </div>
           </div>
+          <!-- 删除按钮 -->
+          <button 
+            v-if="!sidebarCollapsed && chatHistory.length > 1" 
+            @click="deleteChat(chat)"
+            class="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 rounded-full text-[hsl(var(--sidebar-foreground))] opacity-0 group-hover:opacity-100 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--destructive))] transition-opacity duration-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18"></path>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -166,8 +180,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, h, provide } from 'vue'
+import { ref, computed, onMounted, h, provide, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { 
+  getAllTasks, 
+  createTask, 
+  deleteTask, 
+  switchTask, 
+  getCurrentTaskState 
+} from './lib/db.js'
+
 // 路由配置
 const router = useRouter()
 const route = useRoute()
@@ -312,35 +334,119 @@ function toggleSidebar() {
 }
 
 // 聊天历史
-const chatHistory = ref([
-  { id: 1, docName: 'test2.docx', colorClass: 'bg-green-500/20 text-green-400', timestamp: new Date().toISOString() },
-  { id: 2, docName: 'test.docx', colorClass: 'bg-blue-500/20 text-blue-400', timestamp: new Date().toISOString() }
-])
+const chatHistory = ref([])
 
 // 当前聊天
 const currentChat = ref(null)
+provide('currentTask', currentChat)
+
+// 加载任务列表
+async function loadTasks() {
+  try {
+    const tasks = await getAllTasks();
+    chatHistory.value = tasks.map(task => ({
+      id: task.id,
+      title: task.title,
+      docName: task.title,
+      timestamp: task.lastUpdated
+    }));
+    
+    // 查找当前活动的任务
+    if (chatHistory.value.length > 0) {
+      const currentTaskState = await getCurrentTaskState();
+      const currentTaskId = currentTaskState.taskId;
+      const currentTaskIndex = chatHistory.value.findIndex(chat => chat.id === currentTaskId);
+      
+      if (currentTaskIndex >= 0) {
+        // 确保创建新引用，触发监听器
+        currentChat.value = { ...chatHistory.value[currentTaskIndex] };
+      } else if (chatHistory.value.length > 0) {
+        // 如果没有找到当前任务，默认选中第一个
+        await switchTask(chatHistory.value[0].id);
+        currentChat.value = { ...chatHistory.value[0] };
+      }
+    }
+  } catch (error) {
+    console.error('加载任务列表失败:', error);
+  }
+}
 
 // 选择聊天
-function selectChat(chat) {
-  currentChat.value = chat
-  // 跳转到首页，确保显示对话内容
-  if (route.path !== '/') {
-    router.push('/')
+async function selectChat(chat) {
+  try {
+    // 如果当前已经选中该任务，则清空引用再重新设置，确保触发watch
+    if (currentChat.value && currentChat.value.id === chat.id) {
+      // 创建一个临时变量保存当前任务ID
+      const taskId = chat.id;
+      // 清空当前任务引用
+      currentChat.value = null;
+      // 等待视图更新
+      await nextTick();
+      // 重新加载任务状态
+      await switchTask(taskId);
+      // 重新设置当前任务，添加时间戳确保引用不同
+      currentChat.value = { ...chat, _timestamp: Date.now() };
+    } else {
+      // 正常切换任务
+      // 先加载任务状态
+      await switchTask(chat.id);
+      // 更新当前任务引用
+      currentChat.value = { ...chat, _timestamp: Date.now() };
+    }
+    
+    // 跳转到首页，确保显示对话内容
+    if (route.path !== '/') {
+      router.push('/');
+    }
+  } catch (error) {
+    console.error('切换任务失败:', error);
+    showNotification('error', '切换失败', '无法切换到所选任务', 3000);
   }
 }
 
 // 创建新聊天
-function createNewChat() {
-  console.log('创建新对话');
-  const newChat = {
-    id: chatHistory.value.length + 1,
-    title: `新对话 #${chatHistory.value.length + 1}`,
-    timestamp: new Date().toISOString()
+async function createNewChat() {
+  try {
+    // 创建新任务
+    const taskId = await createTask(`新任务 #${chatHistory.value.length + 1}`);
+    
+    // 重新加载任务列表
+    await loadTasks();
+    
+    // 选择新创建的任务
+    const newTaskIndex = chatHistory.value.findIndex(chat => chat.id === taskId);
+    if (newTaskIndex >= 0) {
+      const newChat = chatHistory.value[newTaskIndex];
+      // 切换到选择的任务
+      await switchTask(newChat.id);
+      // 创建新引用以触发监听器
+      currentChat.value = { ...newChat };
+    }
+    
+    // 确保跳转到聊天页面
+    router.push('/');
+  } catch (error) {
+    console.error('创建新任务失败:', error);
+    showNotification('error', '创建失败', '无法创建新任务', 3000);
   }
-  chatHistory.value.push(newChat)
-  selectChat(newChat)
-  // 确保跳转到聊天页面
-  router.push('/')
+}
+
+// 删除聊天
+async function deleteChat(chat) {
+  try {
+    await deleteTask(chat.id);
+    
+    // 重新加载任务列表
+    await loadTasks();
+    
+    // 如果删除的是当前选中的聊天，自动选择第一个
+    if (currentChat.value && currentChat.value.id === chat.id) {
+      currentChat.value = chatHistory.value.length > 0 ? chatHistory.value[0] : null;
+    }
+  } catch (error) {
+    console.error('删除任务失败:', error);
+    showNotification('error', '删除失败', '无法删除任务', 3000);
+  }
 }
 
 // 通知系统
@@ -398,15 +504,16 @@ function closeNotification() {
 }
 
 // 更新当前聊天的文档信息
-function updateChatHistory(docName, colorClass) {
+async function updateChatHistory(docName, colorClass) {
   if (currentChat.value) {
-    currentChat.value.docName = docName
-    currentChat.value.colorClass = colorClass
+    // 更新本地状态
+    currentChat.value.docName = docName;
+    currentChat.value.colorClass = colorClass;
 
     // 更新聊天历史中对应的项
-    const chatIndex = chatHistory.value.findIndex(chat => chat.id === currentChat.value.id)
+    const chatIndex = chatHistory.value.findIndex(chat => chat.id === currentChat.value.id);
     if (chatIndex !== -1) {
-      chatHistory.value[chatIndex] = { ...currentChat.value }
+      chatHistory.value[chatIndex] = { ...currentChat.value };
     }
   }
 }
@@ -434,8 +541,13 @@ provide('currentLanguage', currentLanguage)
 provide('updateChatHistory', updateChatHistory)
 provide('toggleTheme', toggleTheme)
 provide('isCollapsed', sidebarCollapsed)
+provide('deleteChat', deleteChat)
+
 // 初始化主题
-onMounted(() => {
+onMounted(async () => {
+  // 加载任务列表
+  await loadTasks();
+
   // 检查用户保存的偏好设置
   const savedTheme = localStorage.getItem('theme')
 
