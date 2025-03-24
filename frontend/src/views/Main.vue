@@ -349,16 +349,22 @@ import DocxPreview from '../components/DocxPreview.vue'
 import { marked } from 'marked'
 import { 
   initializeDB, 
-  getAppState, 
-  updateAppState, 
-  resetAppState, 
+  getCurrentTaskState,
+  updateCurrentTaskState, 
+  resetCurrentTaskState, 
   saveFileInfo, 
   saveMessage, 
   saveMessages, 
   getAllMessages, 
   clearAllMessages,
   saveFormatErrors,
-  getFormatErrors
+  getFormatErrors,
+  getAllTasks,
+  createTask,
+  deleteTask,
+  switchTask,
+  getTask,
+  updateTask
 } from '../lib/db.js'
 
 // 获取主题模式和通知函数
@@ -403,24 +409,94 @@ const formatErrors = ref([])
 // 文档预览相关
 const showDocPreview = ref(false)
 
+// 注入任务相关
+const currentTask = inject('currentTask', ref(null))
+
+// 监听当前任务变化
+watch(currentTask, async (newTask, oldTask) => {
+  if (newTask) {
+    // 当任务切换时重新加载数据
+    try {
+      // 先重置所有状态为初始值
+      processingSteps.value.forEach(step => {
+        step.status = 'pending';
+      });
+      hasUploadedFile.value = false;
+      hasUploadedFormat.value = false;
+      uploadedFile.value = null;
+      uploadedFileName.value = '';
+      formattedFilePath.value = '';
+      currentDocumentPath.value = '';
+      currentConfigPath.value = '';
+      userInput.value = '';
+      messages.value = [];
+      currentStep.value = 0;
+      processingComplete.value = false;
+      formatErrors.value = [];
+      
+      // 读取当前任务状态
+      const taskState = await getCurrentTaskState();
+      
+      // 恢复应用状态
+      hasUploadedFile.value = taskState.hasUploadedFile || false;
+      hasUploadedFormat.value = taskState.hasUploadedFormat || false;
+      uploadedFileName.value = taskState.uploadedFileName || '';
+      formattedFilePath.value = taskState.formattedFilePath || '';
+      currentDocumentPath.value = taskState.currentDocumentPath || '';
+      currentConfigPath.value = taskState.currentConfigPath || '';
+      currentStep.value = taskState.currentStep || 0;
+      processingComplete.value = taskState.processingComplete || false;
+      
+      // 根据步骤恢复处理步骤状态
+      updateProcessingSteps();
+      
+      // 恢复消息记录 - 在状态恢复后再加载
+      const savedMessages = await getAllMessages();
+      if (savedMessages && savedMessages.length > 0) {
+        messages.value = savedMessages;
+      }
+      
+      // 恢复格式错误信息 - 在状态恢复后再加载
+      try {
+        const savedErrors = await getFormatErrors();
+        if (savedErrors && savedErrors.length > 0) {
+          formatErrors.value = savedErrors;
+        }
+      } catch (error) {
+        console.error('读取格式错误信息失败:', error);
+      }
+      
+      // 如果有消息，确保滚动到最新消息
+      nextTick(() => {
+        if (messagesContainer.value && messages.value.length > 0) {
+          messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
+        }
+      });
+    } catch (error) {
+      console.error('加载任务数据失败:', error);
+      showNotification('error', '数据加载失败', '无法加载任务数据', 3000);
+    }
+  }
+}, { immediate: false, deep: true });
+
 // 在onMounted中初始化数据库并读取数据
 onMounted(async () => {
   try {
     // 初始化数据库
     await initializeDB();
     
-    // 读取应用状态
-    const appState = await getAppState();
+    // 读取当前任务状态
+    const taskState = await getCurrentTaskState();
     
     // 恢复应用状态
-    hasUploadedFile.value = appState.hasUploadedFile;
-    hasUploadedFormat.value = appState.hasUploadedFormat;
-    uploadedFileName.value = appState.uploadedFileName;
-    formattedFilePath.value = appState.formattedFilePath;
-    currentDocumentPath.value = appState.currentDocumentPath;
-    currentConfigPath.value = appState.currentConfigPath;
-    currentStep.value = appState.currentStep;
-    processingComplete.value = appState.processingComplete;
+    hasUploadedFile.value = taskState.hasUploadedFile;
+    hasUploadedFormat.value = taskState.hasUploadedFormat;
+    uploadedFileName.value = taskState.uploadedFileName;
+    formattedFilePath.value = taskState.formattedFilePath;
+    currentDocumentPath.value = taskState.currentDocumentPath;
+    currentConfigPath.value = taskState.currentConfigPath;
+    currentStep.value = taskState.currentStep;
+    processingComplete.value = taskState.processingComplete;
     
     // 恢复消息记录
     const savedMessages = await getAllMessages();
@@ -474,7 +550,7 @@ watch([
   processingComplete
 ], async () => {
   try {
-    await updateAppState({
+    await updateCurrentTaskState({
       hasUploadedFile: hasUploadedFile.value,
       hasUploadedFormat: hasUploadedFormat.value,
       uploadedFileName: uploadedFileName.value,
@@ -485,52 +561,24 @@ watch([
       processingComplete: processingComplete.value
     });
   } catch (error) {
-    console.error('保存应用状态失败:', error);
+    console.error('保存任务状态失败:', error);
   }
 }, { deep: true });
 
-// 监听消息变化，保存到数据库
+// 监听消息变化，自动滚动到底部
 watch(messages, async () => {
-  try {
-    await clearAllMessages();
-    if (messages.value.length > 0) {
-      await saveMessages(messages.value);
+  // 延迟滚动到底部，确保渲染完成
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight + 50;
     }
-    
-    console.log('messages', messages.value);
-    nextTick(() => {
-      if (messagesContainer.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight + 50;
-      }
-    });
-  } catch (error) {
-    console.error('保存消息记录失败:', error);
-  }
+  });
 }, { deep: true });
 
 // 监听格式错误变化，保存到数据库
 watch(formatErrors, async (newErrors) => {
-  // 避免保存复杂对象到数据库
-  if (newErrors && newErrors.length > 0) {
-    try {
-      // 确保错误对象是简单的可序列化对象
-      const simpleErrors = newErrors.map(err => ({
-        message: String(err.message || '未知错误'),
-        location: err.location ? String(err.location) : null
-      }));
-      
-      await saveFormatErrors(simpleErrors);
-    } catch (error) {
-      console.error('保存格式错误信息失败:', error);
-    }
-  } else {
-    // 当错误列表为空时，清空数据库中的错误
-    try {
-      await saveFormatErrors([]);
-    } catch (error) {
-      console.error('清空格式错误信息失败:', error);
-    }
-  }
+  // 不在这里保存错误，由processDocument和generateReport函数处理
+  // 仅用于UI更新和其他非数据库操作
 }, { deep: true });
 
 // 触发文件上传
@@ -543,11 +591,10 @@ function triggerFormatUpload() {
   formatInput.value.click();
 }
 
-// 修改重置进度函数
+// 修改重置进度函数，确保状态保存到数据库
 async function resetProcess() {
   try {
-    await resetAppState();
-    
+    // 先清空内存中的状态
     processingSteps.value.forEach(step => {
       step.status = 'pending';
     });
@@ -564,7 +611,13 @@ async function resetProcess() {
     processingComplete.value = false;
     formatErrors.value = [];
     
+    // 同时清空消息和格式错误
     await clearAllMessages();
+    await saveFormatErrors([]);
+    
+    // 更新数据库中的状态 - 最后执行数据库操作，确保状态一致
+    await resetCurrentTaskState();
+    
     showNotification('info', '进度重置', '进度已重置，请重新开始', 3000);
   } catch (error) {
     console.error('重置进度失败:', error);
@@ -615,7 +668,7 @@ async function handleFileUpload(event) {
       }
       
       // 更新应用状态
-      await updateAppState({
+      await updateCurrentTaskState({
         hasUploadedFile: true,
         uploadedFileName: file.name,
         currentDocumentPath: currentDocumentPath.value,
@@ -666,7 +719,7 @@ async function handleFormatUpload(event) {
       }
       
       // 更新应用状态
-      await updateAppState({
+      await updateCurrentTaskState({
         hasUploadedFormat: true,
         currentConfigPath: currentConfigPath.value,
         currentStep: 2
@@ -694,7 +747,7 @@ async function processDocument() {
     processingSteps.value[2].status = 'in_progress';
     
     // 更新应用状态
-    await updateAppState({
+    await updateCurrentTaskState({
       currentStep: 3
     });
     
@@ -711,16 +764,11 @@ async function processDocument() {
         location: err.location ? String(err.location) : null
       }));
       
+      // 保存格式错误到数据库，使用单独的函数调用而不是依赖watch
+      await saveFormatErrors(formatErrors.value);
+      
       processingSteps.value[2].status = 'completed';
       currentStep.value = 3;
-      
-      // 保存格式错误到数据库
-      try {
-        await saveFormatErrors(formatErrors.value);
-      } catch (dbError) {
-        console.error('保存格式错误到数据库失败:', dbError);
-        // 错误不影响主流程继续
-      }
       
       generateReport();
     } else {
@@ -740,19 +788,15 @@ async function generateReport() {
     processingSteps.value[3].status = 'in_progress';
     
     // 更新应用状态
-    await updateAppState({
+    await updateCurrentTaskState({
       currentStep: 4
     });
     
-    // 使用简化的错误对象，避免复杂对象序列化问题
-    const simplifiedErrors = formatErrors.value.map(err => ({
-      message: String(err.message || ''),
-      location: err.location ? String(err.location) : null
-    }));
-    
+    // 使用已保存在formatErrors.value中的错误，无需重新发送
+    // 错误已经在processDocument函数中保存到数据库
     const response = await axios.post('/api/generate-report', {
       doc_path: currentDocumentPath.value,
-      errors: simplifiedErrors
+      errors: formatErrors.value
     });
 
     if (response.data.success) {
@@ -761,7 +805,7 @@ async function generateReport() {
       currentStep.value = 5;
       
       // 更新应用状态
-      await updateAppState({
+      await updateCurrentTaskState({
         processingComplete: true,
         currentStep: 5
       });
@@ -788,12 +832,8 @@ async function generateReport() {
       
       messages.value.push(systemMessage);
       
-      // 保存系统消息到数据库
-      try {
-        await saveMessage(systemMessage);
-      } catch (dbError) {
-        console.error('保存系统消息失败:', dbError);
-      }
+      // 保存所有消息到数据库
+      await saveMessages(messages.value);
       
       showNotification('success', '处理完成', '文档格式分析已完成', 3000);
     } else {
@@ -889,9 +929,9 @@ async function sendMessage() {
   
   messages.value.push(newMessage)
   
-  // 保存消息到数据库
+  // 保存完整消息列表到数据库
   try {
-    await saveMessage(newMessage)
+    await saveMessages(messages.value)
   } catch (error) {
     console.error('保存用户消息失败:', error)
   }
@@ -915,9 +955,9 @@ async function sendMessage() {
       
       messages.value.push(systemResponse)
       
-      // 保存系统回复到数据库
+      // 保存完整消息列表到数据库
       try {
-        await saveMessage(systemResponse)
+        await saveMessages(messages.value)
       } catch (dbError) {
         console.error('保存系统回复失败:', dbError)
       }
@@ -937,9 +977,9 @@ async function sendMessage() {
     
     messages.value.push(errorMessage)
     
-    // 保存错误消息到数据库
+    // 保存完整消息列表到数据库
     try {
-      await saveMessage(errorMessage)
+      await saveMessages(messages.value)
     } catch (dbError) {
       console.error('保存错误消息失败:', dbError)
     }
