@@ -84,3 +84,45 @@ class FormatAgent:
             ]
         )
         return response.choices[0].message.content
+    # def search_para_config(self, user_message: str) -> str:
+    #     """搜索config.json文件"""
+    #     with open("..//..//config.json", "r") as f:
+    #         config = json.load(f)
+    #     # 返回用户搜索的段落的设置
+    #     for para in config["para"]:
+
+        return config
+    def process(self, user_message: str, function_name: str) -> str:
+        """
+        处理用户请求的通用方法
+        
+        Args:
+            user_message: 用户消息内容
+            function_name: 要执行的函数名
+            
+        Returns:
+            str: 处理结果
+        """
+        try:
+            if self.client is None:
+                return "抱歉，LLM客户端未初始化，无法处理您的请求。"
+                
+            # 根据function_name调用不同的处理方法
+            if function_name == "parse_format":
+                return self.parse_format(user_message, "{}")
+            elif function_name == "parse_table":
+                return self.parse_table(user_message)
+            else:
+                # 默认响应
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": "你是一个专业的文档格式分析助手，擅长解析和理解各种文档格式要求。"},
+                        {"role": "user", "content": user_message}
+                    ]
+                )
+                return response.choices[0].message.content
+                
+        except Exception as e:
+            print(f"Error in format agent process: {e}")
+            return f"抱歉，处理您的请求时出错：{str(e)}"

@@ -32,10 +32,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 创建一个全局的Agent中心
 agents_config = {
-    "format_model": "qwen-plus",
-    "editor_model": "qwen-plus",
-    "advice_model": "qwen-plus",
-    "communicate_model": "qwen-plus"
+    "format_model": "gemini-2.0-flash",
+    "editor_model": "gemini-2.0-flash",
+    "advice_model": "gemini-2.0-flash",
+    "communicate_model": "gemini-2.0-flash"
 }
 agents = {
     "format": FormatAgent(agents_config["format_model"]),
@@ -157,9 +157,21 @@ def set_agent_model():
         return jsonify({'error': '无效的代理类型'}), 400
     
     try:
-        # 更新代理模型配置
-        agents[agent_type].model = model_name
-        return jsonify({'message': f'已将{agent_type}代理的模型更新为 {model_name}'})
+        # 检查模型是否存在于配置中
+        if model_name not in llm.models_config:
+            return jsonify({'error': f'模型 {model_name} 不存在于配置中'}), 400
+            
+        # 完全重新初始化代理，使用LLMs.set_model来更新所有配置
+        if agent_type == "format":
+            agents[agent_type] = FormatAgent(model_name)
+        elif agent_type == "editor":
+            agents[agent_type] = EditorAgent(model_name)
+        elif agent_type == "advice":
+            agents[agent_type] = AdviceAgent(model_name)
+        elif agent_type == "communicate":
+            agents[agent_type] = CommunicateAgent(model_name)
+            
+        return jsonify({'message': f'已将{agent_type}代理的模型完全更新为 {model_name}'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -727,9 +739,10 @@ def send_message():
         if not data or 'message' not in data:
             return jsonify({"success": False, "message": "缺少必要参数"}), 400
         message = data.get('message')
-        
-        # 使用大模型处理消息
-        response = agents["communicate"].chat(message)
+        doc_path = data.get('doc_path')
+        doc_content = docx_parser.extract_doc_content(doc_path)
+        # 使用CommunicateAgent处理消息，包含意图分析和分发，同时传入文档全文
+        response = agents["communicate"].get_response(message, doc_content)
         
         return jsonify({"success": True, "message": response})
     except Exception as e:

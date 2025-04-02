@@ -46,7 +46,7 @@ class CommunicateAgent:
                     {"role": "system", "content": """你是一个用户意图分析助手，请分析用户消息并确定最合适的处理代理。
                     返回JSON格式必须包含以下字段：
                     - agent: 应使用的代理类型，可选值为 ["format", "editor", "advice", "communicate", "none"]
-                    - function: 该代理应执行的具体功能
+                    - function: 该代理应执行的具体功能，可选值为["search_para_config", "check_format", "generate_caption", "enhance_content", "provide_advice", "none"]
                     - reason: 简单说明做出这个判断的原因
                     """},
                     {"role": "user", "content": user_message}
@@ -58,9 +58,9 @@ class CommunicateAgent:
             
         except Exception as e:
             print(f"Error analyzing intent: {e}")
-            return {"agent": "communicate", "function": "chat", "reason": "发生错误，默认使用对话功能"}
+            return {"agent": "communicate", "function": "chat", "reason": f"发生错误，默认使用对话功能: {str(e)}"}
     
-    def get_response(self, user_message: str) -> str:
+    def get_response(self, user_message: str, doc_content: str) -> str:
         """
         获取对用户消息的回复
         
@@ -74,7 +74,8 @@ class CommunicateAgent:
         intent = self.analyze_intent(user_message)
         agent_type = intent.get("agent", "communicate")
         function_name = intent.get("function", "chat")
-        
+        print(f"意图分析结果: {intent}")
+
         # 2. 根据意图分发到相应的代理
         if agent_type == "format":
             # 初始化格式代理（如果尚未初始化）
@@ -82,11 +83,12 @@ class CommunicateAgent:
                 self.format_agent = FormatAgent(self.model)
                 
             # 根据function_name调用相应的格式分析功能
-            if function_name == "parse_format":
-                # 这里需要根据具体情况进行调整
-                return "我将帮你分析文档格式要求"
-            else:
-                return "我将使用格式代理处理你的请求"
+            # if function_name == "":
+            #     # 按照config.json文件的格式要求，解析格式要求
+            #     return self.format_agent.
+            if function_name != "search_para_config":
+                # 调用format_agent的默认处理方法
+                return self.format_agent.process(user_message, function_name)
                 
         elif agent_type == "editor":
             # 初始化编辑代理（如果尚未初始化）
@@ -95,17 +97,18 @@ class CommunicateAgent:
                 
             # 根据function_name调用相应的编辑功能
             if function_name == "generate_caption":
-                return "我将帮你生成题注"
+                return self.editor_agent.get_image_caption(user_message)
             else:
-                return "我将使用编辑代理处理你的请求"
+                # 调用editor_agent的默认处理方法
+                return self.editor_agent.enhance_content(user_message, "text")
                 
         elif agent_type == "advice":
             # 初始化建议代理（如果尚未初始化）
             if self.advice_agent is None:
                 self.advice_agent = AdviceAgent(self.model)
                 
-            # 调用建议功能
-            return "我将分析你的文档并提供修改建议"
+            # 调用建议功能，传入文档全文
+            return self.advice_agent.provide_advice(doc_content)
             
         else:  # 默认使用communicate对话功能
             return self.chat(user_message)

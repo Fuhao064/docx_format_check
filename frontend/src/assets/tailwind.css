@@ -55,6 +55,15 @@
     --sidebar-border: 240 15% 88%;
     --sidebar-ring: 250 60% 45%;
 
+    /* Markdown内容颜色 */
+    --markdown-heading: 240 10% 10%;
+    --markdown-text: 240 10% 20%;
+    --markdown-code-bg: 240 15% 90%;
+    --markdown-code-text: 250 50% 45%;
+    --markdown-blockquote: 240 5% 45%;
+    --markdown-link: 250 60% 45%;
+    --markdown-hr: 240 15% 85%;
+
     /* 圆角 */
     --border-radius-sm: 4px;
     --border-radius-md: 6px;
@@ -95,6 +104,15 @@
     --input: 240 10% 25%;
     --ring: 250 60% 55%;
 
+    /* 暗色Markdown内容颜色 */
+    --markdown-heading: 240 5% 95%;
+    --markdown-text: 240 15% 85%;
+    --markdown-code-bg: 240 10% 20%;
+    --markdown-code-text: 250 70% 75%;
+    --markdown-blockquote: 240 15% 70%;
+    --markdown-link: 250 70% 70%;
+    --markdown-hr: 240 10% 30%;
+
     /* 暗色侧边栏 */
     --sidebar-background: 240 10% 15%;
     --sidebar-foreground: 240 5% 90%;
@@ -132,6 +150,21 @@
   .rounded-sm { border-radius: var(--border-radius-sm); }
   .rounded-md { border-radius: var(--border-radius-md); }
   .rounded-lg { border-radius: var(--border-radius-lg); }
+  
+  /* 对话框输入区域样式 */
+  .query-bar {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
+  
+  .query-bar:focus-within textarea {
+    @apply bg-transparent;
+  }
+  
+  .query-bar textarea {
+    transition: background-color 200ms ease;
+  }
 }
 
 /* 自定义滚动条 */
@@ -176,38 +209,97 @@
   width: 100%;
 }
 
+/* Markdown样式重写 */
+.system-message h1,
+.system-message h2,
+.system-message h3,
+.system-message h4,
+.system-message h5,
+.system-message h6 {
+  color: hsl(var(--markdown-heading));
+  line-height: 1.6;
+  margin-top: 1.8em;
+  margin-bottom: 0.8em;
+}
+
+.system-message p,
+.system-message li,
+.system-message td,
+.system-message th {
+  color: hsl(var(--markdown-text));
+  line-height: 1.8;
+  margin-bottom: 1.2em;
+}
+
+.system-message li {
+  margin-bottom: 0.6em;
+}
+
+.system-message a {
+  color: hsl(var(--markdown-link));
+  text-decoration: underline;
+}
+
+.system-message blockquote {
+  color: hsl(var(--markdown-blockquote));
+  border-left-color: hsl(var(--markdown-blockquote));
+  padding-left: 1em;
+  margin: 1.2em 0;
+  line-height: 1.7;
+}
+
+.system-message hr {
+  border-color: hsl(var(--markdown-hr));
+  margin: 2em 0;
+}
+
+.system-message code {
+  background-color: hsl(var(--markdown-code-bg));
+  color: hsl(var(--markdown-code-text));
+}
+
+.system-message pre {
+  background-color: hsl(var(--markdown-code-bg)) !important;
+  margin: 1.5em 0;
+}
+
+.system-message pre code {
+  color: hsl(var(--markdown-text));
+  background-color: transparent;
+  line-height: 1.7;
+}
+
+/* 原始消息样式 */
 .system-message h1 {
   font-size: 1.5rem;
   font-weight: 600;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
-  color: hsl(var(--foreground));
+  margin-top: 1.8rem;
+  margin-bottom: 0.9rem;
 }
 
 .system-message h2 {
   font-size: 1.25rem;
   font-weight: 600;
-  margin-top: 1.25rem;
-  margin-bottom: 0.625rem;
-  color: hsl(var(--foreground));
+  margin-top: 1.6rem;
+  margin-bottom: 0.8rem;
 }
 
 .system-message h3 {
   font-size: 1.125rem;
   font-weight: 600;
-  margin-top: 1rem;
-  margin-bottom: 0.5rem;
-  color: hsl(var(--foreground));
+  margin-top: 1.4rem;
+  margin-bottom: 0.7rem;
 }
 
 .system-message p {
-  margin-bottom: 0.75rem;
-  line-height: 1.5;
+  margin-bottom: 1rem;
+  line-height: 1.8;
 }
 
 .system-message ul, .system-message ol {
   margin-left: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1.2rem;
+  line-height: 1.8;
 }
 
 .system-message ul {
@@ -219,17 +311,15 @@
 }
 
 .system-message pre {
-  background-color: hsl(var(--secondary));
   border-radius: var(--border-radius-md);
   padding: 1rem;
-  margin: 0.75rem 0;
+  margin: 1.2rem 0;
   overflow-x: auto;
 }
 
 .system-message code {
   font-family: ui-monospace, monospace;
   font-size: 0.9em;
-  background-color: hsl(var(--secondary));
   padding: 0.2em 0.4em;
   border-radius: var(--border-radius-sm);
 }
