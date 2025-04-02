@@ -90,5 +90,33 @@ class AdviceAgent:
                 "suggestions": [{"issue": "处理错误", "solution": f"发生错误: {str(e)}"}],
                 "improved_version": target_paragraph
             }
+            
+    def provide_advice(self, user_message: str) -> str:
+        """
+        根据用户消息提供建议
+        
+        Args:
+            user_message: 用户消息内容
+            
+        Returns:
+            str: 建议内容
+        """
+        if self.client is None:
+            return "抱歉，LLM客户端未初始化，无法提供建议。"
+            
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "你是一个专业的学术写作顾问，擅长提供具体、有建设性的写作建议。"},
+                    {"role": "user", "content": f"请针对以下内容提供写作或者修改的建议:\n{user_message}"}
+                ]
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            print(f"Error providing advice: {e}")
+            return f"抱歉，提供建议时出错: {str(e)}"
 
 

@@ -205,7 +205,7 @@
         <div v-if="messages.length > 0" class="w-full max-w-3xl mb-6 space-y-10">
           <div v-for="(message, index) in messages" :key="index" class="message-container">
             <!-- 系统消息 - 渲染为Markdown格式 -->
-            <div v-if="message.sender === 'system'" class="system-message prose prose-sm max-w-none mb-4 text-[hsl(var(--foreground))]">
+            <div v-if="message.sender === 'system'" class="system-message max-w-none mb-4">
               <div v-html="renderMarkdown(message.content)" class="pl-1"></div>
             </div>
             
@@ -259,27 +259,27 @@
     </main>
     <!-- 底部输入框 -->
     <div v-if="currentStep >= 5" 
-         class="fixed bottom-0 left-0 right-0 flex justify-center pb-4 pt-2 z-30 bg-gradient-to-t from-[hsl(var(--background))] via-[hsl(var(--background))] to-transparent backdrop-blur-sm transition-all duration-400 ease-in-out"
+         class="fixed bottom-0 left-0 right-0 flex justify-center pb-4 pt-2 z-30 bg-gradient-to-t from-[hsl(var(--background))] via-[hsl(var(--background))] to-transparent backdrop-blur-sm transition-all duration-300 ease-in-out"
          :class="[
            showDocPreview ? 'mr-[clamp(350px,45%,900px)]' : '',
            sidebarCollapsed ? 'ml-12' : 'ml-64'
          ]">
       <div class="w-full max-w-3xl mx-auto px-4">
         <div
-          class="query-bar group bg-[hsl(var(--card)/0.9)] duration-[--transition-speed] relative w-full ring-1 ring-[hsl(var(--border))] rounded-2xl shadow-lg backdrop-blur-md overflow-hidden hover:ring-[hsl(var(--ring)/0.5)] focus-within:ring-2 focus-within:ring-[hsl(var(--primary))]">
+          class="query-bar group bg-[hsl(var(--card)/0.9)] relative w-full ring-1 ring-[hsl(var(--border))] rounded-2xl shadow-lg backdrop-blur-md overflow-hidden transition-all duration-200 hover:ring-[hsl(var(--ring)/0.5)] focus-within:ring-2 focus-within:ring-[hsl(var(--primary))]">
           <div class="relative z-10 px-3 py-2">
             <span
-              class="absolute left-4 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))] pointer-events-none transition-opacity duration-[--transition-speed]"
+              class="absolute left-4 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))] pointer-events-none transition-opacity duration-200"
               :class="!userInput.length ? 'opacity-100' : 'opacity-0'">输入您的问题...</span>
             <textarea dir="auto" v-model="userInput" @keydown.enter.prevent="handleEnterKey($event)"
-              class="w-full px-1 py-2 bg-transparent focus:outline-none text-[hsl(var(--foreground))] min-h-[48px] resize-none scrollbar-thin placeholder-[hsl(var(--muted-foreground))]"
+              class="w-full pl-1 py-3.5 bg-transparent focus:outline-none text-[hsl(var(--foreground))] min-h-[48px] resize-none scrollbar-thin placeholder-[hsl(var(--muted-foreground))]"
               rows="1" @input="autoResize($event)"></textarea>
           </div>
           <div
-            class="flex items-center justify-between gap-2 px-3 py-2 bg-[hsl(var(--card)/0.8)] border-t border-[hsl(var(--border))]">
+            class="flex items-center justify-between gap-2 px-3 py-2 bg-[hsl(var(--card)/0.8)] border-t border-[hsl(var(--border))] transition-all duration-200">
             <div class="flex items-center gap-2">
               <button
-                class="flex items-center justify-center h-8 w-8 rounded-full bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary-foreground))] transition-all duration-[--transition-speed]"
+                class="flex items-center justify-center h-8 w-8 rounded-full bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary-foreground))] transition-all duration-200"
                 type="button" aria-label="重置" @click="resetProcess">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
                   class="stroke-[1.5]">
@@ -947,7 +947,8 @@ async function sendMessage() {
     // 显示加载状态或等待动画可以在这里添加
     
     const response = await axios.post('/api/send-message', {
-      message: userMessage
+      message: userMessage,
+      doc_path: currentDocumentPath.value
     })
     
     if (response.data.success) {

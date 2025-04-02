@@ -10,10 +10,77 @@ from utils import are_values_equal, extract_number_from_string
 from config_utils import load_config, save_config, update_config
 
 def is_value_equal(expected, actual, key):
+    """比较两个值是否相等，考虑到不同表示形式的数值"""
+    # 对特定的key做特殊处理
+    if key.lower() == 'size':
+        # 处理字号的特殊情况
+        expected_num = extract_number(expected)
+        actual_num = extract_number(actual)
+        if expected_num is not None and actual_num is not None:
+            return abs(expected_num - actual_num) < 0.5  # 允许0.5pt的误差
+    
+    # 检查字符串类型的相等性
+    if isinstance(expected, str) and isinstance(actual, str):
+        # 清除单位并转为小写进行比较
+        expected_clean = expected.lower().strip()
+        actual_clean = actual.lower().strip()
+        
+        # 如果完全相等，直接返回True
+        if expected_clean == actual_clean:
+            return True
+        
+        # 尝试提取数值部分进行比较
+        expected_num = extract_number(expected)
+        actual_num = extract_number(actual)
+        if expected_num is not None and actual_num is not None:
+            return abs(expected_num - actual_num) < 0.1
+    
+    # 处理数值类型或混合类型
+    elif isinstance(expected, (int, float)) or isinstance(actual, (int, float)):
+        expected_num = extract_number(expected)
+        actual_num = extract_number(actual)
+        if expected_num is not None and actual_num is not None:
+            return abs(expected_num - actual_num) < 0.1
+    
+    # 默认使用原有方法
     return are_values_equal(expected, actual, key)
 
 def extract_number(value):
-    return extract_number_from_string(value)
+    """从字符串中提取数字值，支持多种单位和格式"""
+    # 如果已经是数字类型，直接返回
+    if isinstance(value, (int, float)):
+        return float(value)
+    
+    # 转换为字符串
+    value_str = str(value).lower().strip()
+    
+    # 常见单位与对应的换算系数（相对于厘米）
+    unit_factors = {
+        'cm': 1.0,    # 厘米
+        'mm': 0.1,    # 毫米
+        'dm': 10.0,   # 分米
+        'm': 100.0,   # 米
+        'pt': 1.0,    # 点，对于字体大小不进行换算
+        'in': 2.54,   # 英寸
+        'inch': 2.54, # 英寸
+        '寸': 3.33     # 中国传统单位
+    }
+    
+    # 尝试提取数字和单位
+    match = re.search(r'([-+]?\d*\.?\d+)\s*([a-z寸]+)?', value_str)
+    if not match:
+        return extract_number_from_string(value)
+    
+    num_value = float(match.group(1))
+    unit = match.group(2) if match.group(2) else ''  # 无单位的情况
+    
+    # 如果没有单位，直接返回数值
+    if not unit:
+        return num_value
+    
+    # 应用单位转换系数
+    factor = unit_factors.get(unit, 1.0)
+    return num_value * factor
 
 def check_paper_format(doc_info: Dict, required_format: Dict) -> List[Dict]:
     """检查文档基本格式"""
@@ -203,31 +270,36 @@ def _check_gbt_references(references: List[str], standard: str) -> List[str]:
 def _check_journal_format(ref: str, standard: str) -> bool:
     """检查期刊论文格式"""
     # GB/T 7714-2015格式: [序号] 作者. 题名[J]. 刊名, 出版年, 卷号(期号): 起止页码.
-    pattern = r'^\[\d+\]\s+[\w\s,]+\.\s+.+\[J(/OL)?\]\.\s+.+,\s+\d{4},\s+\d+(\(\d+\))?\:\s*\d+(-\d+)?\.?$'
+    # 更灵活的正则表达式，允许一些常见变体
+    pattern = r'^\[\d+\]\s+[\w\s,]+\.\s+.+\[J(/OL)?\]\.\s+.+,\s+\d{4}(,\s+\d+(\(\d+\))?)?(\:\s*\d+(-\d+)?)?\.?$'
     return bool(re.match(pattern, ref, re.UNICODE))
 
 def _check_book_format(ref: str, standard: str) -> bool:
     """检查专著格式"""
     # GB/T 7714-2015格式: [序号] 作者. 书名[M]. 版本(第1版不标注). 出版地: 出版社, 出版年: 起止页码.
-    pattern = r'^\[\d+\]\s+[\w\s,]+\.\s+.+\[M\]\.\s+.*\:\s+.+,\s+\d{4}(\:\s*\d+(-\d+)?)?\.?$'
+    # 更灵活的模式
+    pattern = r'^\[\d+\]\s+[\w\s,]+\.\s+.+\[M\]\.\s+.*(\:\s+.+,\s+\d{4}(\:\s*\d+(-\d+)?)?)?\.?$'
     return bool(re.match(pattern, ref, re.UNICODE))
 
 def _check_thesis_format(ref: str, standard: str) -> bool:
     """检查学位论文格式"""
     # GB/T 7714-2015格式: [序号] 作者. 题名[D]. 保存地: 保存单位, 出版年.
-    pattern = r'^\[\d+\]\s+[\w\s,]+\.\s+.+\[D\]\.\s+.+\:\s+.+,\s+\d{4}\.?$'
+    # 更灵活的模式
+    pattern = r'^\[\d+\]\s+[\w\s,]+\.\s+.+\[D\]\.\s+.*(\:\s+.+,\s+\d{4})?\.?$'
     return bool(re.match(pattern, ref, re.UNICODE))
 
 def _check_conference_format(ref: str, standard: str) -> bool:
     """检查会议论文格式"""
     # GB/T 7714-2015格式: [序号] 作者. 题名[C]. 会议名, 会议地点, 会议年份. 出版地: 出版者, 出版年: 起止页码.
-    pattern = r'^\[\d+\]\s+[\w\s,]+\.\s+.+\[C(/OL)?\]\.\s+.+,\s+.+,\s+\d{4}\.\s+.+\:\s+.+,\s+\d{4}(\:\s*\d+(-\d+)?)?\.?$'
+    # 更灵活的模式
+    pattern = r'^\[\d+\]\s+[\w\s,]+\.\s+.+\[C(/OL)?\]\.\s+.+(,\s+.+,\s+\d{4})?\.(\s+.+\:\s+.+,\s+\d{4}(\:\s*\d+(-\d+)?)?)?\.?$'
     return bool(re.match(pattern, ref, re.UNICODE))
 
 def _check_electronic_format(ref: str, standard: str) -> bool:
     """检查电子资源格式"""
     # GB/T 7714-2015格式: [序号] 作者. 题名[EB/OL]. 出版地: 出版者, 出版年[引用日期]. 获取和访问路径.
-    pattern = r'^\[\d+\]\s+[\w\s,]+\.\s+.+\[EB/OL\]\.(\s+.+\:\s+.+,\s+\d{4})?\s*\[\d{4}-\d{2}-\d{2}\]\.\s+https?://.*$'
+    # 更灵活的模式，网址部分可选
+    pattern = r'^\[\d+\]\s+[\w\s,]+\.\s+.+\[EB/OL\]\.(\s+.+\:\s+.+,\s+\d{4})?\s*(\[\d{4}-\d{2}-\d{2}\])?\.(\s+https?://.*)?$'
     return bool(re.match(pattern, ref, re.UNICODE))
 
 def _check_apa_references(references: List[str]) -> List[str]:
@@ -553,9 +625,13 @@ def check_abstract(paragraph_manager:ParagraphManager):
     
     # 查找摘要段落
     abstract_paras = []
+    abstract_content_paras = []
+    
     for para in paragraph_manager.paragraphs:
-        if para.content.strip().startswith('摘要'):
+        if para.type == ParsedParaType.ABSTRACT_ZH or para.content.strip().startswith('摘要'):
             abstract_paras.append(para)
+        elif para.type == ParsedParaType.ABSTRACT_CONTENT_ZH:
+            abstract_content_paras.append(para)
     
     # 检查是否存在摘要
     if not abstract_paras:
@@ -565,19 +641,22 @@ def check_abstract(paragraph_manager:ParagraphManager):
         })
         return errors
     
-    # 检查摘要内容
-    abstract_para = abstract_paras[0]
-    abstract_text = abstract_para.content.strip()
-    
-    # 检查摘要长度
-    if len(abstract_text) < 10:  # 假设摘要至少应该有10个字符
+    # 检查是否有摘要内容
+    if not abstract_content_paras:
         errors.append({
-            'message': '摘要内容过短',
-            'location': '摘要部分'
+            'message': '文档中缺少摘要内容',
+            'location': '摘要标题后'
         })
+        return errors
     
-    # 检查摘要格式
-    # 这里可以添加更多摘要格式检查，如字体、字号等
+    # 检查摘要内容长度
+    for content_para in abstract_content_paras:
+        abstract_text = content_para.content.strip()
+        if len(abstract_text) < 10:  # 假设摘要至少应该有10个字符
+            errors.append({
+                'message': '摘要内容过短',
+                'location': '摘要部分'
+            })
     
     return errors
 
@@ -620,19 +699,27 @@ def check_keywords(paragraph_manager:ParagraphManager):
     
     return errors
 
-def check_main_format(paragraph_manager:ParagraphManager, required_format:Dict) -> List[Dict]:
-    """检查主要文档格式"""
+def check_main_format(paragraph_manager:ParagraphManager, required_format:Dict, check_abstract_keywords:bool=True) -> List[Dict]:
+    """
+    检查主要文档格式
+    
+    参数:
+    paragraph_manager: 段落管理器
+    required_format: 格式要求
+    check_abstract_keywords: 是否检查摘要和关键词，默认为True
+    """
     errors = []
     
     # 检查摘要格式
-    abstract_errors = check_abstract(paragraph_manager)
-    if abstract_errors:
-        errors.extend(abstract_errors)
-    
-    # 检查关键词格式
-    keyword_errors = check_keywords(paragraph_manager)
-    if keyword_errors:
-        errors.extend(keyword_errors)
+    if check_abstract_keywords:
+        abstract_errors = check_abstract(paragraph_manager)
+        if abstract_errors:
+            errors.extend(abstract_errors)
+        
+        # 检查关键词格式
+        keyword_errors = check_keywords(paragraph_manager)
+        if keyword_errors:
+            errors.extend(keyword_errors)
     
     # 获取段落格式要求
     paragraph_format = required_format.get('paragraph_format', {})
@@ -677,7 +764,7 @@ def check_main_format(paragraph_manager:ParagraphManager, required_format:Dict) 
         
         # 递归检查格式
         format_errors = _recursive_check(para_attributes, expected_format)
-        for error_key, error_msg in format_errors:
+        for error_path, error_msg in format_errors:
             location = f"{location_prefix}: \"{para_text[:20]}{'...' if len(para_text) > 20 else ''}\""
             errors.append({
                 'message': error_msg,
@@ -689,21 +776,22 @@ def check_main_format(paragraph_manager:ParagraphManager, required_format:Dict) 
 def _recursive_check(actual, expected):
     """
     递归检查嵌套字典的字段。
+    返回格式为[(key, error_message), ...]的列表
     """
-    nested_errors = []
+    errors = []
 
     for key, expected_value in expected.items():
         actual_value = actual.get(key)
 
         # 如果字段不存在
         if actual_value is None:
-            nested_errors.append(f"缺少必需字段: '{key}'")
+            errors.append((key, f"缺少必需字段: '{key}'"))
             continue
 
         # 如果字段是列表类型，优先检查长度
         if isinstance(actual_value, list):
             if len(actual_value) > 1:
-                nested_errors.append(f"字段 '{key}' 存在多个值: {actual_value}")
+                errors.append((key, f"字段 '{key}' 存在多个值: {actual_value}"))
                 continue
             if len(actual_value) == 0:
                 continue
@@ -712,20 +800,20 @@ def _recursive_check(actual, expected):
         # 递归处理嵌套字典
         if isinstance(expected_value, dict):
             if not isinstance(actual_value, dict):
-                nested_errors.append(f"字段类型不匹配: '{key}' 应为字典类型，实际为 {type(actual_value).__name__}")
+                errors.append((key, f"字段类型不匹配: '{key}' 应为字典类型，实际为 {type(actual_value).__name__}"))
                 continue
 
             # 递归检查嵌套字段
             deeper_errors = _recursive_check(actual_value, expected_value)
-            for err in deeper_errors:
-                nested_errors.append(f"{key}.{err}")
+            for err_key, err_msg in deeper_errors:
+                errors.append((f"{key}.{err_key}", err_msg))
 
         # 检查值是否匹配
         else:
             if not is_value_equal(expected_value, actual_value, key):
-                nested_errors.append(f"'{key}' 不匹配: 要求 {expected_value}, 实际 {actual_value}")
+                errors.append((key, f"'{key}' 不匹配: 要求 {expected_value}, 实际 {actual_value}"))
 
-    return nested_errors
+    return errors
 
 def remark_para_type(doc_path: str, format_agent: FormatAgent) -> ParagraphManager:
     # 初始化段落管理器
