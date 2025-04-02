@@ -214,6 +214,14 @@
               {{ message.content }}
             </div>
           </div>
+          
+          <!-- 加载中动画 -->
+          <div v-if="isLoading" class="loading-dots flex items-center space-x-1 pl-1">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+          </div>
+          
           <!-- 添加一个空div来占位 -->
           <div class="h-10"></div>  
         </div>
@@ -401,6 +409,7 @@ const currentDocumentPath = ref('')
 const currentConfigPath = ref('')
 const currentStep = ref(0)
 const processingComplete = ref(false)
+const isLoading = ref(false) // 加载状态变量
 const processingSteps = ref([
   { id: 1, title: '上传文档', description: '上传需要检查格式的文档', status: 'pending' },
   { id: 2, title: '上传格式要求', description: '上传格式要求文档或使用默认格式', status: 'pending' },
@@ -944,7 +953,8 @@ async function sendMessage() {
   userInput.value = ''
   
   try {
-    // 显示加载状态或等待动画可以在这里添加
+    // 显示加载状态
+    isLoading.value = true
     
     const response = await axios.post('/api/send-message', {
       message: userMessage,
@@ -988,6 +998,9 @@ async function sendMessage() {
     } catch (dbError) {
       console.error('保存错误消息失败:', dbError)
     }
+  } finally {
+    // 无论成功或失败，都关闭加载状态
+    isLoading.value = false
   }
 }
 
