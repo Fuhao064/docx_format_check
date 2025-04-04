@@ -6,11 +6,87 @@
       <p class="text-[hsl(var(--muted-foreground))]">管理文档格式规范和样式配置</p>
     </div>
 
+    <!-- 格式分析对话框 -->
+    <div v-if="showFormatDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-[hsl(var(--card))] rounded-lg shadow-lg w-full max-w-md p-6">
+        <h3 class="text-lg font-medium mb-4 text-[hsl(var(--foreground))]">上传格式要求文档</h3>
+
+        <div v-if="!formatDialogLoading && !formatResult">
+          <p class="text-[hsl(var(--muted-foreground))] mb-4">请上传一个包含格式要求的Word文档，系统将使用AI解析文档中的格式规范。</p>
+
+          <label
+            class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer hover:bg-[hsl(var(--accent))] border-[hsl(var(--border))] bg-[hsl(var(--card))]"
+          >
+            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+              <svg class="w-8 h-8 mb-3 text-[hsl(var(--muted-foreground))]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+              </svg>
+              <p class="mb-2 text-sm text-[hsl(var(--muted-foreground))]">点击上传或拖放文件</p>
+              <p class="text-xs text-[hsl(var(--muted-foreground))]">仅支持 DOCX 文件</p>
+            </div>
+            <input
+              type="file"
+              class="hidden"
+              accept=".docx"
+              @change="uploadFormatDoc"
+            />
+          </label>
+        </div>
+
+        <div v-else-if="formatDialogLoading" class="flex flex-col items-center justify-center py-8">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[hsl(var(--primary))]"></div>
+          <p class="mt-4 text-[hsl(var(--foreground))]">正在解析文档格式要求...</p>
+        </div>
+
+        <div v-else-if="formatResult" class="py-2">
+          <div class="mb-4">
+            <h4 class="text-md font-medium mb-2 text-[hsl(var(--foreground))]">解析结果</h4>
+            <div class="bg-[hsl(var(--accent))] p-3 rounded-md max-h-60 overflow-y-auto">
+              <pre class="text-xs text-[hsl(var(--accent-foreground))] whitespace-pre-wrap">{{ JSON.stringify(formatResult, null, 2) }}</pre>
+            </div>
+          </div>
+
+          <div class="flex justify-between">
+            <button
+              @click="applyFormatResult"
+              class="bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))] px-4 py-2 rounded-md transition-colors duration-[--transition-speed]"
+            >
+              应用配置
+            </button>
+            <button
+              @click="closeFormatDialog"
+              class="bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))] px-4 py-2 rounded-md transition-colors duration-[--transition-speed]"
+            >
+              关闭
+            </button>
+          </div>
+        </div>
+
+        <div v-if="!formatDialogLoading && !formatResult" class="flex justify-end mt-4 space-x-3">
+          <button
+            @click="closeFormatDialog"
+            class="bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))] px-4 py-2 rounded-md transition-colors duration-[--transition-speed]"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- 配置编辑器 -->
     <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-lg p-6 mb-6']">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-lg font-medium text-[hsl(var(--foreground))]">配置编辑器</h2>
         <div class="flex space-x-3">
+          <button
+            @click="analyseFormatByDoc"
+            :class="[
+              isDarkMode ? 'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))]' : 'bg-[hsl(var(--secondary))] hover:bg-[hsl(var(--secondary)/0.9)] text-[hsl(var(--secondary-foreground))]',
+              'px-3 py-1.5 text-sm rounded-md transition-colors duration-[--transition-speed]'
+            ]"
+          >
+            分析格式
+          </button>
           <button
             @click="loadExampleConfig"
             :class="[
@@ -308,6 +384,82 @@ const loading = ref(false)
 const advancedMode = ref(false)
 const jsonConfig = ref('')
 const jsonError = ref(null)
+
+// 格式分析对话框
+const showFormatDialog = ref(false)
+const formatDialogLoading = ref(false)
+const formatResult = ref(null)
+
+// 打开格式分析对话框
+function analyseFormatByDoc() {
+  showFormatDialog.value = true
+  formatResult.value = null
+}
+
+// 关闭格式分析对话框
+function closeFormatDialog() {
+  showFormatDialog.value = false
+  formatResult.value = null
+  formatDialogLoading.value = false
+}
+
+// 上传格式要求文档
+async function uploadFormatDoc(event) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  // 检查文件类型
+  if (!file.name.toLowerCase().endsWith('.docx')) {
+    showNotification('error', '文件类型错误', '只支持 .docx 格式的文件')
+    return
+  }
+
+  // 创建 FormData 对象
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    formatDialogLoading.value = true
+
+    // 发送请求到后端
+    const response = await axios.post('/api/analyse-format-doc', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+
+    if (response.data.success) {
+      formatResult.value = response.data.format
+      showNotification('success', '解析成功', '文档格式要求已成功解析')
+    } else {
+      showNotification('error', '解析失败', response.data.message || '未知错误')
+    }
+  } catch (error) {
+    console.error('解析格式要求文档错误:', error)
+    showNotification('error', '解析失败', error.response?.data?.message || error.message || '未知错误')
+  } finally {
+    formatDialogLoading.value = false
+  }
+}
+
+// 应用解析结果
+function applyFormatResult() {
+  if (!formatResult.value) return
+
+  try {
+    // 将解析结果应用到配置中
+    configData.value = formatResult.value
+
+    // 如果在高级模式下，更新JSON编辑器
+    if (advancedMode.value) {
+      jsonConfig.value = JSON.stringify(configData.value, null, 2)
+    }
+
+    showNotification('success', '应用成功', '格式要求已应用到配置中')
+    closeFormatDialog()
+  } catch (error) {
+    console.error('应用格式结果错误:', error)
+    showNotification('error', '应用失败', error.message || '未知错误')
+  }
+}
 
 // 切换高级模式
 function toggleAdvancedMode() {

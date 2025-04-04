@@ -394,5 +394,17 @@
                 "space_after": "0cm"
             }
         }
+    },
+    "required_paragraphs":{
+        "abstract_zh": true,
+        "abstract_en": true,
+        "keywords_zh": true,
+        "keywords_en": true,
+        "references": true,
+        "conclusion": true,
+        "reclaim":{
+            "content":"",
+            "isHere":false
+        }
     }
 }

@@ -699,6 +699,17 @@ def check_keywords(paragraph_manager:ParagraphManager):
     
     return errors
 
+# 检查一定要求出现的段落是否出现
+def check_required_paragraphs(paragraph_manager:ParagraphManager, required_format:Dict) -> List[Dict]:
+    """
+    检查一定要求出现的段落是否出现
+    
+    参数:
+    paragraph_manager: 段落管理器
+    required_format: 格式要求
+    """ 
+    errors = []
+    
 def check_main_format(paragraph_manager:ParagraphManager, required_format:Dict, check_abstract_keywords:bool=True) -> List[Dict]:
     """
     检查主要文档格式
@@ -904,6 +915,11 @@ def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> 
     paper_errors = check_paper_format(doc_info, required_format)
     if paper_errors:
         errors.extend(paper_errors)
+        
+    # 检查必要出现的段落是否出现
+    required_errors = check_required_paragraphs(paragraph_manager, required_format)
+    if required_errors:
+        errors.extend(required_errors)
         
     # 检查段落格式
     para_errors = check_main_format(paragraph_manager, required_format)
