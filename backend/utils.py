@@ -1,6 +1,7 @@
-from typing import Tuple, Dict, Union, Optional
+from typing import Tuple, Dict, Union, Optional, Any
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 import re
+import json
 
 def parse_color(color_str: str) -> Tuple[int, int, int]:
     """解析颜色字符串为RGB元组"""
@@ -8,7 +9,7 @@ def parse_color(color_str: str) -> Tuple[int, int, int]:
     if color_str.startswith('#'):
         color_str = color_str.lstrip('#')
         return tuple(int(color_str[i:i+2], 16) for i in (0, 2, 4))
-    
+
     # 处理常见颜色名称
     color_map = {
         'black': (0, 0, 0),
@@ -63,3 +64,40 @@ def merge_font_dictionaries(dict1: Dict, dict2: Dict) -> Dict:
 def is_all_caps_string(text: str) -> bool:
     """检查字符串是否全为大写"""
     return text.isupper() and any(c.isalpha() for c in text)
+
+def parse_llm_json_response(response_str: str) -> Dict[str, Any]:
+    """
+    解析大模型返回的JSON字符串，处理可能的Markdown代码块和raw_response包装
+
+    Args:
+        response_str: 大模型返回的原始字符串
+
+    Returns:
+        Dict: 解析后的JSON对象
+    """
+    try:
+        # 首先尝试直接解析为JSON
+        try:
+            return json.loads(response_str)
+        except json.JSONDecodeError:
+            # 如果直接解析失败，检查是否是raw_response格式
+            try:
+                data = json.loads(response_str)
+                if isinstance(data, dict) and 'raw_response' in data:
+                    response_str = data['raw_response']
+            except json.JSONDecodeError:
+                # 如果不是raw_response格式，继续处理
+                pass
+
+        # 检查是否包含Markdown代码块
+        code_block_pattern = r'```(?:json)?\n(.+?)\n```'
+        match = re.search(code_block_pattern, response_str, re.DOTALL)
+        if match:
+            json_str = match.group(1)
+            return json.loads(json_str)
+
+        # 如果没有代码块，尝试直接解析字符串
+        return json.loads(response_str)
+    except Exception as e:
+        print(f"解析JSON失败: {e}")
+        return {"error": f"解析失败: {str(e)}", "raw_text": response_str}
