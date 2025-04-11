@@ -2,4 +2,4 @@ frontend/node_modules
 backend/__pycache__
 backend/uploads/
 backend/agents/__pycache__
-
+keys.json
