@@ -20,6 +20,7 @@ from docx import Document
 from docx.shared import RGBColor
 import tempfile
 from docx.enum.text import WD_COLOR_INDEX
+from utils import parse_llm_json_response
 
 # 导入agents包中的功能
 import agents
@@ -373,7 +374,7 @@ def analyse_format_doc():
         if not allowed_file(uploaded_file.filename):
             return jsonify({"success": False, "message": "不支持的文件类型"}), 400
         filename = secure_filename(uploaded_file.filename)
-    
+
         # 生成唯一文件名
         unique_filename = f"{os.path.splitext(filename)[0]}_{int(time.time())}.docx"
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
@@ -386,14 +387,27 @@ def analyse_format_doc():
         format_agent = agents["format"]
 
         # 解析格式要求
-        format_json_str = format_agent.parse_format(doc_content, '{}')
-
+        # 正确读取config.json文件
+        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.json')
         try:
-            # 尝试解析JSON字符串
-            format_json = json.loads(format_json_str)
-        except json.JSONDecodeError:
-            # 如果无法解析，则直接使用字符串
-            format_json = {"raw_response": format_json_str}
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config_json = json.load(f)
+            # 将配置文件传递给parse_format方法
+            format_json_str = format_agent.parse_format(doc_content, json.dumps(config_json))
+            # 处理返回的原始字符串
+
+        except FileNotFoundError:
+            # 如果文件不存在，使用空对象
+            print(f"Warning: Config file not found at {config_path}")
+            format_json_str = format_agent.parse_format(doc_content, "{}")
+
+        # 使用新的解析函数来处理大模型返回的JSON
+        format_json = parse_llm_json_response(format_json_str)
+
+        # 将解析结果保存到config_test.json文件中
+        test_config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config_test.json')
+        with open(test_config_path, 'w', encoding='utf-8') as f:
+            json.dump(format_json, f, ensure_ascii=False, indent=4)
 
         # 生成唯一的缓存文件名
         cache_filename = f"format_{int(time.time())}.json"
