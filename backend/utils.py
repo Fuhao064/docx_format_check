@@ -136,6 +136,38 @@ def is_all_caps_string(text: str) -> bool:
     """检查字符串是否全为大写"""
     return text.isupper() and any(c.isalpha() for c in text)
 
+def get_alignment_chinese_name(alignment: str) -> str:
+    """将对齐方式转换为中文表示
+
+    参数:
+    alignment: 对齐方式（中文或英文）
+
+    返回:
+    str: 对齐方式的中文表示
+    """
+    if not alignment:
+        return "左对齐"  # 默认为左对齐
+
+    # 将对齐方式标准化为小写
+    alignment_lower = alignment.lower()
+
+    # 定义对齐方式的中文映射
+    alignment_chinese_map = {
+        "left": "左对齐",
+        "center": "居中",
+        "right": "右对齐",
+        "justify": "两端对齐",
+        "both": "两端对齐",
+        "justified": "两端对齐",
+        "左对齐": "左对齐",
+        "居中": "居中",
+        "右对齐": "右对齐",
+        "两端对齐": "两端对齐"
+    }
+
+    # 返回中文表示
+    return alignment_chinese_map.get(alignment_lower, alignment)  # 如果找不到映射，返回原始值
+
 def are_alignments_equal(expected: str, actual: str) -> bool:
     """检查两个对齐方式是否等价
 
@@ -235,6 +267,43 @@ def are_fonts_equal(expected: str, actual: str) -> bool:
 
     # 如果期望的字体名称不在映射中，直接比较
     return expected_lower == actual_lower
+
+def get_alignment_display(alignment: str) -> str:
+    """
+    将对齐方式转换为中文显示
+
+    参数:
+    alignment: 对齐方式，可以是英文或中文
+
+    返回:
+    str: 对齐方式的中文表示
+    """
+    if not alignment:
+        return "左对齐"  # 默认值
+
+    # 将对齐方式标准化为小写
+    alignment_lower = alignment.lower()
+
+    # 定义对齐方式的中文映射
+    alignment_to_chinese = {
+        "left": "左对齐",
+        "center": "居中",
+        "right": "右对齐",
+        "justify": "两端对齐",
+        "both": "两端对齐",
+        "justified": "两端对齐"
+    }
+
+    # 如果已经是中文，直接返回
+    if alignment_lower in ["左对齐", "居中", "右对齐", "两端对齐"]:
+        return alignment
+
+    # 如果是英文，转换为中文
+    if alignment_lower in alignment_to_chinese:
+        return alignment_to_chinese[alignment_lower]
+
+    # 如果无法识别，返回原值
+    return alignment
 
 def parse_llm_json_response(response_str: str) -> Dict[str, Any]:
     """

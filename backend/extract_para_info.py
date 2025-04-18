@@ -6,6 +6,7 @@ from docx.shared import RGBColor
 from docx.oxml.ns import qn
 from utils import (
     get_alignment_string,
+    get_alignment_display,
     is_font_dict_empty,
     merge_font_dictionaries,
     is_all_caps_string
@@ -97,16 +98,8 @@ def extract_para_format_info_from_paragraph_fromat(para)-> dict:
             if jc is not None:
                 w_ns = namespaces['w']
                 val = jc.get(f'{{{w_ns}}}val')
-                if val == 'left':
-                    alignment = '左对齐'
-                elif val == 'center':
-                    alignment = '居中'
-                elif val == 'right':
-                    alignment = '右对齐'
-                elif val == 'both' or val == 'justify':
-                    alignment = '两端对齐'
-                else:
-                    alignment = '未知对齐方式'
+                # 使用 get_alignment_display 函数将对齐方式转换为中文表示
+                alignment = get_alignment_display(val)
     # 获取左缩进
     if para.paragraph_format.left_indent is not None:
         left_indent = para.paragraph_format.left_indent
@@ -246,6 +239,7 @@ def extract_font_info_from_runs(runs: list) -> dict:
     has_bold_info = False
     has_italic_info = False
     has_color_info = False
+    has_size_info = False
 
     for run in runs:
         if not run.text.strip():
@@ -308,8 +302,6 @@ def extract_font_info_from_runs(runs: list) -> dict:
                             has_color_info = True
 
             # 提取字体大小
-            has_size_info = False
-
             # 从font.size属性获取
             if run.font.size:
                 fonts['size'].add(run.font.size.pt)
@@ -631,8 +623,11 @@ def analysise_alignment(alignment: int) -> str:
     if alignment is None:
         return "左对齐"
 
-    # 使用 get_alignment_string 函数获取对齐方式的中文表示
-    return get_alignment_string(alignment)
+    # 先使用 get_alignment_string 函数获取对齐方式的字符串表示
+    alignment_str = get_alignment_string(alignment)
+
+    # 然后使用 get_alignment_display 函数将其转换为中文表示
+    return get_alignment_display(alignment_str)
 
 def split_paragraph(paragraph, split_pos):
     # 获取段落所有 run 并计算总文本
