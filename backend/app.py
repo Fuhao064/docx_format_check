@@ -8,7 +8,7 @@ import json
 from agents.setting import LLMs
 from format_editor import generate_formatted_doc
 from para_type import ParagraphManager
-from format_checker import check_format
+from format_checker import check_format, extract_doc_to_json
 from datetime import datetime
 import docx_parser
 from agents.advice_agent import AdviceAgent
@@ -33,10 +33,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 创建一个全局的Agent中心
 agents_config = {
-    "format_model": "gemini-2.0-flash",
-    "editor_model": "gemini-2.0-flash",
-    "advice_model": "gemini-2.0-flash",
-    "communicate_model": "gemini-2.0-flash"
+    "format_model": "qwen-turbo",
+    "editor_model": "qwen-turbo",
+    "advice_model": "qwen-turbo",
+    "communicate_model": "qwen-turbo"
 }
 agents = {
     "format": FormatAgent(agents_config["format_model"]),
@@ -518,6 +518,16 @@ def start_check_format():
 
         # 存储当前的para_manager
         analysised_para_manager.append({"doc_path": file_path, "para_manager": para_manager})
+
+        # 将文档抽取为JSON格式，便于调试
+        try:
+            doc_json = extract_doc_to_json(file_path, agents["format"])
+            # 保存抽取的JSON到缓存文件
+            json_cache_path = os.path.join(app.config['CACHES_FOLDER'], f"doc_json_{int(time.time())}.json")
+            with open(json_cache_path, 'w', encoding='utf-8') as f:
+                json.dump(doc_json, f, ensure_ascii=False, indent=4)
+        except Exception as json_err:
+            print(f"文档JSON抽取错误: {str(json_err)}")
 
         # 以json格式返回错误信息
         if docx_errors:

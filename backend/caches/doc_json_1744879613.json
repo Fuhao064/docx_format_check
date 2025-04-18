@@ -1,0 +1,618 @@
+{
+    "paper": {
+        "size": "A4",
+        "margins": {
+            "top": 2.54,
+            "bottom": 2.54,
+            "left": 3.175,
+            "right": 3.175
+        },
+        "header": {
+            "top": 1.5010694444444443,
+            "bottom": 1.7497777777777779
+        },
+        "orientation": "Portrait"
+    },
+    "paragraphs": [
+        {
+            "id": "para0",
+            "type": "title_zh",
+            "content": "名称： 基于大语言模型的项目申报书形式审查系统",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        14.0
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para1",
+            "type": "title_zh",
+            "content": "概要：",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        14.0
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para2",
+            "type": "title_zh",
+            "content": "通过大模型和python审查用户提交的内容和格式是否符合其规定格式和内容要求。实现对话式辅助修改文档内容和格式。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": "420",
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        16.0,
+                        10.5
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para3",
+            "type": "body",
+            "content": "背景",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        14.0
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para4",
+            "type": "abstract_zh",
+            "content": "项目申报书的审查工作重复且复杂。传统的人工审查方式不仅耗时耗力，而且容易出错，无法满足当前高效、准确的工作需求。因此，开发一套自动化的项目申报书审查系统成为解决这一问题的关键。该系统旨在通过集成多种智能技术，实现对申报书格式和内容的全面审查，从而提高审查效率和质量。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": "420",
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        16.0,
+                        10.5
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para5",
+            "type": "heading2",
+            "content": "实现方式",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        14.0
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para6",
+            "type": "heading2",
+            "content": "为了实现这一目标， 设计了一套包含多个核心功能模块和辅助功能模块的系统。核心功能模块包括Docx文档解析、规则引擎、自然语言理解、Agent处理、反馈生成以及人机交互等。这些模块将协同工作，实现对申报书的智能审查。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": "360",
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        16.0,
+                        10.5
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para7",
+            "type": "heading2",
+            "content": "Docx文档解析：使用python-docx库等方式读取Docx文档的内容与格式信息，并进行分段处理。提取的文本内容和格式信息将作为输入提交给大模型进行进一步处理。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        16.0,
+                        10.5
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para8",
+            "type": "heading2",
+            "content": "规则引擎：通过读取项目申报书形式审查规则库，将自然语言理解模块提取的信息与规则库进行匹配，实现规则校验。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        10.5
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para9",
+            "type": "heading2",
+            "content": "自然语言理解：对申报书文本进行分词、词性标注、命名实体识别等预处理，并利用大语言模型进行深度语义理解，提取关键信息并预存储。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        10.5
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para10",
+            "type": "heading2",
+            "content": "Agent处理：根据格式内容文档的要求，设计格式审查和内容审查的prompt。通过格式审查Agent和内容审查Agent对申报书进行审查，并给出相应的反馈。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        16.0,
+                        10.5
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para11",
+            "type": "heading3",
+            "content": "反馈生成：根据规则校验结果，生成针对性的反馈意见，包括错误提示、建议修改等。支持多种反馈形式，如文本、表格、高亮显示等。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        10.5
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para12",
+            "type": "heading2",
+            "content": "人机交互：提供友好的用户界面，支持用户对审查结果进行查看和对话。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        16.0,
+                        10.5
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para13",
+            "type": "body",
+            "content": "辅助功能模块则包括Docker容器技术和Autogen平台集成。通过Docker容器技术，将国内大模型API或本地大语言模型封装在Docker容器中，实现与Autogen平台的无缝对接。同时，研究Autogen平台的架构与API接口，将格式审查Agent和内容审查Agent部署在平台上，实现多Agent的智能审查功能。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        16.0,
+                        10.5
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para14",
+            "type": "heading2",
+            "content": "最终成果",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        14.0
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        },
+        {
+            "id": "para15",
+            "type": "title_zh",
+            "content": "经过上述实现方式， 最终将得到一套功能完善、性能稳定的项目申报书审查系统。该系统能够实现对申报书格式和内容的全面审查，提高审查效率和质量。同时，通过友好的用户界面和对话类反馈形式，方便用户进行后续处理，能够适应不同领域和项目申报书审查的需求。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "两端对齐",
+                    "first_line_indent": "420",
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": 1.15
+                },
+                "fonts": {
+                    "zh_family": [
+                        "宋体"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "size": [
+                        16.0,
+                        10.5
+                    ],
+                    "color": [
+                        "black"
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "italic": [
+                        false
+                    ],
+                    "isAllcaps": false
+                }
+            }
+        }
+    ]
+}
