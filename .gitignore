@@ -3,3 +3,10 @@ backend/__pycache__
 backend/uploads/
 backend/agents/__pycache__
 keys.json
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*.py[cod]
+*$py.class
+backend/__pycache__/** 
+*/cache
