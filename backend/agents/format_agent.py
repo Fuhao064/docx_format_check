@@ -53,8 +53,8 @@ class FormatAgent:
                     1. 可用位置类型仅限：{ParsedParaType.get_enum_values()}
                     2. 必须返回包含 location 和 confidence 字段的JSON对象"""},
                 {"role": "user",
-                "content": f"""文档全文：[{doc_content[:1000]}...]（截断显示）
-                            需分析段落：[{fragment_str[:200]}...]
+                "content": f"""文档全文：[{doc_content[:2000]}...]（截断显示）
+                            需分析段落：[{fragment_str[:400]}...]
                             请按示例格式返回：{example_data}"""}
             ]
         )

@@ -6,7 +6,7 @@ from typing import Dict, List, Tuple, Union, Optional, Any
 from agents.format_agent import FormatAgent
 from para_type import ParagraphManager, ParsedParaType, translation_dict
 import os, concurrent, re
-from utils import are_values_equal, extract_number_from_string, parse_llm_json_response, are_alignments_equal, are_fonts_equal
+from utils import are_values_equal, extract_number_from_string, parse_llm_json_response, are_alignments_equal, are_fonts_equal, get_alignment_display
 from config_utils import load_config, save_config, update_config
 
 def is_value_equal(expected, actual, key):
@@ -973,9 +973,13 @@ def check_para_format_settings(para_format: Dict, required_format: Dict, para_ty
         is_alignment_match = are_alignments_equal(required_alignment, actual_alignment)
 
         if not is_alignment_match:
+            # 将对齐方式转换为中文显示
+            required_display = get_alignment_display(required_alignment)
+            actual_display = get_alignment_display(actual_alignment)
+
             errors.append({
                 "id": para_id,
-                "message": f"{type_name}对齐方式不符合要求，应为{required_alignment}，实际为{actual_alignment}",
+                "message": f"{type_name}对齐方式不符合要求，应为{required_display}，实际为{actual_display}",
                 "location": f"{type_name}: \"{content_preview}\""
             })
 
