@@ -41,13 +41,13 @@ def extract_number_from_string(value: str) -> Optional[float]:
     match = re.search(r'([-+]?\d*\.?\d+)', str(value))
     return float(match.group(1)) if match else None
 
-def are_values_equal(expected: Union[str, float], actual: Union[str, float], key: str = None) -> bool:
-    """比较两个值是否相等
+def is_value_equal(expected: Union[str, float, bool], actual: Union[str, float, bool], key: str = None) -> bool:
+    """比较两个值是否相等，考虑到不同表示形式的数值和类型
 
     参数:
     expected: 期望的值
     actual: 实际的值
-    key: 字段名称（可选）
+    key: 字段名称（可选），用于特定字段的特殊处理
 
     返回:
     bool: 是否相等
@@ -61,16 +61,52 @@ def are_values_equal(expected: Union[str, float], actual: Union[str, float], key
             actual = actual.lower() in ['true', 'yes', '1', 't', 'y']
         return expected == actual
 
-    # 如果是字符串，忽略大小写
+    # 对特定的key做特殊处理
+    if key and key.lower() == 'size':
+        # 处理字号的特殊情况，允许更大的误差
+        expected_num = extract_number(expected)
+        actual_num = extract_number(actual)
+        if expected_num is not None and actual_num is not None:
+            return abs(expected_num - actual_num) < 0.5  # 允许0.5pt的误差
+
+    # 检查字符串类型的相等性
     if isinstance(expected, str) and isinstance(actual, str):
-        return expected.lower() == actual.lower()
+        # 清除单位并转为小写进行比较
+        expected_clean = expected.lower().strip()
+        actual_clean = actual.lower().strip()
 
-    # 如果是数字，允许小误差
-    expected_num = extract_number_from_string(expected)
-    actual_num = extract_number_from_string(actual)
-    return abs(expected_num - actual_num) < 0.01 if expected_num is not None and actual_num is not None else False
+        # 如果完全相等，直接返回True
+        if expected_clean == actual_clean:
+            return True
 
-    # 注意: key 参数在这个函数中没有被使用，但它在函数签名中被保留，以便于将来可能的扩展
+        # 尝试提取数值部分进行比较
+        expected_num = extract_number(expected)
+        actual_num = extract_number(actual)
+        if expected_num is not None and actual_num is not None:
+            return abs(expected_num - actual_num) < 0.1  # 允许0.1的误差
+
+    # 处理数值类型或混合类型
+    elif isinstance(expected, (int, float)) or isinstance(actual, (int, float)):
+        expected_num = extract_number(expected)
+        actual_num = extract_number(actual)
+        if expected_num is not None and actual_num is not None:
+            return abs(expected_num - actual_num) < 0.1  # 允许0.1的误差
+
+    # 如果上述条件都不满足，返回False
+    return False
+
+def are_values_equal(expected: Union[str, float], actual: Union[str, float], key: str = None) -> bool:
+    """比较两个值是否相等（兼容性函数，调用is_value_equal）
+
+    参数:
+    expected: 期望的值
+    actual: 实际的值
+    key: 字段名称（可选）
+
+    返回:
+    bool: 是否相等
+    """
+    return is_value_equal(expected, actual, key)
 
 def is_font_dict_empty(font_dict: Dict) -> bool:
     """检查字体字典是否为空"""
@@ -341,3 +377,42 @@ def parse_llm_json_response(response_str: str) -> Dict[str, Any]:
     except Exception as e:
         print(f"解析JSON失败: {e}")
         return {"error": f"解析失败: {str(e)}", "raw_text": response_str}
+
+# 已经在上面重新实现了is_value_equal函数
+
+def extract_number(value):
+    """从字符串中提取数字值，支持多种单位和格式"""
+    # 如果已经是数字类型，直接返回
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    # 转换为字符串
+    value_str = str(value).lower().strip()
+
+    # 常见单位与对应的换算系数（相对于厘米）
+    unit_factors = {
+        'cm': 1.0,    # 厘米
+        'mm': 0.1,    # 毫米
+        'dm': 10.0,   # 分米
+        'm': 100.0,   # 米
+        'pt': 1.0,    # 点，对于字体大小不进行换算
+        'in': 2.54,   # 英寸
+        'inch': 2.54, # 英寸
+        '寸': 3.33     # 中国传统单位
+    }
+
+    # 尝试提取数字和单位
+    match = re.search(r'([-+]?\d*\.?\d+)\s*([a-z寸]+)?', value_str)
+    if not match:
+        return extract_number_from_string(value)
+
+    num_value = float(match.group(1))
+    unit = match.group(2) if match.group(2) else ''  # 无单位的情况
+
+    # 如果没有单位，直接返回数值
+    if not unit:
+        return num_value
+
+    # 应用单位转换系数
+    factor = unit_factors.get(unit, 1.0)
+    return num_value * factor

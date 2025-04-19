@@ -1,5 +1,5 @@
 import json, re
-from para_type import ParsedParaType
+from backend.preparation.para_type import ParsedParaType
 from agents.setting import LLMs
 
 class FormatAgent:

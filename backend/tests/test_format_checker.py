@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 导入被测试的模块
 import format_checker
-from para_type import ParagraphManager, ParsedParaType, ParaInfo
+from backend.preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
 
 class TestFormatChecker(unittest.TestCase):
     """测试format_checker模块的功能"""
