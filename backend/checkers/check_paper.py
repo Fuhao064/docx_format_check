@@ -1,4 +1,3 @@
-import docx
 from typing import Dict, List
 from backend.utils.utils import extract_number
 

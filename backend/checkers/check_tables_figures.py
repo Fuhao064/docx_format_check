@@ -219,7 +219,7 @@ def _check_table_number_format(caption_text: str) -> List[Dict]:
 
     return errors
 
-def check_figure_format(doc_path: str, required_format: Dict) -> List[str]:
+def check_figure_format(doc_path: str, required_format: Dict) -> List[Dict]:
     """
     检查图片格式是否符合要求
     """
@@ -259,13 +259,18 @@ def check_figure_format(doc_path: str, required_format: Dict) -> List[str]:
     if figure_count == 0:
         errors.append("文档中未找到图片")
 
-    # 打印错误信息
-    if errors:
-        print("\n图片格式检查错误:")
-        for err in errors:
-            print(f"- {err}")
+    # 将错误列表转换为标准格式
+    formatted_errors = []
+    for err in errors:
+        if isinstance(err, dict):
+            formatted_errors.append(err)
+        else:
+            formatted_errors.append({
+                'message': err,
+                'location': '图片格式'
+            })
 
-    return errors
+    return formatted_errors
 
 def _check_figure_number_format(caption_text: str) -> List[str]:
     """
@@ -274,7 +279,7 @@ def _check_figure_number_format(caption_text: str) -> List[str]:
     errors = []
 
     # 匹配图片编号格式：图x-y 或 Figure x-y
-    match = re.search(r'图\s*(\d+)[-－](\d+)|Figure\s*(\d+)[-－]\d+', caption_text, re.IGNORECASE)
+    match = re.search(r'图\s*(\d+)[-－](\d+)|Figure\s*(\d+)[-－](\d+)', caption_text, re.IGNORECASE)
     if not match:
         errors.append(f"图片编号格式不正确，应为'图x-y'或'Figure x-y'格式")
         return errors

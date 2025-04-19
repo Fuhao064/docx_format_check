@@ -8,7 +8,7 @@ import json
 from agents.setting import LLMs
 from format_editor import generate_formatted_doc
 from backend.preparation.para_type import ParagraphManager
-from format_checker import check_format, extract_doc_to_json
+from backend.checkers.checker import Checker
 from datetime import datetime
 import backend.preparation.docx_parser as docx_parser
 from agents.advice_agent import AdviceAgent
@@ -258,7 +258,7 @@ def create_config():
 @app.route('/api/get-config-example')
 def get_config_example():
     try:
-        config_path = os.path.join(os.path.dirname(__file__), 'config_example.json')
+        config_path = os.path.join(os.path.dirname(__file__), 'utils/config_example.json')
         if not os.path.exists(config_path):
             return jsonify({"error": "示例配置文件不存在"}), 404
 
