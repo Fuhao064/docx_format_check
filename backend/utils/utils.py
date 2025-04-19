@@ -95,19 +95,6 @@ def is_value_equal(expected: Union[str, float, bool], actual: Union[str, float, 
     # 如果上述条件都不满足，返回False
     return False
 
-def are_values_equal(expected: Union[str, float], actual: Union[str, float], key: str = None) -> bool:
-    """比较两个值是否相等（兼容性函数，调用is_value_equal）
-
-    参数:
-    expected: 期望的值
-    actual: 实际的值
-    key: 字段名称（可选）
-
-    返回:
-    bool: 是否相等
-    """
-    return is_value_equal(expected, actual, key)
-
 def is_font_dict_empty(font_dict: Dict) -> bool:
     """检查字体字典是否为空"""
     return not any(font_dict.values())
@@ -171,38 +158,6 @@ def merge_font_dictionaries(dict1: Dict, dict2: Dict) -> Dict:
 def is_all_caps_string(text: str) -> bool:
     """检查字符串是否全为大写"""
     return text.isupper() and any(c.isalpha() for c in text)
-
-def get_alignment_chinese_name(alignment: str) -> str:
-    """将对齐方式转换为中文表示
-
-    参数:
-    alignment: 对齐方式（中文或英文）
-
-    返回:
-    str: 对齐方式的中文表示
-    """
-    if not alignment:
-        return "左对齐"  # 默认为左对齐
-
-    # 将对齐方式标准化为小写
-    alignment_lower = alignment.lower()
-
-    # 定义对齐方式的中文映射
-    alignment_chinese_map = {
-        "left": "左对齐",
-        "center": "居中",
-        "right": "右对齐",
-        "justify": "两端对齐",
-        "both": "两端对齐",
-        "justified": "两端对齐",
-        "左对齐": "左对齐",
-        "居中": "居中",
-        "右对齐": "右对齐",
-        "两端对齐": "两端对齐"
-    }
-
-    # 返回中文表示
-    return alignment_chinese_map.get(alignment_lower, alignment)  # 如果找不到映射，返回原始值
 
 def are_alignments_equal(expected: str, actual: str) -> bool:
     """检查两个对齐方式是否等价
@@ -304,7 +259,6 @@ def are_fonts_equal(expected: str, actual: str) -> bool:
     # 如果期望的字体名称不在映射中，直接比较
     return expected_lower == actual_lower
 
-def get_alignment_display(alignment: str) -> str:
     """
     将对齐方式转换为中文显示
 
@@ -377,8 +331,6 @@ def parse_llm_json_response(response_str: str) -> Dict[str, Any]:
     except Exception as e:
         print(f"解析JSON失败: {e}")
         return {"error": f"解析失败: {str(e)}", "raw_text": response_str}
-
-# 已经在上面重新实现了is_value_equal函数
 
 def extract_number(value):
     """从字符串中提取数字值，支持多种单位和格式"""

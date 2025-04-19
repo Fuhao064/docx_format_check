@@ -1,7 +1,15 @@
-from backend.preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
-from backend.preparation.docx_parser import extract_section_info
+from typing import Dict, List, Optional, Tuple
+import concurrent.futures
 
-def check_abstract(paragraph_manager:ParagraphManager):
+from backend.preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
+from backend.preparation.docx_parser import extract_doc_content
+import backend.preparation.extract_para_info as extract_para_info
+from backend.utils.utils import is_value_equal
+from backend.utils.config_utils import load_config
+from backend.agents.format_agent import FormatAgent
+from backend.checkers.check_paper import check_paper_format
+
+def check_abstract(paragraph_manager: ParagraphManager) -> List[Dict]:
     """检查摘要格式"""
     errors = []
 
@@ -42,7 +50,7 @@ def check_abstract(paragraph_manager:ParagraphManager):
 
     return errors
 
-def check_keywords(paragraph_manager:ParagraphManager):
+def check_keywords(paragraph_manager: ParagraphManager) -> List[Dict]:
     """检查关键词格式"""
     errors = []
 
@@ -81,7 +89,7 @@ def check_keywords(paragraph_manager:ParagraphManager):
 
     return errors
 
-def check_required_paragraphs(paragraph_manager:ParagraphManager, required_format:Dict) -> List[Dict]:
+def check_required_paragraphs(paragraph_manager: ParagraphManager, required_format: Dict) -> List[Dict]:
     """
     检查一定要求出现的段落是否出现
 
@@ -94,7 +102,7 @@ def check_required_paragraphs(paragraph_manager:ParagraphManager, required_forma
     """
     errors = []
 
-    required_types = required_format.get('required_paragraphs')
+    required_types = required_format.get('required_paragraphs',{})
 
     # 检查每种必需的段落类型
     for type_key, type_name in required_types:
@@ -156,71 +164,41 @@ def _recursive_check(actual, expected):
 
     return errors
 
-def remark_para_type(doc_path: str, format_agent: FormatAgent) -> ParagraphManager:
-    # 初始化段落管理器
-    paragraph_manager = ParagraphManager()
 
-    # 读取doc的段落信息
-    paragraph_manager = extract_para_info.extract_para_format_info(doc_path, paragraph_manager)
 
-    # 文档整个内容
-    doc_content = docx_parser.extract_doc_content(doc_path)
+# 检查的入口函数
+def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> Tuple[List[Dict], ParagraphManager]:
+    """检查格式"""
+    errors = []
 
-    # 定义任务函数
-    def process_paragraph(para_index: int, para: Dict, doc_content_sent: bool, manager: ParagraphManager):
-        try:
-            if para["type"] != ParsedParaType.BODY:
-                pass
-            # 提取当前段落信息
-            para_string = para["content"]
+    # 加载配置文件
+    required_format = load_config(config_path) 
 
-            # 调用大模型预测类型
-            response = format_agent.predict_location(doc_content, para_string, doc_content_sent)
+    # 检查页面格式
+    doc_info = extract_para_info.extract_section_info(doc_path)
+    errors.extend(check_paper_format(doc_info, required_format))
 
-            # 直接使用response字典，无需再次解析
-            response_dict = response
+    # 检查段落格式
+    try:
+        # 初始化段落管理器
+        manager = ParagraphManager()
 
-            # 将返回的location转换为ParsedParaType枚举类型
-            try:
-                new_type = ParsedParaType(response_dict["location"])
-                # 直接访问paragraphs列表中的对应索引
-                manager.paragraphs[para_index].type = new_type
-            except ValueError:
-                print(f"Invalid paragraph type received: {response_dict['location']}")
-                manager.paragraphs[para_index].type = ParsedParaType.BODY
+        # 使用extract_para_format_info函数提取文档内容
+        manager = extract_para_format_info(input_file, manager)
 
-        except Exception as e:
-            # 如果解析失败，将段落类型设置为 BODY
-            print(f"Error processing paragraph: {para_string[:50]}... Error: {e}")
-            manager.paragraphs[para_index].type = ParsedParaType.BODY
+        # 将段落信息转换为字典格式（包含完整的meta信息）
+        paragraphs_dict = manager.to_dict()
+    
+        # 重置段落类型
+        paragraph_manager = remark_para_type(doc_path, format_agent)
 
-    # 将段落json转为中文
-    paras_info_json_zh = paragraph_manager.to_chinese_dict()
+        # 将结果保存为JSON文件
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(paragraphs_dict, f, ensure_ascii=False, indent=4)
 
-    # 使用线程池并发处理，限制最大线程数为10
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        futures = []
-        doc_content_sent = False
+        print(f"处理缓存已保存到: {output_file}")
 
-        # 创建任务列表
-        tasks = []
-        for i, para in enumerate(paras_info_json_zh):
-            tasks.append((i, para, doc_content_sent, paragraph_manager))
-            doc_content_sent = True  # 更新全文标志
-
-        # 分批提交任务，每批最多5个任务
-        batch_size = 5
-        for i in range(0, len(tasks), batch_size):
-            batch_tasks = tasks[i:i+batch_size]
-            batch_futures = [executor.submit(process_paragraph, *task) for task in batch_tasks]
-            futures.extend(batch_futures)
-
-            # 等待当前批次完成
-            for future in concurrent.futures.as_completed(batch_futures):
-                try:
-                    future.result()  # 确保任务完成
-                except Exception as e:
-                    print(f"Error in thread pool task: {e}")
-
-    return paragraph_manager
+    except Exception as e:
+        print(f"处理文件时出错: {str(e)}")
+    
 

@@ -180,45 +180,15 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
         # 将字体信息添加到元数据
         meta_data["fonts"] = fonts
 
-        # 动态确定段落类型
-        para_type = determine_para_type(para.text, last_para_type)
-        last_para_type = para_type
         # 将段落信息添加到段落管理器
         manager.add_para(
-            para_type=para_type,
+            para_type=ParsedParaType.BODY,
             content=para.text,
             meta=meta_data
         )
 
     return manager
 
-def determine_para_type(text, last_para_type):
-    """
-    根据段落内容动态确定段落类型
-    """
-    # 如果上一个段落是关键词，则判断为关键词内容段落
-    if last_para_type == ParsedParaType.KEYWORDS_ZH:
-        return ParsedParaType.KEYWORDS_CONTENT_ZH
-    elif last_para_type == ParsedParaType.KEYWORDS_EN:
-        return ParsedParaType.KEYWORDS_CONTENT_EN
-    elif last_para_type == ParsedParaType.ABSTRACT_EN:
-        return ParsedParaType.ABSTRACT_CONTENT_EN
-    elif last_para_type == ParsedParaType.ABSTRACT_ZH:
-        return ParsedParaType.ABSTRACT_CONTENT_ZH
-    # 匹配关键词
-    pattern = re.compile(r'\b(摘要|Abstract|关键词|Keywords)\b\s*[:：]', re.IGNORECASE)
-    match = pattern.search(text)
-    if match:
-        keyword = match.group(1).lower()
-        if keyword == "摘要":
-            return ParsedParaType.ABSTRACT_ZH
-        elif keyword == "abstract":
-            return ParsedParaType.ABSTRACT_EN
-        elif keyword == "关键词":
-            return ParsedParaType.KEYWORDS_ZH
-        elif keyword == "keywords":
-            return ParsedParaType.KEYWORDS_EN
-    return ParsedParaType.BODY
 
 def extract_font_info_from_runs(runs: list) -> dict:
     fonts = {
@@ -626,8 +596,7 @@ def analysise_alignment(alignment: int) -> str:
     # 先使用 get_alignment_string 函数获取对齐方式的字符串表示
     alignment_str = get_alignment_string(alignment)
 
-    # 然后使用 get_alignment_display 函数将其转换为中文表示
-    return get_alignment_display(alignment_str)
+    return alignment_str
 
 def split_paragraph(paragraph, split_pos):
     # 获取段落所有 run 并计算总文本
