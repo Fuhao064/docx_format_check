@@ -1,10 +1,10 @@
 import docx
 import xml.etree.ElementTree as ET
 import json, re
-from para_type import ParsedParaType, ParagraphManager
+from backend.preparation.para_type import ParsedParaType, ParagraphManager
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
-from utils import (
+from backend.utils.utils import (
     get_alignment_string,
     get_alignment_display,
     is_font_dict_empty,

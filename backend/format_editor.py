@@ -7,7 +7,7 @@ import os
 import re
 import requests
 from typing import Dict, List, Optional, Union, Tuple
-from para_type import ParagraphManager, ParsedParaType, ParaInfo
+from backend.preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
 
 # 全局映射字典
 ALIGNMENT_MAP = {

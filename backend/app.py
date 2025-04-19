@@ -7,10 +7,10 @@ import os, time, sys
 import json
 from agents.setting import LLMs
 from format_editor import generate_formatted_doc
-from para_type import ParagraphManager
+from backend.preparation.para_type import ParagraphManager
 from format_checker import check_format, extract_doc_to_json
 from datetime import datetime
-import docx_parser
+import backend.preparation.docx_parser as docx_parser
 from agents.advice_agent import AdviceAgent
 from agents.editor_agent import EditorAgent
 from agents.format_agent import FormatAgent
@@ -20,7 +20,7 @@ from docx import Document
 from docx.shared import RGBColor
 import tempfile
 from docx.enum.text import WD_COLOR_INDEX
-from utils import parse_llm_json_response
+from backend.utils.utils import parse_llm_json_response
 
 # 导入agents包中的功能
 import agents
