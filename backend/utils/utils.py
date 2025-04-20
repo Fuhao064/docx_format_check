@@ -52,8 +52,23 @@ def is_value_equal(expected: Union[str, float, bool], actual: Union[str, float, 
     返回:
     bool: 是否相等
     """
+    # 处理集合类型的值
+    if isinstance(actual, set):
+        # 将集合转换为列表或单个值
+        if len(actual) == 1:
+            actual = next(iter(actual))  # 取集合中的元素
+        else:
+            actual = list(actual)  # 转换为列表
+
+    # 如果字段是列表类型，处理列表
+    if isinstance(actual, list):
+        if len(actual) == 1:
+            actual = actual[0]  # 取第一个值进行比较
+        elif len(actual) == 0:
+            return False  # 空列表与任何值都不相等
+
     # 如果是布尔值，进行特殊处理
-    if isinstance(expected, bool) or isinstance(actual, bool):
+    if isinstance(expected, bool) or isinstance(actual, bool) or key in ['bold', 'italic', 'isAllCaps']:
         # 尝试将字符串转换为布尔值
         if isinstance(expected, str):
             expected = expected.lower() in ['true', 'yes', '1', 't', 'y']
@@ -61,13 +76,36 @@ def is_value_equal(expected: Union[str, float, bool], actual: Union[str, float, 
             actual = actual.lower() in ['true', 'yes', '1', 't', 'y']
         return expected == actual
 
-    # 对特定的key做特殊处理
-    if key and key.lower() == 'size':
-        # 处理字号的特殊情况，允许更大的误差
-        expected_num = extract_number(expected)
-        actual_num = extract_number(actual)
-        if expected_num is not None and actual_num is not None:
-            return abs(expected_num - actual_num) < 0.5  # 允许0.5pt的误差
+    # 处理字体大小的特殊情况
+    if key == 'size':
+        # 将字体大小转换为标准格式进行比较
+        expected_size = str(expected).replace('pt', '').strip()
+        actual_size = str(actual).replace('pt', '').strip()
+        try:
+            return abs(float(expected_size) - float(actual_size)) <= 0.5  # 允许0.5pt的误差
+        except (ValueError, TypeError):
+            pass  # 如果转换失败，使用原始比较
+
+    # 处理颜色的特殊情况
+    if key == 'color':
+        if (str(actual).lower() == 'black' or str(actual).lower() == '{"black"}') and str(expected).lower() == '#000000':
+            return True  # black 和 #000000 视为相同
+
+    # 处理对齐方式的特殊情况
+    if key == 'alignment':
+        # 将中文对齐方式转换为英文
+        alignment_map = {
+            '居中': 'center',
+            '居左': 'left',
+            '居右': 'right',
+            '两端对齐': 'justify'
+        }
+        if str(actual) in alignment_map and alignment_map[str(actual)] == expected:
+            return True
+        # 反向检查，如果期望值是中文对齐方式
+        reverse_map = {v: k for k, v in alignment_map.items()}
+        if str(expected) in reverse_map and reverse_map[str(expected)] == actual:
+            return True
 
     # 检查字符串类型的相等性
     if isinstance(expected, str) and isinstance(actual, str):

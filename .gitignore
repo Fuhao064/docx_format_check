@@ -9,4 +9,5 @@ __pycache__/
 *.py[cod]
 *$py.class
 backend/__pycache__/** 
-*/cache
+*/caches
+caches
