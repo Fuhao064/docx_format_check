@@ -127,7 +127,7 @@ def check_required_paragraphs(paragraph_manager: ParagraphManager, required_form
 
     return errors
 
-def _recursive_check(actual, expected):
+def _recursive_check(actual, expected, para_content):
     """
     递归检查嵌套字典的字段。
     返回格式为[{"message": error_message, "location": key}, ...]的列表
@@ -139,45 +139,51 @@ def _recursive_check(actual, expected):
 
         # 如果字段不存在
         if actual_value is None:
-            errors.append({
-                "message": f"缺少必需字段: '{key}'",
-                "location": key
-            })
+            # 如果是必需字段，才添加错误
+            if key in ['fonts', 'paragraph_format']:
+                errors.append({
+                    "message": f"缺少必需字段: '{key}'",
+                    "location": para_content[:10]
+                })
             continue
 
-        # 如果字段是列表类型，优先检查长度
+        # 处理集合类型的值
+        if isinstance(actual_value, set):
+            # 将集合转换为列表或单个值
+            if len(actual_value) == 1:
+                actual_value = next(iter(actual_value))  # 取集合中的元素
+            else:
+                actual_value = list(actual_value)  # 转换为列表
+
+        # 如果字段是列表类型，处理列表
         if isinstance(actual_value, list):
-            if len(actual_value) > 1:
-                errors.append({
-                    "message": f"字段 '{key}' 存在多个值: {actual_value}",
-                    "location": key
-                })
-                continue
-            if len(actual_value) == 0:
-                continue
-            actual_value = actual_value[0]  # 取第一个值进行比较
+            if len(actual_value) == 1:
+                actual_value = actual_value[0]  # 取第一个值进行比较
+            elif len(actual_value) == 0:
+                continue  # 空列表跳过
 
         # 递归处理嵌套字典
         if isinstance(expected_value, dict):
             if not isinstance(actual_value, dict):
                 errors.append({
                     "message": f"字段类型不匹配: '{key}' 应为字典类型，实际为 {type(actual_value).__name__}",
-                    "location": key
+                    "location": para_content[:10]
                 })
                 continue
 
             # 递归检查嵌套字段
-            deeper_errors = _recursive_check(actual_value, expected_value)
+            deeper_errors = _recursive_check(actual_value, expected_value, para_content[:10])
             for err in deeper_errors:
                 err["location"] = f"{key}.{err['location']}"
                 errors.append(err)
 
         # 检查值是否匹配
         else:
+            # 直接使用is_value_equal函数进行比较
             if not is_value_equal(expected_value, actual_value, key=key):
                 errors.append({
                     "message": f"'{key}' 不匹配: 要求 {expected_value}, 实际 {actual_value}",
-                    "location": key
+                    "location": para_content[:10]
                 })
 
     return errors
@@ -219,22 +225,14 @@ def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> 
         errors.extend(check_figure_format(doc_path, required_format))
 
         # 将段落信息转换为字典格式（包含完整的meta信息）
-        # 注意：to_dict()返回的是列表，而不是字典
-        # 我们需要将列表中的每个元素与格式要求进行比较
-        # 或者将列表转换为字典格式
-        paragraphs_dict = {}
-        for para in manager.paragraphs:
-            para_type = para.type.value
-            if para_type not in paragraphs_dict:
-                # 创建字典结构，包含字体和段落格式信息
-                paragraphs_dict[para_type] = {
-                    "fonts": para.meta.get("fonts", {}),
-                    "paragraph_format": para.meta.get("paragraph_format", {})
-                }
-
-        # 递归检查段落格式
-        errors.extend(_recursive_check(paragraphs_dict, required_format))
-
+        paragraphs_dict = manager.to_dict()
+        for para_dict in paragraphs_dict:
+            para_type = para_dict["type"]
+            para_content = para_dict["content"]
+            para_meta = para_dict["meta"]
+            # 检查段落格式
+            errors.extend(_recursive_check(para_meta, required_format.get(para_type, {}), para_content))
+            
         return errors, manager
     except Exception as e:
         print(f"处理文件时出错: {str(e)}")
