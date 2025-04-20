@@ -1,0 +1,298 @@
+[
+    {
+        "id": "para0",
+        "type": "body",
+        "content": "情况说明",
+        "meta": {
+            "paragraph_format": {
+                "alignment": "居中",
+                "first_line_indent": 0,
+                "left_indent": 0,
+                "right_indent": 0,
+                "before_spacing": 0,
+                "after_spacing": 0,
+                "line_spacing": "未设置明确行间距"
+            },
+            "fonts": {
+                "zh_family": [
+                    "宋体"
+                ],
+                "en_family": [
+                    "宋体"
+                ],
+                "size": [
+                    16.0
+                ],
+                "color": [
+                    "black"
+                ],
+                "bold": [
+                    true
+                ],
+                "italic": [
+                    false
+                ],
+                "isAllcaps": false
+            }
+        }
+    },
+    {
+        "id": "para1",
+        "type": "title_zh",
+        "content": "尊敬的人工智能教务处、丁老师：",
+        "meta": {
+            "paragraph_format": {
+                "alignment": "两端对齐",
+                "first_line_indent": 0,
+                "left_indent": 0,
+                "right_indent": 0,
+                "before_spacing": 0,
+                "after_spacing": 0,
+                "line_spacing": 1.5
+            },
+            "fonts": {
+                "zh_family": [
+                    "宋体"
+                ],
+                "en_family": [
+                    "宋体"
+                ],
+                "size": [
+                    14.0
+                ],
+                "color": [
+                    "black"
+                ],
+                "bold": [
+                    true
+                ],
+                "italic": [
+                    false
+                ],
+                "isAllcaps": false
+            }
+        }
+    },
+    {
+        "id": "para2",
+        "type": "body",
+        "content": "我是吕付昊，人工智能学院计科211班，学号19221128，因个人疏忽，未能按时在系统中申报毕业设计选题，深感抱歉。",
+        "meta": {
+            "paragraph_format": {
+                "alignment": "两端对齐",
+                "first_line_indent": "420",
+                "left_indent": 0,
+                "right_indent": 0,
+                "before_spacing": 0,
+                "after_spacing": 0,
+                "line_spacing": 1.5
+            },
+            "fonts": {
+                "zh_family": [
+                    "宋体"
+                ],
+                "en_family": [
+                    "宋体"
+                ],
+                "size": [
+                    14.0
+                ],
+                "color": [
+                    "black"
+                ],
+                "bold": [
+                    false
+                ],
+                "italic": [
+                    false
+                ],
+                "isAllcaps": false
+            }
+        }
+    },
+    {
+        "id": "para3",
+        "type": "body",
+        "content": "我已认识到此事的严重性，将立即补交选题，并加强时间管理，确保后续任务按时完成。恳请指导老师与教务处给予补提交的机会。",
+        "meta": {
+            "paragraph_format": {
+                "alignment": "两端对齐",
+                "first_line_indent": "420",
+                "left_indent": 0,
+                "right_indent": 0,
+                "before_spacing": 0,
+                "after_spacing": 0,
+                "line_spacing": 1.5
+            },
+            "fonts": {
+                "zh_family": [
+                    "宋体"
+                ],
+                "en_family": [
+                    "宋体"
+                ],
+                "size": [
+                    14.0
+                ],
+                "color": [
+                    "black"
+                ],
+                "bold": [
+                    false
+                ],
+                "italic": [
+                    false
+                ],
+                "isAllcaps": false
+            }
+        }
+    },
+    {
+        "id": "para4",
+        "type": "body",
+        "content": "再次为给您带来的不便致歉。",
+        "meta": {
+            "paragraph_format": {
+                "alignment": "两端对齐",
+                "first_line_indent": 0,
+                "left_indent": 0,
+                "right_indent": 0,
+                "before_spacing": 0,
+                "after_spacing": 0,
+                "line_spacing": 1.5
+            },
+            "fonts": {
+                "zh_family": [
+                    "宋体"
+                ],
+                "en_family": [
+                    "宋体"
+                ],
+                "size": [
+                    14.0
+                ],
+                "color": [
+                    "black"
+                ],
+                "bold": [
+                    false
+                ],
+                "italic": [
+                    false
+                ],
+                "isAllcaps": false
+            }
+        }
+    },
+    {
+        "id": "para5",
+        "type": "title_zh",
+        "content": "吕付昊",
+        "meta": {
+            "paragraph_format": {
+                "alignment": "右对齐",
+                "first_line_indent": 0,
+                "left_indent": 0,
+                "right_indent": 0,
+                "before_spacing": 0,
+                "after_spacing": 0,
+                "line_spacing": 1.5
+            },
+            "fonts": {
+                "zh_family": [
+                    "宋体"
+                ],
+                "en_family": [
+                    "宋体"
+                ],
+                "size": [
+                    14.0
+                ],
+                "color": [
+                    "black"
+                ],
+                "bold": [
+                    false
+                ],
+                "italic": [
+                    false
+                ],
+                "isAllcaps": false
+            }
+        }
+    },
+    {
+        "id": "para6",
+        "type": "body",
+        "content": "指导老师：\t\t\t\t\t",
+        "meta": {
+            "paragraph_format": {
+                "alignment": "右对齐",
+                "first_line_indent": 0,
+                "left_indent": 0,
+                "right_indent": 0,
+                "before_spacing": 0,
+                "after_spacing": 0,
+                "line_spacing": 1.5
+            },
+            "fonts": {
+                "zh_family": [
+                    "宋体"
+                ],
+                "en_family": [
+                    "宋体"
+                ],
+                "size": [
+                    14.0
+                ],
+                "color": [
+                    "black"
+                ],
+                "bold": [
+                    false
+                ],
+                "italic": [
+                    false
+                ],
+                "isAllcaps": false
+            }
+        }
+    },
+    {
+        "id": "para7",
+        "type": "body",
+        "content": "2024/11/19",
+        "meta": {
+            "paragraph_format": {
+                "alignment": "右对齐",
+                "first_line_indent": 0,
+                "left_indent": 0,
+                "right_indent": 0,
+                "before_spacing": 0,
+                "after_spacing": 0,
+                "line_spacing": 1.5
+            },
+            "fonts": {
+                "zh_family": [
+                    "宋体"
+                ],
+                "en_family": [
+                    "宋体"
+                ],
+                "size": [
+                    14.0
+                ],
+                "color": [
+                    "black"
+                ],
+                "bold": [
+                    false
+                ],
+                "italic": [
+                    false
+                ],
+                "isAllcaps": false
+            }
+        }
+    }
+]

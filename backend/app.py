@@ -7,10 +7,10 @@ import os, time, sys
 import json
 from agents.setting import LLMs
 from format_editor import generate_formatted_doc
-from backend.preparation.para_type import ParagraphManager
-from backend.checkers.checker import Checker
+from preparation.para_type import ParagraphManager
+from checkers.checker import check_format
 from datetime import datetime
-import backend.preparation.docx_parser as docx_parser
+import preparation.docx_parser as docx_parser
 from agents.advice_agent import AdviceAgent
 from agents.editor_agent import EditorAgent
 from agents.format_agent import FormatAgent
@@ -20,7 +20,7 @@ from docx import Document
 from docx.shared import RGBColor
 import tempfile
 from docx.enum.text import WD_COLOR_INDEX
-from backend.utils.utils import parse_llm_json_response
+from utils.utils import parse_llm_json_response
 
 # 导入agents包中的功能
 import agents
@@ -436,7 +436,7 @@ def analyse_format_doc():
 def use_default_format():
     try:
         # 获取默认格式文件路径
-        default_format_path = os.path.join(os.path.dirname(__file__), 'config_example.json')
+        default_format_path = os.path.join(os.path.dirname(__file__), 'utils', 'config_example.json')
 
         # 确保文件存在
         if not os.path.exists(default_format_path):
@@ -514,14 +514,25 @@ def start_check_format():
             return jsonify({"success": False, "message": "配置文件不存在"}), 404
 
         # 处理文件信息
-        docx_errors, para_manager = check_format(file_path, config_path, agents["format"])
+        try:
+            docx_errors, para_manager = check_format(file_path, config_path, agents["format"])
 
-        # 存储当前的para_manager
-        analysised_para_manager.append({"doc_path": file_path, "para_manager": para_manager})
+            # 检查返回值是否有效
+            if para_manager is None:
+                para_manager = ParagraphManager()
+
+            # 存储当前的para_manager
+            analysised_para_manager.append({"doc_path": file_path, "para_manager": para_manager})
+        except Exception as e:
+            print(f"检查格式时出错: {str(e)}")
+            return jsonify({
+                "success": False,
+                "message": f"检查格式时出错: {str(e)}"
+            }), 500
 
         # 将文档抽取为JSON格式，便于调试
         try:
-            doc_json = extract_doc_to_json(file_path, agents["format"])
+            doc_json = para_manager.to_dict()
             # 保存抽取的JSON到缓存文件
             json_cache_path = os.path.join(app.config['CACHES_FOLDER'], f"doc_json_{int(time.time())}.json")
             with open(json_cache_path, 'w', encoding='utf-8') as f:
@@ -569,7 +580,7 @@ def generate_report():
             config_path = data.get('config_path')
             if not config_path or not os.path.exists(config_path):
                 return jsonify({"success": False, "message": "配置文件不存在"}), 404
-            errors = check_format(file_path, config_path, llm.model)
+            errors, _ = check_format(file_path, config_path, agents["format"])
 
             # 确保errors是列表类型
             if errors is None:

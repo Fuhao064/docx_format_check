@@ -56,4 +56,6 @@ def analysis_paper_size(width, height) -> str:
         return "A4"
     elif abs(width - Mm(297)) < Mm(2) and abs(height - Mm(420)) < Mm(2):
         return "A3"
-
+    else:
+        # 如果无法判断，返回默认值
+        return "Unknown"

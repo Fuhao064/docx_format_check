@@ -1,11 +1,10 @@
 import re
 import concurrent.futures
 from typing import Dict, List, Optional, Union, Tuple
-from backend.preparation.para_type import ParsedParaType, ParagraphManager, ParaInfo
-from backend.agents.format_agent import FormatAgent
-from backend.preparation.docx_parser import extract_doc_content
-import backend.preparation.extract_para_info as extract_para_info
-
+from preparation.para_type import ParsedParaType, ParagraphManager, ParaInfo
+from agents.format_agent import FormatAgent
+from preparation.docx_parser import extract_doc_content
+import preparation.extract_para_info as extract_para_info
 def determine_para_type(text, last_para_type=None, para_meta=None):
     """
     根据段落内容动态确定段落类型（基于规则的方法）
@@ -27,6 +26,10 @@ def determine_para_type(text, last_para_type=None, para_meta=None):
         return ParsedParaType.ABSTRACT_CONTENT_EN
     elif last_para_type == ParsedParaType.ABSTRACT_ZH:
         return ParsedParaType.ABSTRACT_CONTENT_ZH
+    elif last_para_type == ParsedParaType.ACKNOWLEDGMENTS:
+        return ParsedParaType.ACKNOWLEDGMENTS_CONTENT
+    elif last_para_type == ParsedParaType.REFERENCES:
+        return ParsedParaType.REFERENCES_CONTENT
 
     # 匹配关键词
     pattern = re.compile(r'\b(摘要|Abstract|关键词|Keywords)\b\s*[:：]', re.IGNORECASE)
@@ -41,6 +44,10 @@ def determine_para_type(text, last_para_type=None, para_meta=None):
             return ParsedParaType.KEYWORDS_ZH
         elif keyword == "keywords":
             return ParsedParaType.KEYWORDS_EN
+        elif keyword == "致谢" or keyword == "acknowledgments":
+            return ParsedParaType.ACKNOWLEDGMENTS
+        elif keyword == "参考文献" or keyword == "references":
+            return ParsedParaType.REFERENCES
 
     # 匹配标题编号模式（例如："1. 引言", "1.1 研究背景"）
     heading_pattern = re.compile(r'^\s*(\d+(\.\d+)*)\s+\S+')
@@ -92,16 +99,19 @@ prev_para_type: Optional[ParsedParaType] = None, next_para_type: Optional[Parsed
         Tuple[ParsedParaType, float]: 段落类型和置信度
     """
     # 第一步：基于规则的推理
-    rule_based_type = determine_para_type(text, prev_para_type, para_meta)
+    try:
+        rule_based_type = determine_para_type(text, prev_para_type, para_meta)
+    except Exception as e:
+        print(f"Error in rule-based prediction: {e}, using BODY as default")
+        rule_based_type = ParsedParaType.BODY
 
     # 第二步：大模型推理
-    llm_response = format_agent.predict_location(doc_content, text, True, para_meta, prev_para_type, next_para_type)
-
     try:
+        llm_response = format_agent.predict_location(doc_content, text, False, para_meta, prev_para_type, next_para_type)
         llm_type = ParsedParaType(llm_response["location"])
         llm_confidence = float(llm_response.get("confidence", 0.5))
-    except (ValueError, KeyError) as e:
-        print(f"Error parsing LLM response: {e}, using rule-based type instead")
+    except Exception as e:
+        print(f"Error in LLM prediction: {e}, using rule-based type instead")
         llm_type = rule_based_type
         llm_confidence = 0.5
 
@@ -119,7 +129,8 @@ prev_para_type: Optional[ParsedParaType] = None, next_para_type: Optional[Parsed
         ParsedParaType.ABSTRACT_ZH, ParsedParaType.ABSTRACT_EN,
         ParsedParaType.KEYWORDS_ZH, ParsedParaType.KEYWORDS_EN,
         ParsedParaType.ABSTRACT_CONTENT_ZH, ParsedParaType.ABSTRACT_CONTENT_EN,
-        ParsedParaType.KEYWORDS_CONTENT_ZH, ParsedParaType.KEYWORDS_CONTENT_EN
+        ParsedParaType.KEYWORDS_CONTENT_ZH, ParsedParaType.KEYWORDS_CONTENT_EN,
+        ParsedParaType.REFERENCES, ParsedParaType.ACKNOWLEDGMENTS
     ]
 
     if rule_based_type in special_types:
@@ -128,7 +139,7 @@ prev_para_type: Optional[ParsedParaType] = None, next_para_type: Optional[Parsed
     # 其他情况下，使用大模型结果，但置信度降低
     return llm_type, llm_confidence * 0.9
 
-def remark_para_type(doc_path: str, format_agent: FormatAgent) -> ParagraphManager:
+def remark_para_type(doc_path: str, format_agent: FormatAgent, paragraph_manager: ParagraphManager) -> ParagraphManager:
     """
     增强版段落类型标注函数，使用混合推理模型
 
@@ -139,25 +150,20 @@ def remark_para_type(doc_path: str, format_agent: FormatAgent) -> ParagraphManag
     Returns:
         ParagraphManager: 标注后的段落管理器
     """
-    # 初始化段落管理器
-    paragraph_manager = ParagraphManager()
-
-    # 读取doc的段落信息
-    paragraph_manager = extract_para_info.extract_para_format_info(doc_path, paragraph_manager)
 
     # 文档整个内容
     doc_content = extract_doc_content(doc_path)
 
     # 将段落json转为中文
-    paras_info_json_zh = paragraph_manager.to_chinese_dict()
+    try:
+        paras_info_json_zh = paragraph_manager.to_chinese_dict()
+    except Exception as e:
+        print(f"Error converting to Chinese dict: {e}")
+        paras_info_json_zh = paragraph_manager.to_dict()
 
     # 定义任务函数
     def process_paragraph(para_index: int, para: Dict, manager: ParagraphManager):
         try:
-            # 跳过非正文类型的段落
-            if para["type"] != ParsedParaType.BODY.value:
-                return
-
             # 提取当前段落信息
             para_string = para["content"]
             para_meta = para.get("meta", {})
@@ -182,8 +188,11 @@ def remark_para_type(doc_path: str, format_agent: FormatAgent) -> ParagraphManag
 
         except Exception as e:
             # 如果解析失败，将段落类型设置为 BODY
-            print(f"Error processing paragraph {para_index}: {para_string[:30]}... Error: {e}")
-            manager.paragraphs[para_index].type = ParsedParaType.BODY
+            print(f"Error processing paragraph {para_index}: {para_string[:30] if isinstance(para_string, str) else str(para)[:30]}... Error: {e}")
+            try:
+                manager.paragraphs[para_index].type = ParsedParaType.BODY
+            except Exception as inner_e:
+                print(f"Failed to set paragraph type: {inner_e}")
 
     # 使用线程池并发处理，限制最大线程数为5
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
@@ -208,32 +217,53 @@ def remark_para_type(doc_path: str, format_agent: FormatAgent) -> ParagraphManag
                 except Exception as e:
                     print(f"Error in thread pool task: {e}")
 
-    # 进行上下文一致性检查和修正
-    for i in range(len(paragraph_manager.paragraphs)):
-        current_para = paragraph_manager.paragraphs[i]
 
-        # 如果当前段落是摘要标题，确保下一段落是摘要内容
-        if current_para.type == ParsedParaType.ABSTRACT_ZH and i < len(paragraph_manager.paragraphs) - 1:
-            next_para = paragraph_manager.paragraphs[i + 1]
-            if next_para.type not in [ParsedParaType.ABSTRACT_CONTENT_ZH, ParsedParaType.ABSTRACT_EN]:
-                next_para.type = ParsedParaType.ABSTRACT_CONTENT_ZH
+    return paragraph_manager
 
-        # 如果当前段落是英文摘要标题，确保下一段落是英文摘要内容
-        elif current_para.type == ParsedParaType.ABSTRACT_EN and i < len(paragraph_manager.paragraphs) - 1:
-            next_para = paragraph_manager.paragraphs[i + 1]
-            if next_para.type not in [ParsedParaType.ABSTRACT_CONTENT_EN, ParsedParaType.KEYWORDS_EN]:
-                next_para.type = ParsedParaType.ABSTRACT_CONTENT_EN
+# 结束后再次通过大模型验证是否是正确的段落类型
+def check_para_type(format_agent: FormatAgent, paragraph_manager: ParagraphManager) -> ParagraphManager:
+    """
+    检查段落类型是否正确，使用大模型验证（多线程版本）
 
-        # 如果当前段落是关键词标题，确保下一段落是关键词内容
-        elif current_para.type == ParsedParaType.KEYWORDS_ZH and i < len(paragraph_manager.paragraphs) - 1:
-            next_para = paragraph_manager.paragraphs[i + 1]
-            if next_para.type not in [ParsedParaType.KEYWORDS_CONTENT_ZH, ParsedParaType.KEYWORDS_EN]:
-                next_para.type = ParsedParaType.KEYWORDS_CONTENT_ZH
+    Args:
+        format_agent: 格式代理对象
+        paragraph_manager: 段落管理器
 
-        # 如果当前段落是英文关键词标题，确保下一段落是英文关键词内容
-        elif current_para.type == ParsedParaType.KEYWORDS_EN and i < len(paragraph_manager.paragraphs) - 1:
-            next_para = paragraph_manager.paragraphs[i + 1]
-            if next_para.type != ParsedParaType.KEYWORDS_CONTENT_EN:
-                next_para.type = ParsedParaType.KEYWORDS_CONTENT_EN
+    Returns:
+        ParagraphManager: 检查后的段落管理器
+    """
+    try:
+        paragraph_manager.to_chinese_dict()
+    except Exception as e:
+        print(f"Error converting to Chinese dict in check_para_type: {e}")
+
+    def process_paragraph(i: int, para: ParaInfo):
+        para_string = para.content
+        para_meta = para.meta
+        prev_para_type = paragraph_manager.paragraphs[i - 1].type if i > 0 else None
+        next_para_type = paragraph_manager.paragraphs[i + 1].type if i < len(paragraph_manager.paragraphs) - 1 else None
+
+        if format_agent.check_rule_based_prediction(para_string, para_meta, prev_para_type, next_para_type):
+            print(f"Paragraph {i}: {para_string[:30]}... is correct")
+        else:
+            print(f"Paragraph {i}: {para_string[:30]}... is incorrect")
+            doc_content = ""
+            llm_response = format_agent.predict_location(doc_content, para_string, False, para_meta, prev_para_type, next_para_type)
+            try:
+                predicted_type = ParsedParaType(llm_response["location"])
+                confidence = float(llm_response.get("confidence", 0.5))
+                if confidence >= 0.8:
+                    return i, predicted_type
+            except (ValueError, KeyError) as e:
+                print(f"Error parsing LLM response: {e}")
+        return None
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [executor.submit(process_paragraph, i, para) for i, para in enumerate(paragraph_manager.paragraphs)]
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result:
+                i, predicted_type = result
+                paragraph_manager.paragraphs[i].type = predicted_type
 
     return paragraph_manager

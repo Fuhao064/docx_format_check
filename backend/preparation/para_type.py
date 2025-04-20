@@ -23,7 +23,9 @@ class ParsedParaType(Enum):
     FIGURES = 'figures'
     TABLES = 'tables'
     REFERENCES = 'references'
+    REFERENCES_CONTENT = 'references_content'
     ACKNOWLEDGMENTS = 'acknowledgments'
+    ACKNOWLEDGMENTS_CONTENT = 'acknowledgments_content'
     EQUATIONS = 'equation'
     OTHERS = 'others'
     @classmethod
@@ -107,6 +109,19 @@ class ParagraphManager:
     
     def __init__(self):
         self.paragraphs: List[ParaInfo] = []
+        self.position = 0  # 添加文件指针位置跟踪
+        
+    def seek(self, offset, whence=0):
+        """模拟文件seek操作"""
+        if whence == 0:  # 从文件开始计算
+            self.position = offset
+        elif whence == 1:  # 从当前位置计算
+            self.position += offset
+        elif whence == 2:  # 从文件末尾计算
+            self.position = len(self.paragraphs) + offset
+        else:
+            raise ValueError("Invalid whence value")
+        return self.position
     
     def add_para(self, para_type: ParsedParaType, content: str, meta: Dict = None) -> None:
         """

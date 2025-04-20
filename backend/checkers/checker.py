@@ -1,13 +1,16 @@
 from typing import Dict, List, Optional, Tuple
 import concurrent.futures
 
-from backend.preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
-from backend.preparation.docx_parser import extract_doc_content
-import backend.preparation.extract_para_info as extract_para_info
-from backend.utils.utils import is_value_equal
-from backend.utils.config_utils import load_config
-from backend.agents.format_agent import FormatAgent
-from backend.checkers.check_paper import check_paper_format
+from preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
+from preparation.docx_parser import extract_doc_content
+import preparation.extract_para_info as extract_para_info
+from utils.utils import is_value_equal
+from utils.config_utils import load_config
+from agents.format_agent import FormatAgent
+from checkers.check_paper import check_paper_format
+from checkers.check_references import check_reference_format
+from checkers.check_tables_figures import check_table_format, check_figure_format
+from preparation.delude_engine import remark_para_type, check_para_type
 
 def check_abstract(paragraph_manager: ParagraphManager) -> List[Dict]:
     """检查摘要格式"""
@@ -102,18 +105,20 @@ def check_required_paragraphs(paragraph_manager: ParagraphManager, required_form
     """
     errors = []
 
-    required_types = required_format.get('required_paragraphs',{})
+    required_types = required_format.get('required_paragraphs', {})
+    if not required_types:
+        return errors
 
     # 检查每种必需的段落类型
-    for type_key, type_name in required_types:
-        if type_key in required_format:
+    for type_key, type_value in required_types.items():
+        if type_value is True and type_key in required_format:
             # 检查该类型是否存在于段落管理器中
             try:
                 para_type = ParsedParaType(type_key)
                 paras = paragraph_manager.get_by_type(para_type)
                 if not paras:
                     errors.append({
-                        "message": f"缺少{type_name}部分",
+                        "message": f"缺少{type_key}部分",
                         "location": "文档结构"
                     })
             except ValueError:
@@ -125,7 +130,7 @@ def check_required_paragraphs(paragraph_manager: ParagraphManager, required_form
 def _recursive_check(actual, expected):
     """
     递归检查嵌套字典的字段。
-    返回格式为[(key, error_message), ...]的列表
+    返回格式为[{"message": error_message, "location": key}, ...]的列表
     """
     errors = []
 
@@ -134,13 +139,19 @@ def _recursive_check(actual, expected):
 
         # 如果字段不存在
         if actual_value is None:
-            errors.append((key, f"缺少必需字段: '{key}'"))
+            errors.append({
+                "message": f"缺少必需字段: '{key}'",
+                "location": key
+            })
             continue
 
         # 如果字段是列表类型，优先检查长度
         if isinstance(actual_value, list):
             if len(actual_value) > 1:
-                errors.append((key, f"字段 '{key}' 存在多个值: {actual_value}"))
+                errors.append({
+                    "message": f"字段 '{key}' 存在多个值: {actual_value}",
+                    "location": key
+                })
                 continue
             if len(actual_value) == 0:
                 continue
@@ -149,18 +160,25 @@ def _recursive_check(actual, expected):
         # 递归处理嵌套字典
         if isinstance(expected_value, dict):
             if not isinstance(actual_value, dict):
-                errors.append((key, f"字段类型不匹配: '{key}' 应为字典类型，实际为 {type(actual_value).__name__}"))
+                errors.append({
+                    "message": f"字段类型不匹配: '{key}' 应为字典类型，实际为 {type(actual_value).__name__}",
+                    "location": key
+                })
                 continue
 
             # 递归检查嵌套字段
             deeper_errors = _recursive_check(actual_value, expected_value)
-            for err_key, err_msg in deeper_errors:
-                errors.append((f"{key}.{err_key}", err_msg))
+            for err in deeper_errors:
+                err["location"] = f"{key}.{err['location']}"
+                errors.append(err)
 
         # 检查值是否匹配
         else:
             if not is_value_equal(expected_value, actual_value, key=key):
-                errors.append((key, f"'{key}' 不匹配: 要求 {expected_value}, 实际 {actual_value}"))
+                errors.append({
+                    "message": f"'{key}' 不匹配: 要求 {expected_value}, 实际 {actual_value}",
+                    "location": key
+                })
 
     return errors
 
@@ -172,10 +190,11 @@ def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> 
     errors = []
 
     # 加载配置文件
-    required_format = load_config(config_path) 
+    required_format = load_config(config_path)
 
     # 检查页面格式
-    doc_info = extract_para_info.extract_section_info(doc_path)
+    from preparation.docx_parser import extract_section_info
+    doc_info = extract_section_info(doc_path)
     errors.extend(check_paper_format(doc_info, required_format))
 
     # 检查段落格式
@@ -183,22 +202,43 @@ def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> 
         # 初始化段落管理器
         manager = ParagraphManager()
 
-        # 使用extract_para_format_info函数提取文档内容
-        manager = extract_para_format_info(input_file, manager)
+        manager = extract_para_info.extract_para_format_info(doc_path, manager)
+
+        # 重分配段落类型
+        manager = remark_para_type(doc_path, format_agent, manager)
+
+        # 检查是否正确
+        check_para_type(format_agent, manager)
+
+        # 检查摘要和关键词格式
+        errors.extend(check_abstract(manager))
+        errors.extend(check_keywords(manager))
+        errors.extend(check_required_paragraphs(manager, required_format))
+        errors.extend(check_reference_format(doc_path, required_format))
+        errors.extend(check_table_format(doc_path, required_format))
+        errors.extend(check_figure_format(doc_path, required_format))
 
         # 将段落信息转换为字典格式（包含完整的meta信息）
-        paragraphs_dict = manager.to_dict()
-    
-        # 重置段落类型
-        paragraph_manager = remark_para_type(doc_path, format_agent)
+        # 注意：to_dict()返回的是列表，而不是字典
+        # 我们需要将列表中的每个元素与格式要求进行比较
+        # 或者将列表转换为字典格式
+        paragraphs_dict = {}
+        for para in manager.paragraphs:
+            para_type = para.type.value
+            if para_type not in paragraphs_dict:
+                # 创建字典结构，包含字体和段落格式信息
+                paragraphs_dict[para_type] = {
+                    "fonts": para.meta.get("fonts", {}),
+                    "paragraph_format": para.meta.get("paragraph_format", {})
+                }
 
-        # 将结果保存为JSON文件
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(paragraphs_dict, f, ensure_ascii=False, indent=4)
+        # 递归检查段落格式
+        errors.extend(_recursive_check(paragraphs_dict, required_format))
 
-        print(f"处理缓存已保存到: {output_file}")
-
+        return errors, manager
     except Exception as e:
         print(f"处理文件时出错: {str(e)}")
-    
+        # 确保在异常情况下也返回值
+        return [], ParagraphManager()
+
 
