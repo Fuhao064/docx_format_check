@@ -1,6 +1,6 @@
 import re, docx
 from typing import Dict, List
-from backend.utils.utils import extract_number
+from utils.utils import extract_number
 
 def check_table_format(doc_path: str, required_format: Dict) -> List[Dict]:
     """检查表格格式"""

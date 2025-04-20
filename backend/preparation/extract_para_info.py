@@ -1,10 +1,10 @@
 import docx
 import xml.etree.ElementTree as ET
 import json, re
-from backend.preparation.para_type import ParsedParaType, ParagraphManager
+from preparation.para_type import ParsedParaType, ParagraphManager
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
-from backend.utils.utils import (
+from utils.utils import (
     get_alignment_string,
     get_alignment_display,
     is_font_dict_empty,
@@ -137,9 +137,7 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
 
     # 将摘要等信息拆出来
     processed_paras = pre_process_paragraphs(doc)
-    # processed_paras = doc.paragraphs
-    # 初始化上一个段落信息
-    last_para_type = ParsedParaType.BODY
+
     for para in processed_paras:
         # 如果段落文本为空，则跳过
         if not para.text.strip():
@@ -572,14 +570,6 @@ def extract_font_info_from_xml(xml_data):
 
     return fonts
 
-def find_style_by_name(style_name: str, styles_info: list):
-    for style_info in styles_info:
-        if style_info is not None:
-            if style_info['style_name'] == style_name:
-                return style_info
-    print(f"Style {style_name} not found.")
-    return None
-
 def analysise_alignment(alignment: int) -> str:
     """分析对齐方式，返回中文表示
 
@@ -597,6 +587,56 @@ def analysise_alignment(alignment: int) -> str:
     alignment_str = get_alignment_string(alignment)
 
     return alignment_str
+
+def find_style_by_name(style_name, styles_info):
+    """根据样式名称查找样式信息"""
+    for style_info in styles_info:
+        if style_info and 'style_name' in style_info and style_info['style_name'] == style_name:
+            return style_info
+    # 如果没有找到匹配的样式，返回默认值
+    return {
+        'style_name': 'Default',
+        'alignment': '左对齐',
+        'first_line_indent': 0,
+        'left_indent': 0,
+        'right_indent': 0,
+        'before_spacing': 0,
+        'after_spacing': 0,
+        'line_spacing': '未设置明确行间距'
+    }
+
+def split_paragraph(paragraph, split_pos):
+    """在指定位置分割段落"""
+    if split_pos <= 0 or split_pos >= len(paragraph.text):
+        return None
+
+    # 获取分割点前后的文本
+    first_part = paragraph.text[:split_pos]
+    second_part = paragraph.text[split_pos:]
+
+    # 更新原段落的文本
+    paragraph.clear()
+    paragraph.add_run(first_part)
+
+    # 创建新段落并插入到原段落后
+    parent = paragraph._parent
+    new_para = parent.add_paragraph()
+    new_para.style = paragraph.style
+
+    # 将新段落移动到原段落后
+    paragraph._p.addnext(new_para._p)
+
+    # 复制段落格式
+    para_format = paragraph.paragraph_format
+    new_format = new_para.paragraph_format
+    for attr in ['alignment', 'left_indent', 'right_indent', 'first_line_indent',
+                 'line_spacing', 'space_before', 'space_after', 'line_spacing_rule']:
+        setattr(new_format, attr, getattr(para_format, attr))
+
+    # 添加第二部分文本
+    new_para.add_run(second_part)
+
+    return new_para
 
 def split_paragraph(paragraph, split_pos):
     # 获取段落所有 run 并计算总文本

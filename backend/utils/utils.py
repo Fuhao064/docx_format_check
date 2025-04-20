@@ -259,6 +259,7 @@ def are_fonts_equal(expected: str, actual: str) -> bool:
     # 如果期望的字体名称不在映射中，直接比较
     return expected_lower == actual_lower
 
+def get_alignment_display(alignment):
     """
     将对齐方式转换为中文显示
 
@@ -272,7 +273,7 @@ def are_fonts_equal(expected: str, actual: str) -> bool:
         return "左对齐"  # 默认值
 
     # 将对齐方式标准化为小写
-    alignment_lower = alignment.lower()
+    alignment_lower = alignment.lower() if isinstance(alignment, str) else str(alignment).lower()
 
     # 定义对齐方式的中文映射
     alignment_to_chinese = {

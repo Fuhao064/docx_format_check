@@ -1,5 +1,5 @@
 from typing import Dict, List
-from backend.utils.utils import extract_number
+from utils.utils import extract_number
 
 def check_paper_format(doc_info: Dict, required_format: Dict) -> List[Dict]:
     """检查文档基本格式"""

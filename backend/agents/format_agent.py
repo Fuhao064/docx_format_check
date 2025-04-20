@@ -1,6 +1,7 @@
 import json, re
-from backend.preparation.para_type import ParsedParaType
+from preparation.para_type import ParsedParaType
 from agents.setting import LLMs
+from utils.utils import parse_llm_json_response
 
 class FormatAgent:
     def __init__(self, model="qwen-plus"):
@@ -11,47 +12,39 @@ class FormatAgent:
 
     def parse_format(self, format_str: str, json_str: str) -> str:
         """解析格式要求字符串，转换为JSON格式"""
+        # 字号和pt 的对应关系
+        size_mapping = [
+            {"pt": 42, "chinese_size": "初号"},
+            {"pt": 36, "chinese_size": "小初"},
+            {"pt": 26, "chinese_size": "一号"},
+            {"pt": 24, "chinese_size": "小一"},
+            {"pt": 22, "chinese_size": "二号"},
+            {"pt": 18, "chinese_size": "小二"},
+            {"pt": 16, "chinese_size": "三号"},
+            {"pt": 15, "chinese_size": "小三"},
+            {"pt": 14, "chinese_size": "四号"},
+            {"pt": 12, "chinese_size": "小四"},
+            {"pt": 10.5, "chinese_size": "五号"},
+            {"pt": 9, "chinese_size": "小五"},
+            {"pt": 7.5, "chinese_size": "六号"},
+            {"pt": 6.5, "chinese_size": "小六"},
+            {"pt": 5.5, "chinese_size": "七号"},
+            {"pt": 5, "chinese_size": "八号"}
+        ]
         response = self.client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": f"用户将提供给你一段文档格式内容，请你分析文档格式要求，并提取其中的所有信息，以 JSON 的形式输出，输出的 JSON 需遵守以下的格式 {json_str}"},
+                {"role": "system", "content": "用户将提供给你一段文档格式内容，请你分析文档格式要求，并提取其中的所有信息，以 JSON 的形式输出，"
+                 "1.输出的 JSON 需遵守以下的格式 " + json_str + " "
+                 "2.字号和PT的对应关系如下" + json.dumps(size_mapping)},
                 {"role": "user",
                  "content": f"请分析这个文档内的docx文档格式要求:\n{format_str}"}
             ]
         )
         return response.choices[0].message.content
 
-    def predict_location_context(self, last_fragment_str, fragment_str: str, next_fragment_str) -> str:
-        """预测段落位置信息（带上下文）"""
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": f"用户将提供给你一段文档内的段落文字内容和它的上下文，请你判断这个段落文字属于的位置，可能的位置包括{ParsedParaType.get_enum_values()}。请你以 JSON 格式返回结果，其中 JSON 包含location:位置，confidence:表示你对所有位置预测的置信度（0-1之间的数值，数值越高表示置信度越高）。输出所有类型的置信度，无需给出理由。"},
-                {"role": "user",
-                "content": f"段落的上文是：{last_fragment_str}， 段落的下文是：{next_fragment_str}请你依据段落的格式同字体大小等判断这个内容在文章中属于什么位置，只返回该段落的结果，内容如下：\n{fragment_str}"}
-            ]
-        )
-        predict_json_str = response.choices[0].message.content
-        try:
-            return predict_json_str
-        except json.JSONDecodeError:
-            print(f"Error decoding JSON: {predict_json_str}")
-            return {"location": "解析错误", "confidence": 0.0}
-
     def predict_location(self, doc_content, fragment_str: str, flag:bool, para_meta=None, prev_para_type=None, next_para_type=None) -> dict:
-        """预测段落位置信息（增强版）
-
-        Args:
-            doc_content: 文档全文内容
-            fragment_str: 需要分析的段落文本
-            flag: 是否已发送文档全文
-            para_meta: 段落的元数据信息，包含格式特征
-            prev_para_type: 上一个段落的类型
-            next_para_type: 下一个段落的类型
-
-        Returns:
-            dict: 包含位置预测和置信度的字典
-        """
+        """预测段落位置信息"""
         example_data = {
             "location": "title_zh",
             "confidence": 0.95,
@@ -121,23 +114,46 @@ class FormatAgent:
 
         predict_json_str = response.choices[0].message.content
 
-        # 解析被`````包裹的字符串
-        pattern = r"```json\n(.*?)\n```"
-        match = re.search(pattern, predict_json_str, re.DOTALL)
-        if match:
-            json_str = match.group(1)  # 提取 JSON 字符串
-        else:
-            json_str = predict_json_str
-
-        json_str = json_str.replace("'", '"').replace("#.*", "")
+        # 解析JSON响应
         try:
-            result = json.loads(json_str)
+            result = parse_llm_json_response(predict_json_str)
             print(f"LLM预测结果: {result}")
             return result
-        except json.JSONDecodeError as e:
-            print(f"JSON解析错误: {e}, 原始字符串: {json_str}")
+        except Exception as e:
+            print(f"JSON解析错误: {e}, 原始字符串: {predict_json_str}")
             return {"location": "body", "confidence": 0.5}
 
+    # 检查基于规则的段落位置推理是否正确
+    def check_rule_based_prediction(self, para_string: str, para_meta: dict, prev_para_type: ParsedParaType, next_para_type: ParsedParaType) -> bool:
+        """检查基于规则的段落位置推理是否正确"""
+        example_data = {
+            "is_correct": True,
+            "confidence": 0.95,
+        }
+        response = self.client.chat.completions.create(
+            model=self.model,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": f"""你是一个文档结构分析专家，请严格按照以下规则处理：
+                    1. 可用位置类型仅限：{ParsedParaType.get_enum_values()}
+                    2. 必须返回包含 is_correct 和 confidence 字段的JSON对象
+                    3. 分析时要综合考虑段落内容、格式特征和上下文关系，判断段落位置推理是否正确
+                    4. 对于标题类型，注意分析字体大小、加粗和对齐方式等特征
+                    5. 对于摘要和关键词，注意分析其位置和内容特征
+                    6. 对于正文段落，注意分析其缩进和行间距等特征
+                    7. 返回的confidence应该反映你对预测的确信程度，范围为0-1"""},
+                {"role": "user",
+                 "content": f"""请检查以下段落位置推理是否正确：
+                    段落内容：{para_string}
+                    段落格式：{para_meta}
+                    上一段落类型：{prev_para_type.value if prev_para_type else "无"}
+                    下一段落类型：{next_para_type.value if next_para_type else "无"}
+                    请按示例格式返回：{example_data}"""}
+            ]
+        )
+        predict_json_str = response.choices[0].message.content
+        result = parse_llm_json_response(predict_json_str)
+        return result["is_correct"]
     def parse_table(self, table_str: str) -> str:
         """解析表格内容"""
         response = self.client.chat.completions.create(
@@ -191,3 +207,5 @@ class FormatAgent:
         except Exception as e:
             print(f"Error in format agent process: {e}")
             return f"抱歉，处理您的请求时出错：{str(e)}"
+
+
