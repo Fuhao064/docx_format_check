@@ -2,6 +2,7 @@ from typing import List, Dict, Optional
 from enum import Enum
 from dataclasses import dataclass
 import json, re
+from utils.translation_utils import translation_dict
 
 class ParsedParaType(Enum):
     # 枚举定义保持不变，与用户提供的相同
@@ -35,61 +36,7 @@ class ParsedParaType(Enum):
         """
         return [f"{member.value} ({translation_dict.get(member.value, '')})" for member in cls]
 
-# 中文字典：
-translation_dict = {
-    "paper": "页面设置",
-    "size": "纸张尺寸",
-    "orientation": "方向",
-    "margins": "页边距",
-    "top": "上边距",
-    "bottom": "下边距",
-    "left": "左边距",
-    "right": "右边距",
-    "footer": "页脚",
-    "title_zh": "中文标题",
-    "abstract_zh": "中文摘要标题",
-    "abstract_content_zh": "中文摘要内容",
-    "keywords_zh": "中文关键词标题",
-    "keywords_content_zh": "中文关键词内容",
-    "title_en": "英文标题",
-    "abstract_en": "英文摘要标题",
-    "abstract_content_en": "英文摘要内容",
-    "keywords_en": "英文关键词标题",
-    "keywords_content_en": "英文关键词内容",
-    "heading1": "一级标题",
-    "heading2": "二级标题",
-    "heading3": "三级标题",
-    "body": "正文",
-    "figures": "图表",
-    "tables": "表格",
-    "references": "参考文献",
-    "zh_family": "中文字体",
-    "en_family": "英文字体",
-    "size": "字号",
-    "bold": "加粗",
-    "isAllcaps": "全大写",
-    "italic": "斜体",
-    "color": "颜色",
-    "paragraph_format": "段落设置",
-    "line_spacing": "行间距",
-    "alignment": "对齐方式",
-    "indentation": "缩进设置",
-    "first_line_indent": "首行缩进",
-    "before_spacing": "段前距",
-    "after_spacing": "段后距",
-    "caption": "题注",
-    "position": "位置",
-    "border": "边框",
-    "width": "线宽",
-    "style": "线型",
-    "right_indent": "右缩进",
-    "left_indent": "左缩进",
-    "space_before": "段前距",
-    "space_after": "段后距",
-    "fonts": "字体",
-    "False" : "否",
-    "True" : "是"
-}
+
 
 @dataclass
 class ParaInfo:
@@ -106,11 +53,11 @@ class ParaInfo:
 
 class ParagraphManager:
     """段落信息管理系统"""
-    
+
     def __init__(self):
         self.paragraphs: List[ParaInfo] = []
         self.position = 0  # 添加文件指针位置跟踪
-        
+
     def seek(self, offset, whence=0):
         """模拟文件seek操作"""
         if whence == 0:  # 从文件开始计算
@@ -122,7 +69,7 @@ class ParagraphManager:
         else:
             raise ValueError("Invalid whence value")
         return self.position
-    
+
     def add_para(self, para_type: ParsedParaType, content: str, meta: Dict = None) -> None:
         """
         添加段落
@@ -132,8 +79,8 @@ class ParagraphManager:
         """
         new_para = ParaInfo(para_type, content, meta)
         self.paragraphs.append(new_para)
-    
-    def remove_para(self, *, 
+
+    def remove_para(self, *,
                    para_type: Optional[ParsedParaType] = None,
                    content: Optional[str] = None,
                    meta_filter: Optional[Dict] = None) -> int:
@@ -145,31 +92,31 @@ class ParagraphManager:
         :return: 被删除的段落数量
         """
         removed = []
-        
+
         for para in self.paragraphs:
             type_match = para_type is None or para.type == para_type
             content_match = content is None or para.content == content
             meta_match = True
-            
+
             if meta_filter:
                 meta_match = all(
-                    para.meta.get(k) == v 
+                    para.meta.get(k) == v
                     for k, v in meta_filter.items()
                 )
-            
+
             if type_match and content_match and meta_match:
                 removed.append(para)
-        
+
         # 批量删除
         for para in removed:
             self.paragraphs.remove(para)
-        
+
         return len(removed)
-    
+
     def get_by_type(self, para_type: ParsedParaType) -> List[ParaInfo]:
         """按类型获取段落"""
         return [p for p in self.paragraphs if p.type == para_type]
-    
+
     def find_in_content(self, keyword: str) -> List[ParaInfo]:
         """在内容中搜索关键词"""
         return [p for p in self.paragraphs if keyword in p.content]
@@ -183,7 +130,6 @@ class ParagraphManager:
         elif isinstance(obj, list):
             return [ParagraphManager.convert_sets_to_lists(item) for item in obj]
         return obj
-    import re
     def to_dict(self) -> List[Dict]:
         """导出为字典格式（自动处理集合转列表）"""
         return [
@@ -206,14 +152,14 @@ class ParagraphManager:
                 "type": para.get("type"),
                 "content": para.get("content")
             }
-            
+
             # 提取段落设置
             paragraph_settings = para.get("meta", {}).get("段落设置", {})
             paragraph_data.update({
                 "对齐方式": paragraph_settings.get("对齐方式"),
                 "首行缩进": paragraph_settings.get("首行缩进")
             })
-            
+
             # 提取字体信息
             font_info = para.get("meta", {}).get("字体", {})
             paragraph_data.update({
@@ -221,11 +167,11 @@ class ParagraphManager:
                 "英文字体": ", ".join(font_info.get("英文字体", [])),
                 "字号": font_info.get("字号")
             })
-            
+
             result.append(paragraph_data)
-        
+
         return result
-            
+
     @staticmethod
     def extract_to_json_string(json_data):
         try:
@@ -237,7 +183,7 @@ class ParagraphManager:
     def to_chinese_dict(self) -> List[Dict]:
         """导出为中文键字典格式"""
         english_data = self.to_dict()
-        return [self._translate_keys(item) for item in english_data]  
+        return [self._translate_keys(item) for item in english_data]
     # 由json文件转为ParagraphManager
     @staticmethod
     def build_from_json_file(json_file_path: str) -> "ParagraphManager":
@@ -259,22 +205,22 @@ class ParagraphManager:
         for key, value in data.items():
             # 转换当前层级的键名
             new_key = translation_dict.get(key, key)
-            
+
             # 递归处理嵌套结构
             if isinstance(value, dict):
                 translated[new_key] = self._translate_keys(value)
             elif isinstance(value, list):
                 translated[new_key] = [
-                    self._translate_keys(item) if isinstance(item, dict) else item 
+                    self._translate_keys(item) if isinstance(item, dict) else item
                     for item in value
                 ]
             else:
                 translated[new_key] = value
-                
+
             # 特殊处理段落类型值
             if new_key == "类型":
                 translated[new_key] = translation_dict.get(value, value)
-                
+
         return translated
 
     def to_english_dict(self, data:Dict) -> List[Dict]:
@@ -299,6 +245,6 @@ class ParagraphManager:
         return translated
     def __len__(self) -> int:
         return len(self.paragraphs)
-    
+
     def __repr__(self) -> str:
         return f"<ParagraphManager with {len(self)} paragraphs>"
