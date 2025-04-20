@@ -1,11 +1,14 @@
 from typing import Dict, List, Optional, Tuple
 import concurrent.futures
-
+import os
+import json
+from datetime import datetime
 from preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
 from preparation.docx_parser import extract_doc_content
 import preparation.extract_para_info as extract_para_info
 from utils.utils import is_value_equal
 from utils.config_utils import load_config
+from utils.translation_utils import translate_errors
 from agents.format_agent import FormatAgent
 from checkers.check_paper import check_paper_format
 from checkers.check_references import check_reference_format
@@ -143,12 +146,21 @@ def _recursive_check(actual, expected, para_content):
             if key in ['fonts', 'paragraph_format']:
                 errors.append({
                     "message": f"缺少必需字段: '{key}'",
-                    "location": para_content[:10]
+                    "location": para_content[:20]
                 })
             continue
 
         # 处理集合类型的值
         if isinstance(actual_value, set):
+            # 检查集合中是否包含多个不同的值
+            if len(actual_value) > 1:
+                # 对于字体大小、字体名称等特定字段，如果有多个不同的值，报告不一致错误
+                if key in ['size', 'zh_family', 'en_family', 'color']:
+                    errors.append({
+                        "message": f"'{key}' 不一致: 包含多个不同的值 {actual_value}",
+                        "location": para_content[:20]
+                    })
+
             # 将集合转换为列表或单个值
             if len(actual_value) == 1:
                 actual_value = next(iter(actual_value))  # 取集合中的元素
@@ -157,6 +169,17 @@ def _recursive_check(actual, expected, para_content):
 
         # 如果字段是列表类型，处理列表
         if isinstance(actual_value, list):
+            # 检查列表中是否包含多个不同的值
+            if len(actual_value) > 1:
+                # 对于字体大小、字体名称等特定字段，如果有多个不同的值，报告不一致错误
+                if key in ['size', 'zh_family', 'en_family', 'color']:
+                    errors.append({
+                        "message": f"'{key}' 不一致: 包含多个不同的值 {actual_value}",
+                        "location": para_content[:20]
+                    })
+                    # 继续使用列表进行后续比较
+
+            # 如果列表只有一个元素，取出来进行比较
             if len(actual_value) == 1:
                 actual_value = actual_value[0]  # 取第一个值进行比较
             elif len(actual_value) == 0:
@@ -167,7 +190,7 @@ def _recursive_check(actual, expected, para_content):
             if not isinstance(actual_value, dict):
                 errors.append({
                     "message": f"字段类型不匹配: '{key}' 应为字典类型，实际为 {type(actual_value).__name__}",
-                    "location": para_content[:10]
+                    "location": para_content[:20]
                 })
                 continue
 
@@ -179,11 +202,19 @@ def _recursive_check(actual, expected, para_content):
 
         # 检查值是否匹配
         else:
+            # 如果期望值是 "Unknown"，则不进行匹配检查（大小写不敏感）
+            if isinstance(expected_value, str) and expected_value.lower() == "unknown":
+                continue
+
             # 直接使用is_value_equal函数进行比较
             if not is_value_equal(expected_value, actual_value, key=key):
+                # 处理可能的重复值
+                expected_str = str(expected_value)
+                actual_str = str(actual_value)
+
                 errors.append({
-                    "message": f"'{key}' 不匹配: 要求 {expected_value}, 实际 {actual_value}",
-                    "location": para_content[:10]
+                    "message": f"'{key}' 不匹配: 要求 {expected_str}, 实际 {actual_str}",
+                    "location": para_content[:20]
                 })
 
     return errors
@@ -213,6 +244,25 @@ def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> 
         # 重分配段落类型
         manager = remark_para_type(doc_path, format_agent, manager)
 
+        # 保存重分配的段落和格式到caches文件夹,以文件名+result命名
+
+        # 获取文件名（不包含扩展名）
+        base_name = os.path.splitext(os.path.basename(doc_path))[0]
+
+        # 生成结果文件名
+        result_filename = f"{base_name}_result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+
+        # 确保caches文件夹存在
+        caches_folder = os.path.join(os.path.dirname(__file__), '..', 'caches')
+        os.makedirs(caches_folder, exist_ok=True)
+
+        # 保存结果到文件
+        result_path = os.path.join(caches_folder, result_filename)
+        with open(result_path, 'w', encoding='utf-8') as f:
+            json.dump(manager.to_dict(), f, ensure_ascii=False, indent=4)
+
+        print(f"重分配结果已保存到: {result_path}")
+
         # 检查是否正确
         check_para_type(format_agent, manager)
 
@@ -229,11 +279,16 @@ def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> 
         for para_dict in paragraphs_dict:
             para_type = para_dict["type"]
             para_content = para_dict["content"]
+            if para_content.length <= 1:
+                pass
             para_meta = para_dict["meta"]
             # 检查段落格式
             errors.extend(_recursive_check(para_meta, required_format.get(para_type, {}), para_content))
-            
-        return errors, manager
+
+        # 将错误信息翻译为中文
+        translated_errors = translate_errors(errors)
+
+        return translated_errors, manager
     except Exception as e:
         print(f"处理文件时出错: {str(e)}")
         # 确保在异常情况下也返回值

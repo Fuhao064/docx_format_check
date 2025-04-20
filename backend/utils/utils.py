@@ -78,6 +78,13 @@ def is_value_equal(expected: Union[str, float, bool], actual: Union[str, float, 
 
     # 处理字体大小的特殊情况
     if key == 'size':
+        # 处理 "Fixed value 20pt" 这样的表达式
+        if isinstance(expected, str) and 'fixed value' in expected.lower():
+            # 提取数字部分
+            match = re.search(r'(\d+\.?\d*)\s*pt', expected.lower())
+            if match:
+                expected = match.group(1) + 'pt'
+
         # 将字体大小转换为标准格式进行比较
         expected_size = str(expected).replace('pt', '').strip()
         actual_size = str(actual).replace('pt', '').strip()
@@ -379,6 +386,17 @@ def extract_number(value):
 
     # 转换为字符串
     value_str = str(value).lower().strip()
+
+    # 处理 "Fixed value 20pt" 这样的表达式
+    if 'fixed value' in value_str:
+        # 尝试提取数字和单位
+        match = re.search(r'(\d+\.?\d+)\s*([a-z寸]+)', value_str)
+        if match:
+            num_value = float(match.group(1))
+            unit = match.group(2)
+            # 如果是 pt 单位，直接返回数值
+            if unit == 'pt':
+                return num_value
 
     # 常见单位与对应的换算系数（相对于厘米）
     unit_factors = {
