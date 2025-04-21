@@ -39,19 +39,37 @@ class CommunicateAgent:
             if self.client is None:
                 return {"agent": "none", "function": "none", "reason": "LLM客户端未初始化"}
 
-            response = self.client.chat.completions.create(
-                model=self.model,
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": """你是一个用户意图分析助手，请分析用户消息并确定最合适的处理代理。
+            # 准备消息内容
+            system_content = """你是一个用户意图分析助手，请分析用户消息并确定最合适的处理代理。
                     返回JSON格式必须包含以下字段：
                     - agent: 应使用的代理类型，可选值为 ["format", "editor", "advice", "communicate", "none"]
                     - function: 该代理应执行的具体功能，可选值为["search_para_config", "check_format", "generate_caption", "enhance_content", "provide_advice", "none"]
                     - reason: 简单说明做出这个判断的原因
-                    """},
-                    {"role": "user", "content": user_message}
-                ]
-            )
+                    """
+
+            # 如果是doubao系列模型，添加额外的JSON格式要求
+            if hasattr(self.llm, 'is_doubao_model') and self.llm.is_doubao_model:
+                system_content += "\n请确保你的回复是有效的JSON格式，例如: {\"agent\": \"format\", \"function\": \"check_format\", \"reason\": \"用户请求检查文档格式\"}"
+
+            # 准备消息列表
+            messages = [
+                {"role": "system", "content": system_content},
+                {"role": "user", "content": user_message}
+            ]
+
+            # 根据模型类型决定是否使用response_format参数
+            if hasattr(self.llm, 'supports_json_response_format') and self.llm.supports_json_response_format():
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    response_format={"type": "json_object"},
+                    messages=messages
+                )
+            else:
+                # 对于不支持response_format的模型（如doubao系列），不使用该参数
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages
+                )
 
             result = json.loads(response.choices[0].message.content)
             return result

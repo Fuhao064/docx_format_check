@@ -33,10 +33,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 创建一个全局的Agent中心
 agents_config = {
-    "format_model": "qwen-turbo",
-    "editor_model": "qwen-turbo",
-    "advice_model": "qwen-turbo",
-    "communicate_model": "qwen-turbo"
+    "format_model": "doubao-1-5-pro-32k-250115",
+    "editor_model": "deepseek-r1",
+    "advice_model": "deepseek-r1",
+    "communicate_model": "deepseek-r1"
 }
 agents = {
     "format": FormatAgent(agents_config["format_model"]),

@@ -131,30 +131,59 @@ class FormatAgent:
             "is_correct": True,
             "confidence": 0.95,
         }
-        response = self.client.chat.completions.create(
-            model=self.model,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": f"""你是一个文档结构分析专家，请严格按照以下规则处理：
-                    1. 可用位置类型仅限：{ParsedParaType.get_enum_values()}
-                    2. 必须返回包含 is_correct 和 confidence 字段的JSON对象
-                    3. 分析时要综合考虑段落内容、格式特征和上下文关系，判断段落位置推理是否正确
-                    4. 对于标题类型，注意分析字体大小、加粗和对齐方式等特征
-                    5. 对于摘要和关键词，注意分析其位置和内容特征
-                    6. 对于正文段落，注意分析其缩进和行间距等特征
-                    7. 返回的confidence应该反映你对预测的确信程度，范围为0-1"""},
-                {"role": "user",
-                 "content": f"""请检查以下段落位置推理是否正确：
-                    段落内容：{para_string}
-                    段落格式：{para_meta}
-                    上一段落类型：{prev_para_type.value if prev_para_type else "无"}
-                    下一段落类型：{next_para_type.value if next_para_type else "无"}
-                    请按示例格式返回：{example_data}"""}
-            ]
-        )
+
+        # 准备消息列表
+        system_content = f"""你是一个文档结构分析专家，请严格按照以下规则处理：
+            1. 可用位置类型仅限：{ParsedParaType.get_enum_values()}
+            2. 必须返回包含 is_correct 和 confidence 字段的JSON对象
+            3. 分析时要综合考虑段落内容、格式特征和上下文关系，判断段落位置推理是否正确
+            4. 对于标题类型，注意分析字体大小、加粗和对齐方式等特征
+            5. 对于摘要和关键词，注意分析其位置和内容特征
+            6. 对于正文段落，注意分析其缩进和行间距等特征
+            7. 返回的confidence应该反映你对预测的确信程度，范围为0-1"""
+
+        # 如果是doubao系列模型，在system_content中添加JSON格式要求
+        if hasattr(self.llm, 'is_doubao_model') and self.llm.is_doubao_model:
+            system_content += "\n8. 你必须以有效的JSON格式返回结果，例如: {\"is_correct\": true, \"confidence\": 0.95}"
+
+        user_content = f"""请检查以下段落位置推理是否正确：
+            段落内容：{para_string}
+            段落格式：{para_meta}
+            上一段落类型：{prev_para_type.value if prev_para_type else "无"}
+            下一段落类型：{next_para_type.value if next_para_type else "无"}
+            请按示例格式返回：{example_data}"""
+
+        messages = [
+            {"role": "system", "content": system_content},
+            {"role": "user", "content": user_content}
+        ]
+
+        # 根据模型类型决定是否使用response_format参数
+        if hasattr(self.llm, 'supports_json_response_format') and self.llm.supports_json_response_format():
+            response = self.client.chat.completions.create(
+                model=self.model,
+                response_format={"type": "json_object"},
+                messages=messages
+            )
+        else:
+            # 对于不支持response_format的模型（如doubao系列），不使用该参数
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages
+            )
+
         predict_json_str = response.choices[0].message.content
-        result = parse_llm_json_response(predict_json_str)
-        return result["is_correct"]
+        try:
+            result = parse_llm_json_response(predict_json_str)
+            # 检查是否包含is_correct字段
+            if "is_correct" in result:
+                return result["is_correct"]
+            else:
+                print(f"Missing 'is_correct' field in response: {result}")
+                return False  # 默认返回False，表示需要重新预测
+        except Exception as e:
+            print(f"Error parsing check_rule_based_prediction response: {e}")
+            return False  # 出错时返回False
     def parse_table(self, table_str: str) -> str:
         """解析表格内容"""
         response = self.client.chat.completions.create(

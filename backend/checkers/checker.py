@@ -206,8 +206,15 @@ def _recursive_check(actual, expected, para_content):
             if isinstance(expected_value, str) and expected_value.lower() == "unknown":
                 continue
 
-            # 直接使用is_value_equal函数进行比较
-            if not is_value_equal(expected_value, actual_value, key=key):
+            # 对于对齐方式，使用are_alignments_equal函数进行比较
+            if key == 'alignment' and hasattr(actual_value, 'lower') and hasattr(expected_value, 'lower'):
+                from utils.utils import are_alignments_equal
+                is_equal = are_alignments_equal(str(expected_value), str(actual_value))
+            else:
+                # 其他字段使用is_value_equal函数进行比较
+                is_equal = is_value_equal(expected_value, actual_value, key=key)
+
+            if not is_equal:
                 # 处理可能的重复值
                 expected_str = str(expected_value)
                 actual_str = str(actual_value)
@@ -245,7 +252,7 @@ def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> 
         manager = remark_para_type(doc_path, format_agent, manager)
 
         # 保存重分配的段落和格式到caches文件夹,以文件名+result命名
-        
+
         # 获取文件名（不包含扩展名）
         base_name = os.path.splitext(os.path.basename(doc_path))[0]
 
