@@ -1,6 +1,6 @@
 import docx
 import xml.etree.ElementTree as ET
-import json, re
+import json, re, os, zipfile
 from preparation.para_type import ParsedParaType, ParagraphManager
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
@@ -125,6 +125,96 @@ def extract_para_format_info_from_paragraph_fromat(para)-> dict:
     current_style_info['line_spacing'] = line_spacing
     return current_style_info
 
+def extract_default_font_size_from_styles(docx_path):
+    """
+    从styles.xml中提取默认样式的字体大小信息
+    """
+    default_sizes = {
+        'paragraph': None,  # 段落默认字体大小
+        'character': None, # 字符默认字体大小
+        'table': None,     # 表格默认字体大小
+        'numbering': None  # 编号默认字体大小
+    }
+
+    try:
+        # 打开docx文件（实际上是一个zip文件）
+        with zipfile.ZipFile(docx_path, 'r') as docx_zip:
+            # 检查styles.xml是否存在
+            styles_path = 'word/styles.xml'
+            if styles_path in docx_zip.namelist():
+                # 读取styles.xml内容
+                with docx_zip.open(styles_path) as styles_file:
+                    styles_content = styles_file.read()
+
+                # 解析XML
+                namespaces = {
+                    'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+                }
+                root = ET.fromstring(styles_content)
+
+                # 查找所有默认样式
+                default_styles = root.findall('.//w:style[@w:default="1"]', namespaces)
+                for style in default_styles:
+                    # 获取样式类型
+                    style_type = style.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}type')
+
+                    # 查找字体大小信息
+                    sz_element = style.find('.//w:sz', namespaces)
+                    if sz_element is not None and '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val' in sz_element.attrib:
+                        sz_val = sz_element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
+                        try:
+                            # 字号单位是半点，需要除以2转换为磅
+                            font_size = float(sz_val) / 2
+                            if style_type in default_sizes:
+                                default_sizes[style_type] = font_size
+                                print(f"从styles.xml提取到{style_type}类型的默认字体大小: {font_size}pt")
+                        except (ValueError, TypeError):
+                            pass
+
+                    # 如果没有找到sz，尝试查找szCs（复杂脚本字体大小）
+                    if style_type in default_sizes and default_sizes[style_type] is None:
+                        szCs_element = style.find('.//w:szCs', namespaces)
+                        if szCs_element is not None and '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val' in szCs_element.attrib:
+                            szCs_val = szCs_element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
+                            try:
+                                font_size = float(szCs_val) / 2
+                                default_sizes[style_type] = font_size
+                                print(f"从styles.xml提取到{style_type}类型的默认复杂脚本字体大小: {font_size}pt")
+                            except (ValueError, TypeError):
+                                pass
+
+                # 如果没有找到默认样式，尝试查找名为Normal的样式
+                if default_sizes['paragraph'] is None:
+                    normal_style = root.find('.//w:style[w:name[@w:val="Normal"]]', namespaces)
+                    if normal_style is not None:
+                        sz_element = normal_style.find('.//w:sz', namespaces)
+                        if sz_element is not None and '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val' in sz_element.attrib:
+                            sz_val = sz_element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
+                            try:
+                                font_size = float(sz_val) / 2
+                                default_sizes['paragraph'] = font_size
+                                print(f"从styles.xml的Normal样式中提取到默认字体大小: {font_size}pt")
+                            except (ValueError, TypeError):
+                                pass
+
+                        # 如果还是没有找到，尝试查找szCs
+                        if default_sizes['paragraph'] is None:
+                            szCs_element = normal_style.find('.//w:szCs', namespaces)
+                            if szCs_element is not None and '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val' in szCs_element.attrib:
+                                szCs_val = szCs_element.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
+                                try:
+                                    font_size = float(szCs_val) / 2
+                                    default_sizes['paragraph'] = font_size
+                                    print(f"从styles.xml的Normal样式中提取到默认复杂脚本字体大小: {font_size}pt")
+                                except (ValueError, TypeError):
+                                    pass
+
+                print(f"从styles.xml提取的默认字体大小: {default_sizes}")
+    except Exception as e:
+        print(f"从styles.xml提取字体大小信息时出错: {str(e)}")
+
+    return default_sizes
+
 def extract_para_format_info(doc_path, manager: ParagraphManager):
 
     doc = docx.Document(doc_path)
@@ -134,6 +224,12 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
     for style in doc.styles:
         current_style_info = extract_para_format_from_style(style)
         styles_info.append(current_style_info)
+
+    # 从theme1.xml中提取字体信息
+    theme_fonts = extract_font_from_theme(doc_path)
+
+    # 从styles.xml中提取默认字体大小信息
+    default_font_sizes = extract_default_font_size_from_styles(doc_path)
 
     # 将摘要等信息拆出来
     processed_paras = pre_process_paragraphs(doc)
@@ -174,6 +270,38 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
 
         # 合并字体信息
         fonts = merge_font_dictionaries(fonts_from_runs, fonts_from_xml)
+
+        # 如果没有中文字体信息或含有Unknown标记，尝试从theme1.xml中获取
+        if not fonts['zh_family'] or 'Unknown' in fonts['zh_family']:
+            if theme_fonts['zh_family']:
+                # 移除Unknown
+                if 'Unknown' in fonts['zh_family']:
+                    fonts['zh_family'].remove('Unknown')
+                # 添加theme中的中文字体
+                fonts['zh_family'].update(theme_fonts['zh_family'])
+                print(f"为段落 '{para.text[:30]}...' 从theme1.xml添加中文字体: {theme_fonts['zh_family']}")
+
+        # 如果没有英文字体信息或含有Unknown标记，也从theme1.xml中获取
+        if not fonts['en_family'] or 'Unknown' in fonts['en_family']:
+            if theme_fonts['en_family']:
+                # 移除Unknown
+                if 'Unknown' in fonts['en_family']:
+                    fonts['en_family'].remove('Unknown')
+                # 添加theme中的英文字体
+                fonts['en_family'].update(theme_fonts['en_family'])
+                print(f"为段落 '{para.text[:30]}...' 从theme1.xml添加英文字体: {theme_fonts['en_family']}")
+
+        # 如果没有字体大小信息或字体大小为"Unknown"，尝试从styles.xml中获取默认字体大小
+        if not fonts['size'] or 'Unknown' in fonts['size']:
+            # 获取段落默认字体大小
+            default_size = default_font_sizes.get('paragraph')
+            if default_size is not None:
+                # 移除Unknown
+                if 'Unknown' in fonts['size']:
+                    fonts['size'].remove('Unknown')
+                # 添加默认字体大小
+                fonts['size'].add(default_size)
+                print(f"为段落 '{para.text[:30]}...' 从styles.xml添加默认字体大小: {default_size}pt")
 
         # 将字体信息添加到元数据
         meta_data["fonts"] = fonts
@@ -222,6 +350,22 @@ def extract_font_info_from_runs(runs: list) -> dict:
                 elif re.search(r'[\u4e00-\u9fa5]+', font_name):
                     fonts['zh_family'].add(font_name)
 
+            # 尝试获取字体大小
+            if hasattr(run.font, 'size') and run.font.size is not None:
+                font_size = run.font.size
+                if font_size:
+                    # 转换为磅
+                    if hasattr(font_size, 'pt'):
+                        fonts['size'].add(font_size.pt)
+                    else:
+                        # 如果没有pt属性，尝试直接获取数值并除以20（docx中字号单位转换）
+                        try:
+                            size_value = float(font_size) / 20
+                            fonts['size'].add(size_value)
+                        except (ValueError, TypeError):
+                            pass
+                    has_size_info = True
+
             # 尝试从run._element.rPr中获取中文字体
             if hasattr(run, '_element') and hasattr(run._element, 'rPr'):
                 rPr = run._element.rPr
@@ -238,6 +382,24 @@ def extract_font_info_from_runs(runs: list) -> dict:
                             ascii_font = rFonts.get(qn('w:ascii'))
                             if ascii_font:
                                 fonts['en_family'].add(ascii_font)
+
+                    # 获取字体大小 (w:sz)
+                    if not has_size_info and hasattr(rPr, 'sz'):
+                        if hasattr(rPr.sz, 'val'):
+                            try:
+                                size_val = float(rPr.sz.val) / 2  # 字号单位是半点，需要除以2转换为磅
+                                fonts['size'].add(size_val)
+                                has_size_info = True
+                            except (ValueError, TypeError, AttributeError):
+                                pass
+                        elif hasattr(rPr.sz, 'get'):
+                            size_val = rPr.sz.get(qn('w:val'))
+                            if size_val:
+                                try:
+                                    fonts['size'].add(float(size_val) / 2)
+                                    has_size_info = True
+                                except (ValueError, TypeError):
+                                    pass
 
                     # 获取加粗信息
                     if hasattr(rPr, 'b'):
@@ -268,24 +430,6 @@ def extract_font_info_from_runs(runs: list) -> dict:
                             else:
                                 fonts['color'].add(f'#{color_val}')
                             has_color_info = True
-
-            # 提取字体大小
-            # 从font.size属性获取
-            if run.font.size:
-                fonts['size'].add(run.font.size.pt)
-                has_size_info = True
-
-            # 尝试从XML元素中获取字体大小
-            if hasattr(run, '_element') and hasattr(run._element, 'rPr'):
-                rPr = run._element.rPr
-                if rPr is not None and hasattr(rPr, 'sz'):
-                    sz = rPr.sz
-                    if sz is not None and hasattr(sz, 'get'):
-                        val = sz.get(qn('w:val'))
-                        if val:
-                            # 字号单位是半点，需要除以2转换为磅
-                            fonts['size'].add(float(val) / 2)
-                            has_size_info = True
 
             # 提取字体颜色 - 使用python-docx API
             if run.font.color and run.font.color.rgb:
@@ -340,17 +484,16 @@ def extract_font_info_from_runs(runs: list) -> dict:
     if not has_color_info and not fonts['color']:
         fonts['color'].add('black')  # 默认黑色
 
-    # 如果没有获取到字体大小信息，设置默认值
-    if not fonts['size']:
-        # 根据段落类型设置默认字号
-        is_title_like = any(run.text.strip() and len(run.text.strip()) < 50 for run in runs if run.text.strip())
-        if is_title_like:
-            fonts['size'].add(16.0)  # 标题默认字号16磅
-        else:
-            fonts['size'].add(10.5)  # 正文默认字号10.5磅
+    # 如果没有获取到字体大小信息，不设置为Unknown，而是保持为空集合
+    # 这样在后续处理中可以从styles.xml中获取默认字体大小
+    # if not fonts['size']:
+    #     fonts['size'].add("Unknown")
 
-    # 如果没有找到中文字体，但有中文内容，则根据内容判断使用默认中文字体
-    if not fonts['zh_family'] and any(re.search(r'[\u4e00-\u9fa5]', run.text) for run in runs if run.text.strip()):
+    # 查找中文内容
+    has_chinese_content = any(re.search(r'[\u4e00-\u9fa5]', run.text) for run in runs if run.text.strip())
+
+    # 如果没有找到中文字体，但有中文内容，则尝试从段落样式中获取
+    if not fonts['zh_family'] and has_chinese_content:
         # 检查段落样式中是否有中文字体设置
         for run in runs:
             if hasattr(run, '_element') and hasattr(run._element, 'rPr'):
@@ -367,29 +510,87 @@ def extract_font_info_from_runs(runs: list) -> dict:
                                     fonts['zh_family'].add(east_asia_font)
                                     break
 
-        # 如果仍然没有找到中文字体，则使用默认字体
-        if not fonts['zh_family']:
-            # 检查是否是标题样式
-            is_title_like = False
+        # 只有在确实无法找到任何字体且有中文内容时才标记为Unknown
+        # 否则保持为空集合，以便后续处理可以从theme1.xml中获取字体信息
+        if not fonts['zh_family'] and has_chinese_content:
+            fonts['zh_family'].add("Unknown")
 
-            # 检查段落文本长度
-            is_short_text = any(run.text.strip() and len(run.text.strip()) < 50 for run in runs if run.text.strip())
+    return fonts
 
-            # 检查是否有加粗样式
-            has_bold = any(run.bold or (hasattr(run.font, 'bold') and run.font.bold) for run in runs if run.text.strip())
+def extract_font_from_theme(docx_path):
+    """
+    从theme1.xml中提取中文字体信息（仅HANS/简体中文）
+    """
+    fonts = {
+        'zh_family': set(),
+        'en_family': set()
+    }
 
-            # 检查字体大小
-            has_large_font = any(run.font.size and run.font.size.pt >= 14 for run in runs if run.text.strip() and hasattr(run.font, 'size') and run.font.size)
+    # 定义常见的中文字体列表
+    common_cn_fonts = [
+        '宋体',   # 宋体
+        '黑体',   # 黑体
+        '楷体',   # 楷体
+        '仿宋',   # 仿宋
+        '华文中宋', # 华文中宋
+        '华文宋体', # 华文宋体
+        '华文楷体', # 华文楷体
+        '华文仿宋', # 华文仿宋
+        '华文黑体', # 华文黑体
+        '微软雅黑'  # 微软雅黑
+    ]
 
-            # 如果满足以下任一条件，则认为是标题
-            if has_bold or has_large_font or is_short_text:
-                is_title_like = True
+    try:
+        # 打开docx文件（实际上是一个zip文件）
+        with zipfile.ZipFile(docx_path, 'r') as docx_zip:
+            # 检查theme1.xml是否存在
+            theme_path = 'word/theme/theme1.xml'
+            if theme_path in docx_zip.namelist():
+                # 读取theme1.xml内容
+                with docx_zip.open(theme_path) as theme_file:
+                    theme_content = theme_file.read()
 
-            # 根据内容特征判断可能使用的字体
-            if is_title_like:
-                fonts['zh_family'].add("黑体")  # 标题默认黑体
-            else:
-                fonts['zh_family'].add("宋体")  # 正文默认宋体
+                # 解析XML
+                namespaces = {
+                    'a': 'http://schemas.openxmlformats.org/drawingml/2006/main'
+                }
+                root = ET.fromstring(theme_content)
+
+                # 专门查找中文字体(Hans)
+                hans_fonts = root.findall('.//a:font[@script="Hans"]', namespaces)
+                for font in hans_fonts:
+                    if 'typeface' in font.attrib:
+                        typeface = font.get('typeface')
+                        if typeface in common_cn_fonts:
+                            fonts['zh_family'].add(typeface)
+                            print(f"从theme1.xml提取到Hans中文字体: {typeface}")
+
+                # 如果没有找到Hans字体，尝试从东亚字体中获取
+                if not fonts['zh_family']:
+                    # 查找东亚字体(ea)
+                    ea_fonts = root.findall('.//a:ea', namespaces)
+                    for ea in ea_fonts:
+                        if 'typeface' in ea.attrib:
+                            typeface = ea.get('typeface')
+                            if typeface in common_cn_fonts:
+                                fonts['zh_family'].add(typeface)
+                                print(f"从theme1.xml提取到东亚字体: {typeface}")
+
+                # 如果还是没有找到，尝试从fontScheme中获取
+                if not fonts['zh_family']:
+                    font_scheme = root.find('.//a:fontScheme', namespaces)
+                    if font_scheme is not None:
+                        # 查找中文默认字体
+                        default_font = font_scheme.find('.//a:font[@script="Hans"]', namespaces)
+                        if default_font is not None and 'typeface' in default_font.attrib:
+                            typeface = default_font.get('typeface')
+                            if typeface in common_cn_fonts:
+                                fonts['zh_family'].add(typeface)
+                                print(f"从fontScheme提取到Hans中文字体: {typeface}")
+
+                print(f"从theme1.xml提取的字体: 中文字体={fonts['zh_family']}")
+    except Exception as e:
+        print(f"从theme1.xml提取字体信息时出错: {str(e)}")
 
     return fonts
 
@@ -420,6 +621,7 @@ def extract_font_info_from_xml(xml_data):
         has_bold_info = False
         has_italic_info = False
         has_color_info = False
+        has_size_info = False
 
         # 查找所有 w:rFonts 元素
         rFonts_elements = root.findall('.//w:rFonts', namespaces)
@@ -439,8 +641,23 @@ def extract_font_info_from_xml(xml_data):
         for sz in sz_elements:
             val = sz.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
             if val:
-                # 字号单位是半点，需要除以2转换为磅
-                fonts["size"].add(float(val) / 2)
+                try:
+                    # 字号单位是半点，需要除以2转换为磅
+                    fonts["size"].add(float(val) / 2)
+                    has_size_info = True
+                except (ValueError, TypeError):
+                    pass
+
+        # 查找字体大小信息 (w:szCs) - 复杂脚本字体大小，通常用于中文等非拉丁字符
+        szCs_elements = root.findall('.//w:szCs', namespaces)
+        for szCs in szCs_elements:
+            val = szCs.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
+            if val:
+                try:
+                    fonts["size"].add(float(val) / 2)
+                    has_size_info = True
+                except (ValueError, TypeError):
+                    pass
 
         # 查找字体颜色信息 (w:color)
         color_elements = root.findall('.//w:color', namespaces)
@@ -512,48 +729,18 @@ def extract_font_info_from_xml(xml_data):
         if not has_color_info and not fonts['color']:
             fonts['color'].add('black')  # 默认黑色
 
-        # 如果没有获取到字体大小信息，设置默认值
-        if not fonts['size']:
-            # 检查是否有标题样式
-            style_elements = root.findall('.//w:pStyle', namespaces)
-            is_title_like = False
-            for style in style_elements:
-                val = style.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
-                if val and ('title' in val.lower() or 'heading' in val.lower() or '标题' in val):
-                    is_title_like = True
-                    break
+        # 如果没有获取到字体大小信息，不要设置为Unknown而是保持为空集合
+        # 这样在后续合并字体信息时可以从其他来源获取
 
-            if is_title_like:
-                fonts['size'].add(16.0)  # 标题默认字号16磅
-            else:
-                fonts['size'].add(10.5)  # 正文默认字号10.5磅
-
-        # 如果没有找到中文字体，检查是否有样式名称提示
+        # 如果没有找到中文字体，尝试从fontTable.xml中获取默认字体
         if not fonts["zh_family"]:
-            # 检查是否是标题样式
-            is_title_like = False
-
-            # 检查样式名称
-            style_elements = root.findall('.//w:pStyle', namespaces)
+            # 可以在这里添加额外的逻辑来从文档的fontTable中获取默认字体
+            style_elements = root.findall('.//w:rStyle', namespaces)
             for style in style_elements:
                 val = style.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
-                if val and ("标题" in val or "title" in val.lower() or "heading" in val.lower()):
-                    is_title_like = True
-                    break
-
-            # 检查字体大小
-            if fonts["size"] and any(size >= 14 for size in fonts["size"]):
-                is_title_like = True
-
-            # 检查是否加粗
-            if fonts["bold"] and True in fonts["bold"]:
-                is_title_like = True
-
-            # 根据标题特征设置字体
-            if is_title_like:
-                fonts["zh_family"].add("黑体")  # 标题默认黑体
-            else:
-                fonts["zh_family"].add("宋体")  # 正文默认宋体
+                if val:
+                    # 这里可以添加逻辑来查找样式对应的字体
+                    pass
     except Exception as e:
         print(f"从 XML 提取字体信息时出错: {str(e)}")
         # 设置默认值
@@ -563,10 +750,6 @@ def extract_font_info_from_xml(xml_data):
             fonts['italic'].add(False)
         if not fonts['color']:
             fonts['color'].add('black')
-        if not fonts['zh_family']:
-            fonts['zh_family'].add('宋体')
-        if not fonts['en_family']:
-            fonts['en_family'].add('Times New Roman')
 
     return fonts
 
