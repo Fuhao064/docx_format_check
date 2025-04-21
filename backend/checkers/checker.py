@@ -245,7 +245,7 @@ def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> 
         manager = remark_para_type(doc_path, format_agent, manager)
 
         # 保存重分配的段落和格式到caches文件夹,以文件名+result命名
-
+        
         # 获取文件名（不包含扩展名）
         base_name = os.path.splitext(os.path.basename(doc_path))[0]
 
@@ -279,7 +279,7 @@ def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> 
         for para_dict in paragraphs_dict:
             para_type = para_dict["type"]
             para_content = para_dict["content"]
-            if para_content.length <= 1:
+            if len(para_content) <= 1:
                 pass
             para_meta = para_dict["meta"]
             # 检查段落格式
@@ -295,3 +295,5 @@ def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> 
         return [], ParagraphManager()
 
 
+if __name__ == "__main__":
+    check_format("test.docx", "config.json")

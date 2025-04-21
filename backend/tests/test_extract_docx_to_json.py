@@ -11,8 +11,8 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 导入所需模块
-from backend.preparation.para_type import ParagraphManager
-from backend.preparation.extract_para_info import extract_para_format_info
+from preparation.para_type import ParagraphManager
+from preparation.extract_para_info import extract_para_format_info
 
 def main():
     # 获取当前脚本所在目录
