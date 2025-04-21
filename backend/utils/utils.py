@@ -100,19 +100,8 @@ def is_value_equal(expected: Union[str, float, bool], actual: Union[str, float, 
 
     # 处理对齐方式的特殊情况
     if key == 'alignment':
-        # 将中文对齐方式转换为英文
-        alignment_map = {
-            '居中': 'center',
-            '居左': 'left',
-            '居右': 'right',
-            '两端对齐': 'justify'
-        }
-        if str(actual) in alignment_map and alignment_map[str(actual)] == expected:
-            return True
-        # 反向检查，如果期望值是中文对齐方式
-        reverse_map = {v: k for k, v in alignment_map.items()}
-        if str(expected) in reverse_map and reverse_map[str(expected)] == actual:
-            return True
+        # 使用are_alignments_equal函数进行对齐方式的比较
+        return are_alignments_equal(str(expected), str(actual))
 
     # 检查字符串类型的相等性
     if isinstance(expected, str) and isinstance(actual, str):
@@ -214,23 +203,33 @@ def are_alignments_equal(expected: str, actual: str) -> bool:
     返回:
     bool: 是否等价
     """
+    # 如果两个值完全相同（包括大小写），直接返回True
+    if expected == actual:
+        return True
+
     # 将对齐方式标准化为小写
     expected_lower = expected.lower() if expected else ""
     actual_lower = actual.lower() if actual else ""
 
+    # 如果小写后相同，也返回True
+    if expected_lower == actual_lower:
+        return True
+
     # 定义对齐方式的等价映射
     alignment_map = {
         # 左对齐的不同表达方式
-        "左对齐": ["left", "左对齐", "left-aligned"],
-        "left": ["left", "左对齐", "left-aligned"],
+        "左对齐": ["left", "左对齐", "left-aligned", "居左"],
+        "left": ["left", "左对齐", "left-aligned", "居左"],
+        "居左": ["left", "左对齐", "left-aligned", "居左"],
 
         # 居中的不同表达方式
         "居中": ["center", "居中", "centered"],
         "center": ["center", "居中", "centered"],
 
         # 右对齐的不同表达方式
-        "右对齐": ["right", "右对齐", "right-aligned"],
-        "right": ["right", "右对齐", "right-aligned"],
+        "右对齐": ["right", "右对齐", "right-aligned", "居右"],
+        "right": ["right", "右对齐", "right-aligned", "居右"],
+        "居右": ["right", "右对齐", "right-aligned", "居右"],
 
         # 两端对齐的不同表达方式
         "两端对齐": ["justify", "两端对齐", "both", "justified"],
@@ -243,8 +242,13 @@ def are_alignments_equal(expected: str, actual: str) -> bool:
         # 检查实际的对齐方式是否在期望的对齐方式的等价列表中
         return actual_lower in alignment_map[expected_lower]
 
-    # 如果期望的对齐方式不在映射中，直接比较
-    return expected_lower == actual_lower
+    # 反向检查，如果实际的对齐方式在映射中
+    if actual_lower in alignment_map:
+        # 检查期望的对齐方式是否在实际的对齐方式的等价列表中
+        return expected_lower in alignment_map[actual_lower]
+
+    # 如果上述条件都不满足，返回False
+    return False
 
 def are_fonts_equal(expected: str, actual: str) -> bool:
     """检查两个字体名称是否等价
@@ -372,11 +376,26 @@ def parse_llm_json_response(response_str: str) -> Dict[str, Any]:
             json_str = match.group(1)
             return json.loads(json_str)
 
+        # 尝试处理Python字典格式（单引号）
+        if response_str.strip().startswith("{") and "'" in response_str:
+            # 将单引号替换为双引号
+            response_str = response_str.replace("'", '"')
+            # 处理可能的单引号嵌套问题
+            response_str = re.sub(r'"([^"]+)":\s*"([^"]+)"', r'"\1": "\2"', response_str)
+            try:
+                return json.loads(response_str)
+            except json.JSONDecodeError:
+                pass
+
         # 如果没有代码块，尝试直接解析字符串
         return json.loads(response_str)
     except Exception as e:
         print(f"解析JSON失败: {e}")
-        return {"error": f"解析失败: {str(e)}", "raw_text": response_str}
+        # 返回有效的JSON格式字典，使用双引号
+        error_dict = {}
+        error_dict["error"] = f"解析失败: {str(e)}"
+        error_dict["raw_text"] = response_str
+        return error_dict
 
 def extract_number(value):
     """从字符串中提取数字值，支持多种单位和格式"""

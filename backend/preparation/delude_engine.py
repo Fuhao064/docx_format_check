@@ -108,7 +108,23 @@ prev_para_type: Optional[ParsedParaType] = None, next_para_type: Optional[Parsed
     # 第二步：大模型推理
     try:
         llm_response = format_agent.predict_location(doc_content, text, False, para_meta, prev_para_type, next_para_type)
-        llm_type = ParsedParaType(llm_response["location"])
+
+        # 获取位置信息
+        location = llm_response.get("location", "")
+
+        # 处理可能的无效位置格式，如 'others ()'
+        if location and ' ' in location:
+            # 只保留空格前的部分
+            location = location.split(' ')[0].strip()
+            print(f"Cleaned location from '{llm_response.get('location')}' to '{location}'")
+
+        # 检查是否是有效的枚举值
+        try:
+            llm_type = ParsedParaType(location)
+        except ValueError:
+            print(f"Invalid location value: {location}, using OTHERS instead")
+            llm_type = ParsedParaType.OTHERS
+
         llm_confidence = float(llm_response.get("confidence", 0.5))
     except Exception as e:
         print(f"Error in LLM prediction: {e}, using rule-based type instead")
@@ -250,11 +266,27 @@ def check_para_type(format_agent: FormatAgent, paragraph_manager: ParagraphManag
             doc_content = ""
             llm_response = format_agent.predict_location(doc_content, para_string, False, para_meta, prev_para_type, next_para_type)
             try:
-                predicted_type = ParsedParaType(llm_response["location"])
-                confidence = float(llm_response.get("confidence", 0.5))
-                if confidence >= 0.8:
-                    return i, predicted_type
-            except (ValueError, KeyError) as e:
+                # 获取位置信息
+                location = llm_response.get("location", "")
+
+                # 处理可能的无效位置格式，如 'others ()'
+                if location and ' ' in location:
+                    # 只保留空格前的部分
+                    location = location.split(' ')[0].strip()
+                    print(f"Cleaned location from '{llm_response.get('location')}' to '{location}'")
+
+                # 检查是否是有效的枚举值
+                try:
+                    predicted_type = ParsedParaType(location)
+                    confidence = float(llm_response.get("confidence", 0.5))
+                    if confidence >= 0.8:
+                        return i, predicted_type
+                except ValueError as ve:
+                    print(f"Invalid location value: {location}, using OTHERS instead")
+                    # 如果是无效的位置值，使用OTHERS
+                    if float(llm_response.get("confidence", 0.5)) >= 0.8:
+                        return i, ParsedParaType.OTHERS
+            except (KeyError, TypeError) as e:
                 print(f"Error parsing LLM response: {e}")
         return None
 
