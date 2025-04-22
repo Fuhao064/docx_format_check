@@ -87,6 +87,8 @@ class ParagraphManager:
     def __init__(self):
         self.paragraphs: List[ParaInfo] = []
         self.position = 0  # 添加文件指针位置跟踪
+        self.figures = []  # 存储图片信息
+        self.tables = []   # 存储表格信息
 
     def seek(self, offset, whence=0):
         """模拟文件seek操作"""
@@ -162,7 +164,7 @@ class ParagraphManager:
         return obj
     def to_dict(self) -> List[Dict]:
         """导出为字典格式（自动处理集合转列表）"""
-        return [
+        result = [
             self.convert_sets_to_lists({
                 "id": f"para{i}",  # 自动生成带序号的ID
                 "type": p.type.value,
@@ -171,6 +173,20 @@ class ParagraphManager:
             })
             for i, p in enumerate(self.paragraphs)  # 使用enumerate自动生成序号
         ]
+
+        # 添加图片和表格信息
+        extra_info = {
+            "figures": self.convert_sets_to_lists(self.figures),
+            "tables": self.convert_sets_to_lists(self.tables)
+        }
+
+        # 将额外信息添加到第一个段落的meta中（如果有段落）
+        if result:
+            if "meta" not in result[0]:
+                result[0]["meta"] = {}
+            result[0]["meta"]["extra_info"] = extra_info
+
+        return result
     # 提取必要的段落信息
     @staticmethod
     def extract_paragraph_info(paragraphs):
@@ -299,6 +315,23 @@ class ParagraphManager:
 
             content = para_dict.get("content", "")
             meta = para_dict.get("meta", {})
+
+            # 如果是第一个段落，检查是否有额外信息
+            if len(self.paragraphs) == 0 and meta and "extra_info" in meta:
+                extra_info = meta.get("extra_info", {})
+
+                # 提取图片信息
+                if "figures" in extra_info:
+                    self.figures = extra_info["figures"]
+                    print(f"从字典中提取了 {len(self.figures)} 个图片信息")
+
+                # 提取表格信息
+                if "tables" in extra_info:
+                    self.tables = extra_info["tables"]
+                    print(f"从字典中提取了 {len(self.tables)} 个表格信息")
+
+                # 从 meta 中移除 extra_info，避免重复
+                meta.pop("extra_info", None)
 
             # 添加段落
             self.add_para(para_type, content, meta)
