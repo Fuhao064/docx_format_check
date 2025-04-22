@@ -4,7 +4,15 @@ import json, re, os, zipfile
 from backend.preparation.para_type import ParsedParaType, ParagraphManager
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
-from backend.preparation.extract_media import add_media_to_manager
+
+# 尝试导入 extract_media 模块，如果不存在，则创建一个空函数
+try:
+    from backend.preparation.extract_media import add_media_to_manager
+except ImportError:
+    # 如果模块不存在，创建一个空函数
+    def add_media_to_manager(manager, doc_path):
+        print("未找到 extract_media 模块，无法提取图片和表格")
+        return manager
 # 定义工具函数
 def get_alignment_string(alignment):
     """获取对齐方式的字符串表示"""
@@ -77,17 +85,18 @@ def is_all_caps_string(text):
     # 如果文本为空，返回False
     if not text:
         return False
-
+    
     # 移除空格和标点符号
     import re
-    text = re.sub(r'[\s\p{P}]', '', text)
-
+    text = re.sub(r'[\s\.,;:!?\"\'\\[\\]\\(\\)\\{\\}]', '', text)
+    
     # 如果处理后的文本为空，返回False
     if not text:
         return False
-
+    
     # 检查是否全部是大写字母
     return text.isupper()
+
 
 def extract_para_format_from_style(style)-> dict:
     # 获取段落样式

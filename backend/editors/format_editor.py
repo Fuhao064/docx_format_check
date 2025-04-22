@@ -675,7 +675,7 @@ def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_
         para_manager: 段落管理器实例，包含所有需要格式化的段落
         output_path: 输出文档路径
         errors: 错误信息列表（可选）
-        doc_path: 原文档路径（可选），如果提供则从原文档中提取图片和表格
+        doc_path: 原文档路径（可选），如果提供则直接在原文档上修改文本内容
 
     Returns:
         str: 生成的文档路径
@@ -684,75 +684,69 @@ def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_
     if isinstance(config, str):
         config = load_config(config)
 
-    # 创建新文档
-    doc = Document()
-
-    # 设置页面格式
-    set_paper_format(doc, config)
-
-    # 如果提供了原文档路径，则从原文档中提取图片和表格
-    original_doc = None
-    original_tables = []
-    original_images = []
-    original_image_paths = []
-
+    # 如果提供了原文档路径，则直接在原文档上修改
     if doc_path and os.path.exists(doc_path):
         try:
             # 打开原文档
-            original_doc = Document(doc_path)
+            doc = Document(doc_path)
 
-            # 提取原文档中的表格
-            for table in original_doc.tables:
-                original_tables.append(table)
+            # 设置页面格式
+            set_paper_format(doc, config)
 
-            # 提取原文档中的图片
-            # 注意：python-docx不直接支持提取图片，我们需要使用zipfile模块提取图片
-            try:
-                import zipfile
-                import tempfile
-                import base64
-                import io
-                from PIL import Image
-
-                # 创建临时目录来存储提取的图片
-                temp_dir = tempfile.mkdtemp()
-
-                # 打开docx文件（实际上是一个zip文件）
-                with zipfile.ZipFile(doc_path, 'r') as docx_zip:
-                    # 提取所有图片文件
-                    for item in docx_zip.namelist():
-                        if item.startswith('word/media/'):
-                            # 提取图片数据
-                            image_data = docx_zip.read(item)
-                            image_name = os.path.basename(item)
-
-                            # 保存图片到临时目录
-                            image_path = os.path.join(temp_dir, image_name)
-                            with open(image_path, 'wb') as f:
-                                f.write(image_data)
-
-                            # 获取图片尺寸
-                            try:
-                                with Image.open(io.BytesIO(image_data)) as img:
-                                    width, height = img.size
-                                    # 转换为英寸
-                                    width_inches = width / 96  # 假设96dpi
-                            except Exception as e:
-                                print(f"无法获取图片尺寸: {str(e)}")
-                                width_inches = 6  # 默认宽度
-
-                            # 将图片信息添加到列表中
-                            original_images.append({
-                                'path': image_path,
-                                'width': width_inches
-                            })
-                            original_image_paths.append(image_path)
-
-                print(f"从原文档中提取了 {len(original_tables)} 个表格和 {len(original_images)} 个图片")
-            except Exception as e:
-                print(f"提取原文档中的图片失败: {str(e)}")
+            print(f"成功打开原文档，将直接在原文档上修改文本内容")
         except Exception as e:
-            print(f"打开原文档失败: {str(e)}")
+            print(f"打开原文档失败: {str(e)}，将创建新文档")
+            # 如果打开原文档失败，则创建新文档
+            doc = Document()
+            # 设置页面格式
+            set_paper_format(doc, config)
+    else:
+        # 如果没有提供原文档路径，则创建新文档
+        doc = Document()
+        # 设置页面格式
+        set_paper_format(doc, config)
+
+    # 如果我们使用原文档，则需要记录原文档中的图片和表格段落
+    # 这样我们可以跳过这些段落，只修改文本段落
+    is_original_doc = doc_path and os.path.exists(doc_path) and 'doc' in locals()
+
+    # 如果我们使用原文档，则需要记录原文档中的图片和表格段落
+    if is_original_doc:
+        # 记录原文档中的图片和表格段落索引
+        original_paragraphs = list(doc.paragraphs)
+        original_tables = list(doc.tables)
+
+        # 记录原文档中的图片和表格段落索引
+        image_paragraph_indices = []
+        table_indices = []
+
+        # 查找原文档中的图片段落
+        for i, para in enumerate(original_paragraphs):
+            # 检查段落中是否有图片
+            if '<w:drawing>' in para._p.xml:
+                image_paragraph_indices.append(i)
+                print(f"发现图片段落，索引: {i}")
+
+        # 记录原文档中的表格索引
+        for i in range(len(original_tables)):
+            table_indices.append(i)
+            print(f"发现表格，索引: {i}")
+
+        print(f"原文档中发现 {len(image_paragraph_indices)} 个图片段落和 {len(table_indices)} 个表格")
+
+        # 删除原文档中的所有段落，但保留图片和表格段落
+        # 注意：我们需要从后向前删除，以避免索引变化
+        paragraphs_to_remove = [i for i in range(len(original_paragraphs)) if i not in image_paragraph_indices]
+        paragraphs_to_remove.reverse()  # 从后向前删除
+
+        # 删除非图片段落
+        for i in paragraphs_to_remove:
+            try:
+                p = original_paragraphs[i]._p
+                p.getparent().remove(p)
+                print(f"删除段落，索引: {i}")
+            except Exception as e:
+                print(f"删除段落失败，索引: {i}, 错误: {str(e)}")
 
     # 图表编号计数器
     figure_number = 1
