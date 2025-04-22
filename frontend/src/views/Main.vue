@@ -48,48 +48,48 @@
           </svg>
         </button>
         <button
-          class="p-2 rounded-full hover:bg-[hsl(var(--secondary))] 
+          class="p-2 rounded-full hover:bg-[hsl(var(--secondary))]
                  transition-colors duration-[--transition-speed]"
           @click="docPreview"
           :class="{ 'bg-[hsl(var(--primary)/0.15)] text-[hsl(var(--primary))]': showDocPreview }"
         >
-          <svg 
-            width="20" 
-            height="20" 
-            viewBox="0 0 24 24" 
-            fill="none" 
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
             xmlns="http://www.w3.org/2000/svg"
             class="stroke-[2] transition-colors duration-[--transition-speed]"
             :class="showDocPreview ? 'text-[hsl(var(--primary))]' : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--primary))]'"
           >
-            <path 
-              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" 
-              stroke="currentColor" 
-              stroke-linecap="round" 
+            <path
+              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+              stroke="currentColor"
+              stroke-linecap="round"
               stroke-linejoin="round"
             />
-            <polyline 
-              points="14 2 14 8 20 8" 
-              stroke="currentColor" 
-              stroke-linecap="round" 
+            <polyline
+              points="14 2 14 8 20 8"
+              stroke="currentColor"
+              stroke-linecap="round"
               stroke-linejoin="round"
             />
-            <line 
-              x1="16" 
-              y1="13" 
-              x2="8" 
-              y2="13" 
-              stroke="currentColor" 
-              stroke-linecap="round" 
+            <line
+              x1="16"
+              y1="13"
+              x2="8"
+              y2="13"
+              stroke="currentColor"
+              stroke-linecap="round"
               stroke-linejoin="round"
             />
-            <line 
-              x1="16" 
-              y1="17" 
-              x2="8" 
-              y2="17" 
-              stroke="currentColor" 
-              stroke-linecap="round" 
+            <line
+              x1="16"
+              y1="17"
+              x2="8"
+              y2="17"
+              stroke="currentColor"
+              stroke-linecap="round"
               stroke-linejoin="round"
             />
           </svg>
@@ -208,22 +208,22 @@
             <div v-if="message.sender === 'system'" class="system-message max-w-none mb-4">
               <div v-html="renderMarkdown(message.content)" class="pl-1"></div>
             </div>
-            
+
             <!-- 用户消息 - 圆角矩形气泡 -->
             <div v-else class="user-message bg-[hsl(var(--primary)/0.1)] text-[hsl(var(--foreground))] rounded-lg p-4 border border-[hsl(var(--primary)/0.2)]">
               {{ message.content }}
             </div>
           </div>
-          
+
           <!-- 加载中动画 -->
           <div v-if="isLoading" class="loading-dots flex items-center space-x-1 pl-1">
             <div class="dot"></div>
             <div class="dot"></div>
             <div class="dot"></div>
           </div>
-          
+
           <!-- 添加一个空div来占位 -->
-          <div class="h-10"></div>  
+          <div class="h-10"></div>
         </div>
 
         <!-- 未上传文件 -->
@@ -266,7 +266,7 @@
       </div>
     </main>
     <!-- 底部输入框 -->
-    <div v-if="currentStep >= 5" 
+    <div v-if="currentStep >= 5"
          class="fixed bottom-0 left-0 right-0 flex justify-center pb-4 pt-2 z-30 bg-gradient-to-t from-[hsl(var(--background))] via-[hsl(var(--background))] to-transparent backdrop-blur-sm transition-all duration-300 ease-in-out"
          :class="[
            showDocPreview ? 'mr-[clamp(350px,45%,900px)]' : '',
@@ -345,8 +345,8 @@
     </div>
     <input type="file" ref="fileInput" @change="handleFileUpload" accept=".docx" class="hidden" />
     <input type="file" ref="formatInput" @change="handleFormatUpload" accept=".json" class="hidden" />
-    <DocxPreview 
-      v-if="showDocPreview" 
+    <DocxPreview
+      v-if="showDocPreview"
       :docPath="currentDocumentPath"
       @close="showDocPreview = false"
     />
@@ -359,15 +359,15 @@ import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import DocxPreview from '../components/DocxPreview.vue'
 import { marked } from 'marked'
-import { 
-  initializeDB, 
+import {
+  initializeDB,
   getCurrentTaskState,
-  updateCurrentTaskState, 
-  resetCurrentTaskState, 
-  saveFileInfo, 
-  saveMessage, 
-  saveMessages, 
-  getAllMessages, 
+  updateCurrentTaskState,
+  resetCurrentTaskState,
+  saveFileInfo,
+  saveMessage,
+  saveMessages,
+  getAllMessages,
   clearAllMessages,
   saveFormatErrors,
   getFormatErrors,
@@ -376,7 +376,9 @@ import {
   deleteTask,
   switchTask,
   getTask,
-  updateTask
+  updateTask,
+  saveParagraphManager,
+  getParagraphManager
 } from '../lib/db.js'
 
 // 获取主题模式和通知函数
@@ -446,10 +448,10 @@ watch(currentTask, async (newTask, oldTask) => {
       currentStep.value = 0;
       processingComplete.value = false;
       formatErrors.value = [];
-      
+
       // 读取当前任务状态
       const taskState = await getCurrentTaskState();
-      
+
       // 恢复应用状态
       hasUploadedFile.value = taskState.hasUploadedFile || false;
       hasUploadedFormat.value = taskState.hasUploadedFormat || false;
@@ -459,16 +461,16 @@ watch(currentTask, async (newTask, oldTask) => {
       currentConfigPath.value = taskState.currentConfigPath || '';
       currentStep.value = taskState.currentStep || 0;
       processingComplete.value = taskState.processingComplete || false;
-      
+
       // 根据步骤恢复处理步骤状态
       updateProcessingSteps();
-      
+
       // 恢复消息记录 - 在状态恢复后再加载
       const savedMessages = await getAllMessages();
       if (savedMessages && savedMessages.length > 0) {
         messages.value = savedMessages;
       }
-      
+
       // 恢复格式错误信息 - 在状态恢复后再加载
       try {
         const savedErrors = await getFormatErrors();
@@ -478,7 +480,7 @@ watch(currentTask, async (newTask, oldTask) => {
       } catch (error) {
         console.error('读取格式错误信息失败:', error);
       }
-      
+
       // 如果有消息，确保滚动到最新消息
       nextTick(() => {
         if (messagesContainer.value && messages.value.length > 0) {
@@ -497,10 +499,10 @@ onMounted(async () => {
   try {
     // 初始化数据库
     await initializeDB();
-    
+
     // 读取当前任务状态
     const taskState = await getCurrentTaskState();
-    
+
     // 恢复应用状态
     hasUploadedFile.value = taskState.hasUploadedFile;
     hasUploadedFormat.value = taskState.hasUploadedFormat;
@@ -510,13 +512,13 @@ onMounted(async () => {
     currentConfigPath.value = taskState.currentConfigPath;
     currentStep.value = taskState.currentStep;
     processingComplete.value = taskState.processingComplete;
-    
+
     // 恢复消息记录
     const savedMessages = await getAllMessages();
     if (savedMessages && savedMessages.length > 0) {
       messages.value = savedMessages;
     }
-    
+
     // 恢复格式错误信息
     try {
       const savedErrors = await getFormatErrors();
@@ -526,7 +528,7 @@ onMounted(async () => {
     } catch (error) {
       console.error('读取格式错误信息失败:', error);
     }
-    
+
     // 根据步骤恢复处理步骤状态
     if (currentStep.value > 0) {
       updateProcessingSteps();
@@ -553,13 +555,13 @@ function updateProcessingSteps() {
 
 // 监听应用状态变化，保存到数据库
 watch([
-  hasUploadedFile, 
-  hasUploadedFormat, 
-  uploadedFileName, 
-  formattedFilePath, 
-  currentDocumentPath, 
-  currentConfigPath, 
-  currentStep, 
+  hasUploadedFile,
+  hasUploadedFormat,
+  uploadedFileName,
+  formattedFilePath,
+  currentDocumentPath,
+  currentConfigPath,
+  currentStep,
   processingComplete
 ], async () => {
   try {
@@ -623,14 +625,14 @@ async function resetProcess() {
     messages.value = [];
     processingComplete.value = false;
     formatErrors.value = [];
-    
+
     // 同时清空消息和格式错误
     await clearAllMessages();
     await saveFormatErrors([]);
-    
+
     // 更新数据库中的状态 - 最后执行数据库操作，确保状态一致
     await resetCurrentTaskState();
-    
+
     showNotification('info', '进度重置', '进度已重置，请重新开始', 3000);
   } catch (error) {
     console.error('重置进度失败:', error);
@@ -644,7 +646,7 @@ async function docPreview() {
     showNotification('warning', '未上传文档', '请先上传文档后再查看预览', 3000)
     return
   }
-  
+
   showDocPreview.value = !showDocPreview.value
 }
 // 处理文件上传
@@ -667,7 +669,7 @@ async function handleFileUpload(event) {
       processingSteps.value[0].status = 'completed'
       currentStep.value = 1
       currentDocumentPath.value = response.data.file_path || response.data.file.path
-      
+
       // 保存文件信息到数据库
       try {
         await saveFileInfo({
@@ -679,7 +681,7 @@ async function handleFileUpload(event) {
       } catch (dbError) {
         console.error('保存文件信息失败:', dbError);
       }
-      
+
       // 更新应用状态
       await updateCurrentTaskState({
         hasUploadedFile: true,
@@ -687,7 +689,7 @@ async function handleFileUpload(event) {
         currentDocumentPath: currentDocumentPath.value,
         currentStep: 1
       });
-      
+
       showNotification('success', '上传成功', `文件 "${file.name}" 已成功上传`, 3000)
     } else {
       throw new Error(response.data.message || '上传失败')
@@ -718,7 +720,7 @@ async function handleFormatUpload(event) {
       currentConfigPath.value = response.data.file_path || response.data.config_path
       processingSteps.value[1].status = 'completed'
       currentStep.value = 2
-      
+
       // 保存文件信息到数据库
       try {
         await saveFileInfo({
@@ -730,14 +732,14 @@ async function handleFormatUpload(event) {
       } catch (dbError) {
         console.error('保存格式文件信息失败:', dbError);
       }
-      
+
       // 更新应用状态
       await updateCurrentTaskState({
         hasUploadedFormat: true,
         currentConfigPath: currentConfigPath.value,
         currentStep: 2
       });
-      
+
       showNotification('success', '上传成功', `格式要求 "${file.name}" 已成功上传`, 3000)
       processDocument()
     } else {
@@ -758,12 +760,12 @@ async function processDocument() {
   try {
     showNotification('info', '文档处理中', '正在检查文档格式，请稍候...', 0);
     processingSteps.value[2].status = 'in_progress';
-    
+
     // 更新应用状态
     await updateCurrentTaskState({
       currentStep: 3
     });
-    
+
     const response = await axios.post('/api/check-format', {
       doc_path: currentDocumentPath.value,
       config_path: currentConfigPath.value
@@ -776,13 +778,26 @@ async function processDocument() {
         message: String(err.message || '未知错误'),
         location: err.location ? String(err.location) : null
       }));
-      
+
       // 保存格式错误到数据库，使用单独的函数调用而不是依赖watch
       await saveFormatErrors(formatErrors.value);
-      
+
+      // 如果响应中包含para_manager，将其保存到前端数据库
+      if (response.data.para_manager) {
+        console.log('保存para_manager到前端数据库');
+        try {
+          await saveParagraphManager(currentDocumentPath.value, response.data.para_manager);
+          console.log('para_manager保存成功');
+        } catch (dbError) {
+          console.error('保存para_manager失败:', dbError);
+        }
+      } else {
+        console.log('响应中不包含para_manager');
+      }
+
       processingSteps.value[2].status = 'completed';
       currentStep.value = 3;
-      
+
       generateReport();
     } else {
       throw new Error(response.data.message || '格式检查失败');
@@ -799,33 +814,38 @@ async function generateReport() {
   try {
     showNotification('info', '生成报告中', '正在生成格式分析报告，请稍候...', 0);
     processingSteps.value[3].status = 'in_progress';
-    
+
     // 更新应用状态
     await updateCurrentTaskState({
       currentStep: 4
     });
-    
+
     // 使用已保存在formatErrors.value中的错误，无需重新发送
     // 错误已经在processDocument函数中保存到数据库
+    // 打印错误列表，便于调试
+    console.log('生成报告错误列表:', formatErrors.value)
+    console.log('生成报告错误数量:', formatErrors.value.length)
+
     const response = await axios.post('/api/generate-report', {
       doc_path: currentDocumentPath.value,
-      errors: formatErrors.value
+      errors: formatErrors.value,
+      original_filename: uploadedFileName.value
     });
 
     if (response.data.success) {
       processingSteps.value[3].status = 'completed';
       processingComplete.value = true;
       currentStep.value = 5;
-      
+
       // 更新应用状态
       await updateCurrentTaskState({
         processingComplete: true,
         currentStep: 5
       });
-      
+
       // 使用Markdown格式的系统消息
       const initialMessage = `# 文档格式分析完成
-      
+
 ## 检查结果
 
 我发现了${formatErrors.value ? formatErrors.value.length : '一些'}个格式问题。
@@ -836,18 +856,18 @@ async function generateReport() {
 - 生成格式修正报告
 - 帮我优化文档的整体格式
 `;
-      
+
       const systemMessage = {
         content: initialMessage,
         sender: 'system',
         timestamp: new Date()
       };
-      
+
       messages.value.push(systemMessage);
-      
+
       // 保存所有消息到数据库
       await saveMessages(messages.value);
-      
+
       showNotification('success', '处理完成', '文档格式分析已完成', 3000);
     } else {
       throw new Error(response.data.message || '生成报告失败');
@@ -885,18 +905,39 @@ async function useDefaultFormat() {
 async function downloadReport() {
   try {
     showNotification('info', '下载中', '正在准备下载报告...', 3000)
-    const response = await axios.get('/api/download-report', {
-      params: { doc_path: currentDocumentPath.value },
-      responseType: 'blob'
+
+    // 打印错误列表，便于调试
+    console.log('报告错误列表:', formatErrors.value)
+    console.log('报告错误数量:', formatErrors.value.length)
+
+    // 先使用POST请求生成报告
+    const generateResponse = await axios.post('/api/download-report', {
+      doc_path: currentDocumentPath.value,
+      errors: formatErrors.value,
+      original_filename: uploadedFileName.value
     })
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `${uploadedFileName.value.split('.')[0]}_report.docx`)
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    showNotification('success', '下载完成', '报告已成功下载', 3000)
+
+    if (generateResponse.data.success) {
+      // 然后使用GET请求下载生成的报告
+      const downloadResponse = await axios.get('/api/get-report', {
+        params: {
+          doc_path: generateResponse.data.report_path,
+          original_filename: uploadedFileName.value
+        },
+        responseType: 'blob'
+      })
+
+      const url = window.URL.createObjectURL(new Blob([downloadResponse.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `report_${uploadedFileName.value}`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      showNotification('success', '下载完成', '报告已成功下载', 3000)
+    } else {
+      throw new Error(generateResponse.data.message || '生成报告失败')
+    }
   } catch (error) {
     console.error('下载报告时出错:', error)
     showNotification('error', '下载失败', `下载报告时出错: ${error.message || error}`, 5000)
@@ -907,18 +948,49 @@ async function downloadReport() {
 async function downloadMarkedDocument() {
   try {
     showNotification('info', '下载中', '正在准备下载标记错误的文档...', 3000)
-    const response = await axios.get('/api/download-marked-document', {
-      params: { doc_path: currentDocumentPath.value },
-      responseType: 'blob'
+
+    // 打印错误列表，便于调试
+    console.log('错误列表:', formatErrors.value)
+    console.log('错误数量:', formatErrors.value.length)
+
+    // 从前端数据库获取para_manager
+    let para_manager = null;
+    try {
+      para_manager = await getParagraphManager(currentDocumentPath.value);
+      console.log('从前端数据库获取para_manager:', para_manager ? '成功' : '失败');
+    } catch (dbError) {
+      console.error('获取para_manager失败:', dbError);
+    }
+
+    // 先使用POST请求生成标记文档
+    const generateResponse = await axios.post('/api/download-marked-document', {
+      doc_path: currentDocumentPath.value,
+      errors: formatErrors.value,
+      original_filename: uploadedFileName.value,
+      para_manager: para_manager
     })
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `${uploadedFileName.value.split('.')[0]}_marked.docx`)
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    showNotification('success', '下载完成', '标记错误的文档已成功下载', 3000)
+
+    if (generateResponse.data.success) {
+      // 然后使用GET请求下载生成的文档
+      const downloadResponse = await axios.get('/api/get-marked-document', {
+        params: {
+          doc_path: generateResponse.data.marked_doc_path,
+          original_filename: uploadedFileName.value
+        },
+        responseType: 'blob'
+      })
+
+      const url = window.URL.createObjectURL(new Blob([downloadResponse.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `marked_${uploadedFileName.value}`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      showNotification('success', '下载完成', '标记错误的文档已成功下载', 3000)
+    } else {
+      throw new Error(generateResponse.data.message || '生成标记文档失败')
+    }
   } catch (error) {
     console.error('下载标记文档时出错:', error)
     showNotification('error', '下载失败', `下载标记文档时出错: ${error.message || error}`, 5000)
@@ -931,7 +1003,7 @@ async function sendMessage() {
     showNotification('warning', '请输入消息', '消息不能为空', 3000)
     return
   }
-  
+
   // 先添加用户消息到列表
   const userMessage = userInput.value.trim()
   const newMessage = {
@@ -939,37 +1011,37 @@ async function sendMessage() {
     sender: 'user',
     timestamp: new Date()
   }
-  
+
   messages.value.push(newMessage)
-  
+
   // 保存完整消息列表到数据库
   try {
     await saveMessages(messages.value)
   } catch (error) {
     console.error('保存用户消息失败:', error)
   }
-  
+
   // 清空输入框
   userInput.value = ''
-  
+
   try {
     // 显示加载状态
     isLoading.value = true
-    
+
     const response = await axios.post('/api/send-message', {
       message: userMessage,
       doc_path: currentDocumentPath.value
     })
-    
+
     if (response.data.success) {
       const systemResponse = {
         content: response.data.message,
         sender: 'system',
         timestamp: new Date()
       }
-      
+
       messages.value.push(systemResponse)
-      
+
       // 保存完整消息列表到数据库
       try {
         await saveMessages(messages.value)
@@ -982,16 +1054,16 @@ async function sendMessage() {
   } catch (error) {
     console.error('发送消息时出错:', error)
     showNotification('error', '发送失败', `发送消息时出错: ${error.message || error}`, 5000)
-    
+
     // 添加错误消息到对话
     const errorMessage = {
       content: `发送消息时出错: ${error.message || '未知错误'}`,
       sender: 'system',
       timestamp: new Date()
     }
-    
+
     messages.value.push(errorMessage)
-    
+
     // 保存完整消息列表到数据库
     try {
       await saveMessages(messages.value)
@@ -1008,20 +1080,62 @@ async function sendMessage() {
 async function applyFormat() {
   try {
     showNotification('info', '应用格式中', '正在应用格式...', 0)
+
+    // 打印错误列表，便于调试
+    console.log('应用格式错误列表:', formatErrors.value)
+    console.log('应用格式错误数量:', formatErrors.value.length)
+
+    // 检查必要参数
+    if (!currentDocumentPath.value || !currentConfigPath.value) {
+      throw new Error('缺少必要参数，请先上传文档和配置文件')
+    }
+
+    // 从前端数据库获取para_manager
+    let para_manager = null;
+    try {
+      para_manager = await getParagraphManager(currentDocumentPath.value);
+      console.log('从前端数据库获取para_manager:', para_manager ? '成功' : '失败');
+    } catch (dbError) {
+      console.error('获取para_manager失败:', dbError);
+    }
+
     const response = await axios.post('/api/apply-format', {
       doc_path: currentDocumentPath.value,
       config_path: currentConfigPath.value,
+      errors: formatErrors.value,
+      original_filename: uploadedFileName.value,
+      para_manager: para_manager
     })
+
     if (response.data.success) {
       formattedFilePath.value = response.data.output_path
       //自动下载格式化文档
-      const link = document.createElement('a')
-      link.href = formattedFilePath.value
-      link.setAttribute('download', `${uploadedFileName.value.split('.')[0]}_formatted.docx`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      showNotification('success', '应用格式完成', '格式已成功应用', 3000)
+      if (formattedFilePath.value) {
+        try {
+          // 使用GET请求下载生成的格式化文档
+          const downloadResponse = await axios.get('/api/get-formatted-document', {
+            params: {
+              doc_path: formattedFilePath.value,
+              original_filename: uploadedFileName.value
+            },
+            responseType: 'blob'
+          })
+
+          const url = window.URL.createObjectURL(new Blob([downloadResponse.data]))
+          const link = document.createElement('a')
+          link.href = url
+          link.setAttribute('download', `${uploadedFileName.value.split('.')[0]}_formatted.docx`)
+          document.body.appendChild(link)
+          link.click()
+          link.remove()
+          showNotification('success', '应用格式完成', '格式已成功应用', 3000)
+        } catch (downloadError) {
+          console.error('下载格式化文档失败:', downloadError)
+          showNotification('error', '下载失败', `下载格式化文档失败: ${downloadError.message || downloadError}`, 5000)
+        }
+      } else {
+        throw new Error('生成的文件路径无效')
+      }
     } else {
       throw new Error(response.data.message || '应用格式失败')
     }

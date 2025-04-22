@@ -8,13 +8,18 @@ import re
 import requests
 from typing import Dict, List, Optional, Union, Tuple
 from preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
+from docx.oxml.ns import qn  # 导入qn函数，用于XML命名空间
 
 # 全局映射字典
 ALIGNMENT_MAP = {
     "left": WD_ALIGN_PARAGRAPH.LEFT,
     "center": WD_ALIGN_PARAGRAPH.CENTER,
     "right": WD_ALIGN_PARAGRAPH.RIGHT,
-    "justify": WD_ALIGN_PARAGRAPH.JUSTIFY
+    "justify": WD_ALIGN_PARAGRAPH.JUSTIFY,
+    "左对齐": WD_ALIGN_PARAGRAPH.LEFT,
+    "居中": WD_ALIGN_PARAGRAPH.CENTER,
+    "右对齐": WD_ALIGN_PARAGRAPH.RIGHT,
+    "两端对齐": WD_ALIGN_PARAGRAPH.JUSTIFY
 }
 
 LINE_SPACING_MAP = {
@@ -40,19 +45,46 @@ def apply_font_settings(run, font_settings: Dict, is_chinese: bool = True):
         is_chinese: 是否为中文
     """
     # 设置字体族
-    if is_chinese and 'zh_family' in font_settings:
-        run.font.name = font_settings['zh_family']
-    elif not is_chinese and 'en_family' in font_settings:
+    if 'en_family' in font_settings:
+        # 先设置英文字体（对所有文本设置默认字体）
         run.font.name = font_settings['en_family']
+
+    # 然后使用XML操作设置中文字体
+    if 'zh_family' in font_settings:
+        try:
+            # 确保元素存在
+            if not hasattr(run, 'element') or not hasattr(run.element, 'rPr'):
+                print(f"运行元素或rPr不存在，无法设置中文字体")
+                return
+
+            # 如果运行元素的rPr不存在，添加它
+            if not run.element.rPr:
+                run.element._add_rPr()
+
+            # 设置东亚字体（中文字体）
+            run.element.rPr.rFonts.set(qn('w:eastAsia'), font_settings['zh_family'])
+            print(f"成功设置中文字体: {font_settings['zh_family']}")
+        except Exception as e:
+            print(f"设置中文字体时出错: {str(e)}")
 
     # 设置字体大小
     if 'size' in font_settings:
         size_text = font_settings['size']
-        if isinstance(size_text, str) and 'pt' in size_text:
+        # 如果值是"Unknown"，使用默认值
+        if size_text == "Unknown" or size_text == "unknown":
+            # 使用默认字体大小（10.5pt）
+            run.font.size = Pt(10.5)
+            print(f"字体大小值为'Unknown'，使用默认值10.5pt")
+        elif isinstance(size_text, str) and 'pt' in size_text:
             size = float(size_text.replace('pt', ''))
             run.font.size = Pt(size)
         else:
-            run.font.size = Pt(float(size_text))
+            try:
+                run.font.size = Pt(float(size_text))
+            except (ValueError, TypeError):
+                # 如果无法转换为浮点数，使用默认值
+                run.font.size = Pt(10.5)
+                print(f"无法将字体大小值'{size_text}'转换为浮点数，使用默认值10.5pt")
 
     # 设置加粗
     if 'bold' in font_settings:
@@ -84,7 +116,16 @@ def apply_paragraph_format(paragraph, format_settings: Dict):
     # 设置行间距
     if 'line_spacing' in format_settings:
         spacing = format_settings['line_spacing']
-        if spacing in LINE_SPACING_MAP:
+        if isinstance(spacing, str) and ('固定值' in spacing or 'Fixed value' in spacing):
+            # 处理固定值行间距
+            pt_match = re.search(r'(\d+(\.\d+)?)\s*pt', spacing)
+            if pt_match:
+                pt_value = float(pt_match.group(1))
+                paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.EXACTLY
+                paragraph.paragraph_format.line_spacing = Pt(pt_value)
+        elif spacing in LINE_SPACING_MAP:
+            # 处理倍数行间距
+            paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
             if spacing == "1.5":
                 paragraph.paragraph_format.line_spacing = 1.5
             elif spacing == "2.0" or spacing == "double":
@@ -94,8 +135,10 @@ def apply_paragraph_format(paragraph, format_settings: Dict):
         else:
             # 尝试直接设置具体数值
             try:
+                paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
                 paragraph.paragraph_format.line_spacing = float(spacing)
             except ValueError:
+                paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
                 paragraph.paragraph_format.line_spacing = 1.5  # 默认值
 
     # 设置对齐方式
@@ -111,42 +154,141 @@ def apply_paragraph_format(paragraph, format_settings: Dict):
         # 首行缩进
         if 'first_line' in indentation:
             first_line = indentation['first_line']
-            if isinstance(first_line, str) and 'cm' in first_line:
+            # 如果值是"Unknown"，使用默认值
+            if first_line == "Unknown" or first_line == "unknown":
+                # 使用默认缩进值（0.5cm）
+                paragraph.paragraph_format.first_line_indent = Cm(0.5)
+                print(f"首行缩进值为'Unknown'，使用默认值0.5cm")
+            # 处理字符单位的缩进
+            elif isinstance(first_line, str) and 'character' in first_line:
+                # 使用XML操作设置字符单位的缩进
+                try:
+                    # 提取字符数量
+                    char_match = re.search(r'(\d+(\.\d+)?)', first_line)
+                    if char_match:
+                        char_value = int(float(char_match.group(1)) * 100)  # 转换为整数，并乘以100（Word中的字符单位是1/100字符）
+                        # 设置首行缩进为0（清除原有的缩进设置）
+                        paragraph.paragraph_format.first_line_indent = 0
+                        # 使用XML操作设置字符单位的缩进
+                        paragraph_format = paragraph.paragraph_format
+                        if not paragraph_format._element.pPr:
+                            paragraph_format._element._add_pPr()
+                        if not paragraph_format._element.pPr.ind:
+                            paragraph_format._element.pPr._add_ind()
+                        paragraph_format._element.pPr.ind.set(qn("w:firstLineChars"), str(char_value))
+                        print(f"设置首行缩进为{char_match.group(1)}字符")
+                    else:
+                        # 如果无法提取字符数量，使用默认值
+                        paragraph.paragraph_format.first_line_indent = Cm(0.5)
+                        print(f"无法提取字符数量，使用默认值0.5cm")
+                except Exception as e:
+                    # 如果设置失败，使用默认值
+                    paragraph.paragraph_format.first_line_indent = Cm(0.5)
+                    print(f"设置字符单位缩进失败: {str(e)}，使用默认值0.5cm")
+            elif isinstance(first_line, str) and 'cm' in first_line:
                 paragraph.paragraph_format.first_line_indent = Cm(float(first_line.replace('cm', '')))
             else:
-                paragraph.paragraph_format.first_line_indent = Cm(float(first_line))
+                try:
+                    paragraph.paragraph_format.first_line_indent = Cm(float(first_line))
+                except (ValueError, TypeError):
+                    # 如果无法转换为浮点数，尝试处理字符单位
+                    try:
+                        # 检查是否包含“字符”或“character”
+                        if isinstance(first_line, str) and ("字符" in first_line or "character" in first_line.lower()):
+                            # 提取字符数量
+                            char_match = re.search(r'(\d+(\.\d+)?)', first_line)
+                            if char_match:
+                                char_value = int(float(char_match.group(1)) * 100)  # 转换为整数，并乘以100
+                                # 设置首行缩进为0（清除原有的缩进设置）
+                                paragraph.paragraph_format.first_line_indent = 0
+                                # 使用XML操作设置字符单位的缩进
+                                paragraph_format = paragraph.paragraph_format
+                                if not paragraph_format._element.pPr:
+                                    paragraph_format._element._add_pPr()
+                                if not paragraph_format._element.pPr.ind:
+                                    paragraph_format._element.pPr._add_ind()
+                                paragraph_format._element.pPr.ind.set(qn("w:firstLineChars"), str(char_value))
+                                print(f"设置首行缩进为{char_match.group(1)}字符")
+                                return
+                        # 如果不是字符单位或无法提取字符数量，使用默认值
+                        paragraph.paragraph_format.first_line_indent = Cm(0.5)
+                        print(f"无法将首行缩进值'{first_line}'转换为浮点数或字符单位，使用默认值0.5cm")
+                    except Exception as e:
+                        # 如果设置失败，使用默认值
+                        paragraph.paragraph_format.first_line_indent = Cm(0.5)
+                        print(f"设置首行缩进失败: {str(e)}，使用默认值0.5cm")
 
         # 左缩进
         if 'left' in indentation:
             left = indentation['left']
-            if isinstance(left, str) and 'cm' in left:
+            # 如果值是"Unknown"，使用默认值
+            if left == "Unknown" or left == "unknown":
+                # 使用默认缩进值（0cm）
+                paragraph.paragraph_format.left_indent = Cm(0)
+                print(f"左缩进值为'Unknown'，使用默认值0cm")
+            elif isinstance(left, str) and 'cm' in left:
                 paragraph.paragraph_format.left_indent = Cm(float(left.replace('cm', '')))
             else:
-                paragraph.paragraph_format.left_indent = Cm(float(left))
+                try:
+                    paragraph.paragraph_format.left_indent = Cm(float(left))
+                except (ValueError, TypeError):
+                    # 如果无法转换为浮点数，使用默认值
+                    paragraph.paragraph_format.left_indent = Cm(0)
+                    print(f"无法将左缩进值'{left}'转换为浮点数，使用默认值0cm")
 
         # 右缩进
         if 'right' in indentation:
             right = indentation['right']
-            if isinstance(right, str) and 'cm' in right:
+            # 如果值是"Unknown"，使用默认值
+            if right == "Unknown" or right == "unknown":
+                # 使用默认缩进值（0cm）
+                paragraph.paragraph_format.right_indent = Cm(0)
+                print(f"右缩进值为'Unknown'，使用默认值0cm")
+            elif isinstance(right, str) and 'cm' in right:
                 paragraph.paragraph_format.right_indent = Cm(float(right.replace('cm', '')))
             else:
-                paragraph.paragraph_format.right_indent = Cm(float(right))
+                try:
+                    paragraph.paragraph_format.right_indent = Cm(float(right))
+                except (ValueError, TypeError):
+                    # 如果无法转换为浮点数，使用默认值
+                    paragraph.paragraph_format.right_indent = Cm(0)
+                    print(f"无法将右缩进值'{right}'转换为浮点数，使用默认值0cm")
 
         # 段前距
         if 'space_before' in indentation:
             space_before = indentation['space_before']
-            if isinstance(space_before, str) and 'cm' in space_before:
+            # 如果值是"Unknown"，使用默认值
+            if space_before == "Unknown" or space_before == "unknown":
+                # 使用默认段前距值（0cm）
+                paragraph.paragraph_format.space_before = Cm(0)
+                print(f"段前距值为'Unknown'，使用默认值0cm")
+            elif isinstance(space_before, str) and 'cm' in space_before:
                 paragraph.paragraph_format.space_before = Cm(float(space_before.replace('cm', '')))
             else:
-                paragraph.paragraph_format.space_before = Cm(float(space_before))
+                try:
+                    paragraph.paragraph_format.space_before = Cm(float(space_before))
+                except (ValueError, TypeError):
+                    # 如果无法转换为浮点数，使用默认值
+                    paragraph.paragraph_format.space_before = Cm(0)
+                    print(f"无法将段前距值'{space_before}'转换为浮点数，使用默认值0cm")
 
         # 段后距
         if 'space_after' in indentation:
             space_after = indentation['space_after']
-            if isinstance(space_after, str) and 'cm' in space_after:
+            # 如果值是"Unknown"，使用默认值
+            if space_after == "Unknown" or space_after == "unknown":
+                # 使用默认段后距值（0cm）
+                paragraph.paragraph_format.space_after = Cm(0)
+                print(f"段后距值为'Unknown'，使用默认值0cm")
+            elif isinstance(space_after, str) and 'cm' in space_after:
                 paragraph.paragraph_format.space_after = Cm(float(space_after.replace('cm', '')))
             else:
-                paragraph.paragraph_format.space_after = Cm(float(space_after))
+                try:
+                    paragraph.paragraph_format.space_after = Cm(float(space_after))
+                except (ValueError, TypeError):
+                    # 如果无法转换为浮点数，使用默认值
+                    paragraph.paragraph_format.space_after = Cm(0)
+                    print(f"无法将段后距值'{space_after}'转换为浮点数，使用默认值0cm")
 
 def is_chinese_char(char: str) -> bool:
     """判断字符是否为中文"""
@@ -286,10 +428,20 @@ def set_paper_format(doc: Document, config: Dict):
         margins = paper_config['margins']
 
         for margin_name, margin_value in margins.items():
-            if isinstance(margin_value, str) and 'cm' in margin_value:
+            # 如果值是"Unknown"，使用默认值
+            if margin_value == "Unknown" or margin_value == "unknown":
+                # 使用默认边距值（2.54cm = 1英寸）
+                margin_cm = 2.54
+                print(f"边距值为'Unknown'，使用默认值{margin_cm}cm")
+            elif isinstance(margin_value, str) and 'cm' in margin_value:
                 margin_cm = float(margin_value.replace('cm', ''))
             else:
-                margin_cm = float(margin_value)
+                try:
+                    margin_cm = float(margin_value)
+                except (ValueError, TypeError):
+                    # 如果无法转换为浮点数，使用默认值
+                    margin_cm = 2.54
+                    print(f"无法将边距值'{margin_value}'转换为浮点数，使用默认值{margin_cm}cm")
 
             if margin_name == 'top':
                 section.top_margin = Cm(margin_cm)
@@ -514,9 +666,9 @@ def format_table_caption(config: Dict, doc_path: str, table_number: int, caption
 
     return output_file
 
-def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_path: str) -> str:
+def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_path: str, errors: Optional[List[Dict]] = None) -> str:
     """
-    根据段落管理器和配置文件生成格式化的文档
+    根据段落管理器和配置文件生成格式化的文档，并根据错误信息进行修改
 
     Args:
         config: 格式配置字典或配置文件路径
@@ -694,14 +846,60 @@ def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_
                     apply_font_settings(run, font_settings, is_chinese)
             else:
                 # 无特殊字体设置，使用默认体
-                paragraph.add_run(para_info.content)
+                # 使用默认体
+                run = paragraph.add_run(para_info.content)
+
+                # 如果是参考文献类型，根据配置设置字体
+                if para_type == 'references' or para_type == 'references_content':
+                    # 尝试从配置中获取参考文献的字体设置
+                    ref_config = config.get('references', {}) or config.get('references_content', {})
+                    ref_fonts = ref_config.get('fonts', {})
+
+                    if ref_fonts:
+                        # 如果配置中有字体设置，使用配置中的设置
+                        apply_font_settings(run, ref_fonts)
+                    else:
+                        # 如果配置中没有字体设置，使用默认值
+                        # 设置英文字体
+                        run.font.name = 'Times New Roman'
+                        # 设置中文字体
+                        run.element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                        # 设置字体大小（如果没有特别指定）
+                        if not hasattr(run.font, 'size') or run.font.size is None:
+                            run.font.size = Pt(10.5)
+
+                if errors:
+                    for error in errors:
+                        if error['location'] and error['location'][:20] in para_info.content[:20]:
+                            run.font.color.rgb = RGBColor(255, 0, 0) # 红色标记错误
+                            break # 找到第一个匹配的错误就跳出循环
         else:
             # 使用默认体
-            paragraph.add_run(para_info.content)
+            run = paragraph.add_run(para_info.content)
+
+            # 如果是参考文献类型，根据配置设置字体
+            if para_type == 'references' or para_type == 'references_content':
+                # 尝试从配置中获取参考文献的字体设置
+                ref_config = config.get('references', {}) or config.get('references_content', {})
+                ref_fonts = ref_config.get('fonts', {})
+
+                if ref_fonts:
+                    # 如果配置中有字体设置，使用配置中的设置
+                    apply_font_settings(run, ref_fonts)
+                else:
+                    # 如果配置中没有字体设置，使用默认值
+                    # 设置英文字体
+                    run.font.name = 'Times New Roman'
+                    # 设置中文字体
+                    run.element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                    # 设置字体大小（如果没有特别指定）
+                    if not hasattr(run.font, 'size') or run.font.size is None:
+                        run.font.size = Pt(10.5)
 
     # 保存文档
     doc.save(output_path)
 
+    # 返回文档路径
     return output_path
 
 # 使用示例

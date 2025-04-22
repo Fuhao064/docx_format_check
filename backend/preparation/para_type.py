@@ -248,3 +248,29 @@ class ParagraphManager:
 
     def __repr__(self) -> str:
         return f"<ParagraphManager with {len(self)} paragraphs>"
+
+    def add_paragraph_from_dict(self, para_dict: Dict) -> None:
+        """
+        从字典中添加段落
+        :param para_dict: 段落字典，包含 type、content 和 meta 字段
+        """
+        try:
+            # 将字符串类型转换为ParsedParaType枚举
+            para_type_str = para_dict.get("type")
+            if not para_type_str:
+                print(f"段落字典缺少type字段: {para_dict}")
+                return
+
+            try:
+                para_type = ParsedParaType(para_type_str)
+            except ValueError:
+                print(f"无效的段落类型: {para_type_str}")
+                para_type = ParsedParaType.OTHERS
+
+            content = para_dict.get("content", "")
+            meta = para_dict.get("meta", {})
+
+            # 添加段落
+            self.add_para(para_type, content, meta)
+        except Exception as e:
+            print(f"从字典添加段落时出错: {str(e)}")

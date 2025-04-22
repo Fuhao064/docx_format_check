@@ -30,14 +30,14 @@ db.version(3).stores({
   formatErrors: '++id, taskId, message, location, timestamp'
 }).upgrade(async tx => {
   console.log('升级到数据库版本3，支持多任务管理');
-  
+
   // 获取当前应用状态
   const oldAppState = await tx.appState.get(1);
-  
+
   if (oldAppState) {
     // 创建默认任务
     const defaultTaskId = Date.now().toString();
-    
+
     // 保存默认任务
     await tx.tasks.add({
       id: defaultTaskId,
@@ -45,7 +45,7 @@ db.version(3).stores({
       createdAt: new Date(),
       lastUpdated: new Date()
     });
-    
+
     // 将原有状态迁移到任务状态
     await tx.taskState.add({
       id: Date.now().toString(),
@@ -60,14 +60,14 @@ db.version(3).stores({
       processingComplete: oldAppState.processingComplete || false,
       lastUpdated: new Date()
     });
-    
+
     // 更新应用状态，记录当前活动的任务ID
     await tx.appState.update(1, {
       ...oldAppState,
       currentTaskId: defaultTaskId,
       lastUpdated: new Date()
     });
-    
+
     // 将消息关联到默认任务
     const messages = await tx.messages.toArray();
     for (const message of messages) {
@@ -76,7 +76,7 @@ db.version(3).stores({
         taskId: defaultTaskId
       });
     }
-    
+
     // 将格式错误关联到默认任务
     const errors = await tx.formatErrors.toArray();
     for (const error of errors) {
@@ -85,7 +85,7 @@ db.version(3).stores({
         taskId: defaultTaskId
       });
     }
-    
+
     // 将文件关联到默认任务
     const files = await tx.files.toArray();
     for (const file of files) {
@@ -103,14 +103,14 @@ const initializeDB = async () => {
   if (appStateCount === 0) {
     // 创建默认任务
     const defaultTaskId = Date.now().toString();
-    
+
     // 创建应用状态
     await db.appState.put({
       id: 1,
       currentTaskId: defaultTaskId,
       lastUpdated: new Date()
     });
-    
+
     // 创建默认任务
     await db.tasks.put({
       id: defaultTaskId,
@@ -118,7 +118,7 @@ const initializeDB = async () => {
       createdAt: new Date(),
       lastUpdated: new Date()
     });
-    
+
     // 创建任务状态
     await db.taskState.put({
       id: Date.now().toString(),
@@ -135,6 +135,19 @@ const initializeDB = async () => {
     });
   }
 };
+
+// 升级数据库以支持保存paragraphManager
+db.version(4).stores({
+  appState: 'id, lastUpdated, currentTaskId',
+  tasks: 'id, title, createdAt, lastUpdated',
+  taskState: 'id, taskId, hasUploadedFile, hasUploadedFormat, uploadedFileName, formattedFilePath, currentDocumentPath, currentConfigPath, currentStep, processingComplete, lastUpdated',
+  files: 'id, taskId, name, path, type, lastUpdated',
+  messages: '++id, taskId, content, sender, timestamp',
+  formatErrors: '++id, taskId, message, location, timestamp',
+  paragraphManager: 'id, taskId, docPath, data, lastUpdated'
+}).upgrade(tx => {
+  console.log('升级到数据库版本4，添加paragraphManager表');
+});
 
 // 获取应用状态
 const getAppState = async () => {
@@ -173,7 +186,7 @@ const getAllTasks = async () => {
 // 创建新任务
 const createTask = async (title = '新任务') => {
   const taskId = Date.now().toString();
-  
+
   // 创建任务
   await db.tasks.put({
     id: taskId,
@@ -181,7 +194,7 @@ const createTask = async (title = '新任务') => {
     createdAt: new Date(),
     lastUpdated: new Date()
   });
-  
+
   // 创建任务状态
   await db.taskState.put({
     id: Date.now().toString(),
@@ -196,10 +209,10 @@ const createTask = async (title = '新任务') => {
     processingComplete: false,
     lastUpdated: new Date()
   });
-  
+
   // 切换到新任务
   await switchTask(taskId);
-  
+
   return taskId;
 };
 
@@ -207,19 +220,19 @@ const createTask = async (title = '新任务') => {
 const deleteTask = async (taskId) => {
   // 获取当前应用状态
   const appState = await getAppState();
-  
+
   // 删除任务相关数据
   await db.taskState.where('taskId').equals(taskId).delete();
   await db.messages.where('taskId').equals(taskId).delete();
   await db.formatErrors.where('taskId').equals(taskId).delete();
   await db.files.where('taskId').equals(taskId).delete();
   await db.tasks.delete(taskId);
-  
+
   // 如果删除的是当前任务，切换到其他任务
   if (appState.currentTaskId === taskId) {
     // 获取剩余任务
     const remainingTasks = await getAllTasks();
-    
+
     if (remainingTasks.length > 0) {
       // 切换到第一个可用任务
       await switchTask(remainingTasks[0].id);
@@ -228,7 +241,7 @@ const deleteTask = async (taskId) => {
       await createTask();
     }
   }
-  
+
   return true;
 };
 
@@ -241,13 +254,13 @@ const getTask = async (taskId) => {
 const updateTask = async (taskId, taskData) => {
   const task = await getTask(taskId);
   if (!task) return null;
-  
+
   await db.tasks.update(taskId, {
     ...task,
     ...taskData,
     lastUpdated: new Date()
   });
-  
+
   return await getTask(taskId);
 };
 
@@ -260,7 +273,7 @@ const getCurrentTaskState = async () => {
 // 获取指定任务状态
 const getTaskState = async (taskId) => {
   const taskState = await db.taskState.where('taskId').equals(taskId).first();
-  
+
   if (!taskState) {
     // 如果找不到任务状态，创建默认状态
     const newTaskState = {
@@ -276,24 +289,24 @@ const getTaskState = async (taskId) => {
       processingComplete: false,
       lastUpdated: new Date()
     };
-    
+
     await db.taskState.put(newTaskState);
     return newTaskState;
   }
-  
+
   return taskState;
 };
 
 // 更新任务状态
 const updateTaskState = async (taskId, stateData) => {
   const current = await getTaskState(taskId);
-  
+
   await db.taskState.update(current.id, {
     ...current,
     ...stateData,
     lastUpdated: new Date()
   });
-  
+
   return await getTaskState(taskId);
 };
 
@@ -306,7 +319,7 @@ const updateCurrentTaskState = async (stateData) => {
 // 重置任务状态
 const resetTaskState = async (taskId) => {
   const current = await getTaskState(taskId);
-  
+
   await db.taskState.update(current.id, {
     taskId: current.taskId,
     hasUploadedFile: false,
@@ -319,7 +332,7 @@ const resetTaskState = async (taskId) => {
     processingComplete: false,
     lastUpdated: new Date()
   });
-  
+
   return await getTaskState(taskId);
 };
 
@@ -333,14 +346,14 @@ const resetCurrentTaskState = async () => {
 const saveFileInfo = async (fileInfo) => {
   const taskId = await getCurrentTaskId();
   const id = Date.now().toString();
-  
+
   await db.files.put({
     id,
     taskId,
     ...fileInfo,
     lastUpdated: new Date()
   });
-  
+
   return id;
 };
 
@@ -358,38 +371,38 @@ const deleteFileInfo = async (id) => {
 const updateFileInfo = async (id, fileInfo) => {
   const current = await getFileInfo(id);
   if (!current) return null;
-  
+
   await db.files.update(id, {
     ...current,
     ...fileInfo,
     lastUpdated: new Date()
   });
-  
+
   return await getFileInfo(id);
 };
 
 // 保存消息
 const saveMessage = async (message) => {
   const taskId = await getCurrentTaskId();
-  
+
   const id = await db.messages.add({
     ...message,
     taskId,
     timestamp: message.timestamp || new Date()
   });
-  
+
   return id;
 };
 
 // 批量保存消息
 const saveMessages = async (messages) => {
   const taskId = await getCurrentTaskId();
-  
+
   // 使用事务确保原子性操作
   return await db.transaction('rw', db.messages, async () => {
     // 先清空当前任务的所有消息
     await db.messages.where('taskId').equals(taskId).delete();
-    
+
     // 然后添加新消息
     return await db.messages.bulkAdd(messages.map(msg => ({
       ...msg,
@@ -425,15 +438,15 @@ const deleteMessage = async (id) => {
 const saveFormatErrors = async (errors) => {
   try {
     const taskId = await getCurrentTaskId();
-    
+
     // 使用事务确保原子性操作
     await db.transaction('rw', db.formatErrors, async () => {
       // 清空当前任务的现有错误
       await db.formatErrors.where('taskId').equals(taskId).delete();
-      
+
       // 没有错误时直接返回
       if (!errors || errors.length === 0) return;
-      
+
       // 将错误存储为单独的记录
       const simplifiedErrors = errors.map(err => ({
         taskId,
@@ -441,7 +454,7 @@ const saveFormatErrors = async (errors) => {
         location: err.location ? String(err.location) : null,
         timestamp: new Date()
       }));
-      
+
       // 批量添加错误
       await db.formatErrors.bulkAdd(simplifiedErrors);
     });
@@ -458,6 +471,68 @@ const getFormatErrors = async () => {
   } catch (error) {
     console.error('获取格式错误时出错:', error);
     return [];
+  }
+};
+
+// 保存段落管理器
+const saveParagraphManager = async (docPath, paragraphManager) => {
+  try {
+    const taskId = await getCurrentTaskId();
+
+    // 将paragraphManager转换为JSON字符串
+    const data = JSON.stringify(paragraphManager);
+
+    // 检查是否已存在该文档的paragraphManager
+    const existingRecord = await db.paragraphManager
+      .where('taskId').equals(taskId)
+      .and(item => item.docPath === docPath)
+      .first();
+
+    if (existingRecord) {
+      // 更新现有记录
+      await db.paragraphManager.update(existingRecord.id, {
+        data,
+        lastUpdated: new Date()
+      });
+      return existingRecord.id;
+    } else {
+      // 创建新记录
+      const id = Date.now().toString();
+      await db.paragraphManager.add({
+        id,
+        taskId,
+        docPath,
+        data,
+        lastUpdated: new Date()
+      });
+      return id;
+    }
+  } catch (error) {
+    console.error('保存段落管理器时出错:', error);
+    return null;
+  }
+};
+
+// 获取段落管理器
+const getParagraphManager = async (docPath) => {
+  try {
+    const taskId = await getCurrentTaskId();
+
+    // 查找当前任务下指定文档的paragraphManager
+    const record = await db.paragraphManager
+      .where('taskId').equals(taskId)
+      .and(item => item.docPath === docPath)
+      .first();
+
+    if (record && record.data) {
+      // 将JSON字符串转换回对象
+      return JSON.parse(record.data);
+    }
+
+    return null;
+  } catch (error) {
+    console.error('获取段落管理器时出错:', error);
+    return null;
   }
 };
 
@@ -490,5 +565,7 @@ export {
   clearAllMessages,
   deleteMessage,
   saveFormatErrors,
-  getFormatErrors
+  getFormatErrors,
+  saveParagraphManager,
+  getParagraphManager
 };
