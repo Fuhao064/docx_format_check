@@ -6,7 +6,8 @@ from typing import List, Dict, Optional
 import os, time, sys
 import json
 from agents.setting import LLMs
-from format_editor import generate_formatted_doc
+from editors.format_editor import generate_formatted_doc
+from editors.document_marker import mark_document_errors
 from preparation.para_type import ParagraphManager
 from checkers.checker import check_format
 from datetime import datetime
@@ -17,9 +18,10 @@ from agents.format_agent import FormatAgent
 from agents.communicate_agent import CommunicateAgent
 from agents.setting import LLMs
 from docx import Document
-from docx.shared import RGBColor
+from docx.shared import Pt
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn  # 导入qn函数，用于XML命名空间
 import tempfile
-from docx.enum.text import WD_COLOR_INDEX
 from utils.utils import parse_llm_json_response
 
 # 导入agents包中的功能
@@ -33,7 +35,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 创建一个全局的Agent中心
 agents_config = {
-    "format_model": "doubao-1-5-pro-32k-250115",
+    "format_model": "qwen-plus",
     "editor_model": "deepseek-r1",
     "advice_model": "deepseek-r1",
     "communicate_model": "deepseek-r1"
@@ -540,18 +542,23 @@ def start_check_format():
         except Exception as json_err:
             print(f"文档JSON抽取错误: {str(json_err)}")
 
-        # 以json格式返回错误信息
+        # 将para_manager转换为可序列化的字典
+        para_manager_dict = para_manager.to_dict() if para_manager else {}
+
+        # 以json格式返回错误信息和para_manager
         if docx_errors:
             return jsonify({
                 "success": True,
                 "message": "分析成功",
-                "errors": docx_errors  # 修改键名与前端一致
+                "errors": docx_errors,  # 修改键名与前端一致
+                "para_manager": para_manager_dict  # 返回para_manager字典
             })
         else:
             return jsonify({
                 "success": True,
                 "message": "未发现错误",
-                "errors": []  # 返回空数组而不是None
+                "errors": [],  # 返回空数组而不是None
+                "para_manager": para_manager_dict  # 返回para_manager字典
             })
     except Exception as e:
         return jsonify({
@@ -570,6 +577,7 @@ def generate_report():
         # 获取文件路径
         file_path = data.get('doc_path')
         errors = data.get('errors', [])
+        original_filename = data.get('original_filename', '')
 
         # 验证文件存在
         if not os.path.exists(file_path):
@@ -595,83 +603,41 @@ def generate_report():
                 except:
                     errors = [{"message": str(errors), "location": "未知"}]
 
+        # 如果没有提供原始文件名，则使用文档路径中的文件名
+        if not original_filename:
+            original_filename = os.path.basename(file_path)
+
         # 创建临时文件用于存储标记错误的文档
         temp_dir = tempfile.gettempdir()
         doc_name = os.path.basename(file_path)
         marked_doc_path = os.path.join(temp_dir, f"marked_{doc_name}")
 
-        # 创建一个新文档，并标记错误
+        # 打印错误列表，便于调试
+        print(f"错误列表: {errors}")
+        print(f"错误数量: {len(errors)}")
+
+        # 使用新的mark_document_errors函数标记错误
         try:
-            doc = Document(file_path)
+            # 查找对应的para_manager
+            para_manager = next((item['para_manager'] for item in analysised_para_manager if item['doc_path'] == file_path), None)
+            if not para_manager:
+                # 如果没有找到对应的para_manager，创建一个新的
+                para_manager = ParagraphManager()
+                print(f"未找到对应的para_manager，创建了新的实例")
 
-            # 获取段落ID到错误的映射
-            para_errors = {}
-            for error in errors:
-                # 检查error是否为字典类型，如果不是则转换为字典
-                if not isinstance(error, dict):
-                    error = {"message": str(error), "id": None, "location": "未知"}
+            print(f"开始标记文档错误: {file_path}")
+            print(f"错误数量: {len(errors)}")
 
-                if 'id' in error:
-                    para_id = error['id']
-                    if para_id not in para_errors:
-                        para_errors[para_id] = []
-                    para_errors[para_id].append(error.get('message', '未知错误'))
-
-            # 处理段落错误和标记
-            for i, para in enumerate(doc.paragraphs):
-                para_id = f"para{i}"
-                if para_id in para_errors:
-                    # 使用红色标记错误段落
-                    for run in para.runs:
-                        run.font.color.rgb = RGBColor(255, 0, 0)
-
-                    # 在段落后添加错误信息
-                    error_paragraph = doc.add_paragraph()
-                    error_run = error_paragraph.add_run("错误信息: ")
-                    error_run.bold = True
-                    error_run.font.color.rgb = RGBColor(255, 0, 0)
-
-                    for j, error_msg in enumerate(para_errors[para_id]):
-                        error_run = error_paragraph.add_run(f"{j+1}. {error_msg}")
-                        error_run.font.color.rgb = RGBColor(255, 0, 0)
-                        if j < len(para_errors[para_id]) - 1:
-                            error_run = error_paragraph.add_run("\n")
-
-            # 添加表格和图片错误信息（如果有）
-            table_errors = []
-            image_errors = []
-
-            for error in errors:
-                if not isinstance(error, dict):
-                    continue
-
-                error_type = error.get('type', '')
-                if error_type == 'table':
-                    table_errors.append(error)
-                elif error_type == 'image':
-                    image_errors.append(error)
-
-            if table_errors or image_errors:
-                doc.add_paragraph().add_run("").add_break()
-                summary = doc.add_paragraph()
-
-                if table_errors:
-                    table_run = summary.add_run("表格错误:\n")
-                    table_run.bold = True
-                    for error in table_errors:
-                        summary.add_run(f"- {error.get('message', '未知表格错误')}\n").font.color.rgb = RGBColor(255, 0, 0)
-
-                if image_errors:
-                    image_run = summary.add_run("\n图片错误:\n")
-                    image_run.bold = True
-                    for error in image_errors:
-                        summary.add_run(f"- {error.get('message', '未知图片错误')}\n").font.color.rgb = RGBColor(255, 0, 0)
-
-            # 保存标记后的文档
+            # 确保输出目录存在
             os.makedirs(os.path.dirname(marked_doc_path), exist_ok=True)
-            doc.save(marked_doc_path)
+
+            # 调用mark_document_errors函数标记错误
+            marked_doc_path = mark_document_errors(file_path, errors, para_manager, marked_doc_path)
+            print(f"文档错误标记完成，保存到: {marked_doc_path}")
         except Exception as e:
             print(f"标记文档错误: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return jsonify({"success": False, "message": f"标记文档错误: {str(e)}"}), 500
 
         # 生成分析报告文本
@@ -708,53 +674,132 @@ def generate_report():
             "message": f"报告生成失败: {str(e)}"
         }), 500
 
-# 下载报告
-@app.route('/api/download-report', methods=['GET'])
+# 生成报告
+@app.route('/api/download-report', methods=['POST'])
 def download_report():
     try:
-        doc_path = request.args.get('doc_path')
-        if not doc_path:
+        data = request.get_json()
+        if not data or 'doc_path' not in data:
             return jsonify({"success": False, "message": "缺少文档路径参数"}), 400
 
         # 获取文件路径
-        file_path = doc_path
-        errors = []
+        file_path = data.get('doc_path')
+        errors = data.get('errors', [])
+        original_filename = data.get('original_filename', '')
 
         # 验证文件存在
         if not os.path.exists(file_path):
             return jsonify({"success": False, "message": "文档文件不存在"}), 404
 
+        # 如果没有提供原始文件名，则使用文档路径中的文件名
+        if not original_filename:
+            original_filename = os.path.basename(file_path)
+
+        # 打印错误列表，便于调试
+        print(f"报告错误列表: {errors}")
+        print(f"报告错误数量: {len(errors)}")
+
         # 创建一个新的Word文档作为报告
         doc = Document()
 
-        # 添加标题
-        doc.add_heading('文档格式分析报告', 0)
+        # 添加标题 - 使用更通用的方式
+        title_para = doc.add_paragraph('文档格式分析报告')
+        title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        title_run = title_para.runs[0]
+        title_run.bold = True
+        title_run.font.size = Pt(16)
+        # 设置字体
+        title_run.font.name = 'Times New Roman'  # 先设置英文字体
+        # 设置中文字体
+        title_run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
 
         # 添加基本信息
-        doc.add_paragraph(f'分析时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n文档: {os.path.basename(file_path)}')
+        doc.add_paragraph(f'分析时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n文档: {original_filename}')
 
         # 添加错误摘要
-        if errors:
-            doc.add_heading(f'发现 {len(errors)} 个格式问题:', 1)
+        if errors and len(errors) > 0:
+            subtitle_para = doc.add_paragraph(f'发现 {len(errors)} 个格式问题:')
+            subtitle_run = subtitle_para.runs[0]
+            subtitle_run.bold = True
+            subtitle_run.font.size = Pt(14)
+            # 设置字体
+            subtitle_run.font.name = 'Times New Roman'  # 先设置英文字体
+            # 设置中文字体
+            subtitle_run.element.rPr.rFonts.set(qn('w:eastAsia'), '黑体')
             for i, error in enumerate(errors):
                 p = doc.add_paragraph()
-                p.add_run(f"{i+1}. {error.get('message', '')}").bold = True
-                if 'location' in error:
-                    p.add_run(f" (位置: {error['location']})").italic = True
+                error_run = p.add_run(f"{i+1}. {error.get('message', '')}")
+                error_run.bold = True
+                # 设置字体
+                error_run.font.name = 'Times New Roman'  # 先设置英文字体
+                # 设置中文字体
+                error_run.element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+
+                if 'location' in error and error['location']:
+                    location_run = p.add_run(f" (位置: {error['location']})")
+                    location_run.italic = True
+                    # 设置字体
+                    location_run.font.name = 'Times New Roman'  # 先设置英文字体
+                    # 设置中文字体
+                    location_run.element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
         else:
-            doc.add_paragraph('没有发现格式问题。').bold = True
+            no_error_para = doc.add_paragraph('没有发现格式问题。')
+            no_error_run = no_error_para.runs[0]
+            no_error_run.bold = True
+            # 设置字体
+            no_error_run.font.name = 'Times New Roman'  # 先设置英文字体
+            # 设置中文字体
+            no_error_run.element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
 
         # 保存报告到临时文件
         temp_dir = tempfile.gettempdir()
-        report_path = os.path.join(temp_dir, f"report_{os.path.basename(file_path)}")
+        report_filename = f"report_{os.path.basename(file_path)}"
+        report_path = os.path.join(temp_dir, report_filename)
         doc.save(report_path)
+
+        # 返回成功响应，前端将使用这个路径下载文件
+        return jsonify({
+            "success": True,
+            "message": "报告生成成功",
+            "report_path": report_path,
+            "original_filename": original_filename
+        })
+    except Exception as e:
+        print(f"生成报告失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "message": f"生成报告失败: {str(e)}"
+        }), 500
+
+# 下载报告
+@app.route('/api/get-report', methods=['GET'])
+def get_report():
+    try:
+        doc_path = request.args.get('doc_path')
+        original_filename = request.args.get('original_filename', '')
+
+        if not doc_path:
+            return jsonify({"success": False, "message": "缺少文档路径参数"}), 400
+
+        # 检查文件是否存在
+        if not os.path.exists(doc_path):
+            return jsonify({"success": False, "message": "报告文件不存在，请先生成报告"}), 404
+
+        # 如果没有提供原始文件名，则使用文档路径中的文件名
+        if not original_filename:
+            original_filename = os.path.basename(doc_path)
+            download_name = f"report_{original_filename}"
+        else:
+            download_name = f"report_{original_filename}"
 
         # 返回文件
         return send_from_directory(
-            os.path.dirname(report_path),
-            os.path.basename(report_path),
+            os.path.dirname(doc_path),
+            os.path.basename(doc_path),
             as_attachment=True,
-            download_name=f"report_{os.path.basename(doc_path)}"
+            download_name=download_name
         )
     except Exception as e:
         print(f"下载报告失败: {str(e)}")
@@ -764,28 +809,113 @@ def download_report():
         }), 500
 
 # 下载标记的文档
-@app.route('/api/download-marked-document', methods=['GET'])
+@app.route('/api/download-marked-document', methods=['POST'])
 def download_marked_document():
     try:
-        doc_path = request.args.get('doc_path')
-        if not doc_path:
+        data = request.get_json()
+        if not data or 'doc_path' not in data:
             return jsonify({"success": False, "message": "缺少文档路径参数"}), 400
+
+        doc_path = data.get('doc_path')
+        errors = data.get('errors', [])
+        original_filename = data.get('original_filename', '')
+        frontend_para_manager = data.get('para_manager', None)
+
+        # 如果没有提供原始文件名，则使用文档路径中的文件名
+        if not original_filename:
+            original_filename = os.path.basename(doc_path)
 
         # 构造标记文档的路径
         temp_dir = tempfile.gettempdir()
         doc_name = os.path.basename(doc_path)
         marked_doc_path = os.path.join(temp_dir, f"marked_{doc_name}")
 
+        # 如果前端传来了para_manager，则使用前端的para_manager
+        if frontend_para_manager:
+            print(f"使用前端传来的para_manager")
+            try:
+                # 创建一个新的ParagraphManager实例
+                para_manager = ParagraphManager()
+
+                # 将前端传来的数据加载到para_manager中
+                if isinstance(frontend_para_manager, list):
+                    for para_data in frontend_para_manager:
+                        para_manager.add_paragraph_from_dict(para_data)
+
+                # 更新或添加到analysised_para_manager中
+                for i, item in enumerate(analysised_para_manager):
+                    if item['doc_path'] == doc_path:
+                        analysised_para_manager[i]['para_manager'] = para_manager
+                        break
+                else:
+                    # 如果没有找到对应的条目，添加新的
+                    analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
+            except Exception as e:
+                print(f"加载前端传来的para_manager失败: {str(e)}")
+                # 如果加载失败，则使用后端的para_manager
+                para_manager = next((item['para_manager'] for item in analysised_para_manager if item['doc_path'] == doc_path), None)
+                if not para_manager:
+                    # 如果没有找到对应的para_manager，创建一个新的
+                    para_manager = ParagraphManager()
+                    print(f"未找到对应的para_manager，创建了新的实例")
+        else:
+            # 如果前端没有传来para_manager，则使用后端的para_manager
+            para_manager = next((item['para_manager'] for item in analysised_para_manager if item['doc_path'] == doc_path), None)
+            if not para_manager:
+                # 如果没有找到对应的para_manager，创建一个新的
+                para_manager = ParagraphManager()
+                print(f"未找到对应的para_manager，创建了新的实例")
+
+        # 打印错误列表，便于调试
+        print(f"错误列表: {errors}")
+        print(f"错误数量: {len(errors)}")
+
+        # 使用前端传来的错误列表标记文档
+        marked_doc_path = mark_document_errors(doc_path, errors, para_manager, marked_doc_path)
+
+        # 返回成功响应，前端将使用这个路径下载文件
+        return jsonify({
+            "success": True,
+            "message": "文档标记成功",
+            "marked_doc_path": marked_doc_path,
+            "original_filename": original_filename
+        })
+    except Exception as e:
+        print(f"标记文档失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "message": f"标记文档失败: {str(e)}"
+        }), 500
+
+# 下载已标记的文档
+@app.route('/api/get-marked-document', methods=['GET'])
+def get_marked_document():
+    try:
+        doc_path = request.args.get('doc_path')
+        original_filename = request.args.get('original_filename', '')
+
+        if not doc_path:
+            return jsonify({"success": False, "message": "缺少文档路径参数"}), 400
+
         # 检查文件是否存在
-        if not os.path.exists(marked_doc_path):
+        if not os.path.exists(doc_path):
             return jsonify({"success": False, "message": "标记文档不存在，请先生成报告"}), 404
+
+        # 如果没有提供原始文件名，则使用文档路径中的文件名
+        if not original_filename:
+            original_filename = os.path.basename(doc_path)
+            download_name = f"marked_{original_filename}"
+        else:
+            download_name = f"marked_{original_filename}"
 
         # 返回文件
         return send_from_directory(
-            os.path.dirname(marked_doc_path),
-            os.path.basename(marked_doc_path),
+            os.path.dirname(doc_path),
+            os.path.basename(doc_path),
             as_attachment=True,
-            download_name=f"marked_{os.path.basename(doc_path)}"
+            download_name=download_name
         )
     except Exception as e:
         return jsonify({
@@ -803,6 +933,9 @@ def apply_format():
 
         doc_path = data.get('doc_path')
         config_path = data.get('config_path')
+        errors = data.get('errors', [])
+        original_filename = data.get('original_filename', '')
+        frontend_para_manager = data.get('para_manager', None)
 
         # 验证文件存在
         if not os.path.exists(doc_path):
@@ -811,21 +944,128 @@ def apply_format():
         if not os.path.exists(config_path):
             return jsonify({"success": False, "message": "配置文件不存在"}), 404
 
-        # 找到对应的para_manager
-        para_manager = next((item['para_manager'] for item in analysised_para_manager if item['doc_path'] == doc_path), None)
-        if not para_manager:
-            return jsonify({"success": False, "message": "未找到对应的段落管理器"}), 404
+        # 如果前端传来了para_manager，则使用前端的para_manager
+        if frontend_para_manager:
+            print(f"应用格式时使用前端传来的para_manager")
+            try:
+                # 创建一个新的ParagraphManager实例
+                para_manager = ParagraphManager()
+
+                # 将前端传来的数据加载到para_manager中
+                if isinstance(frontend_para_manager, list):
+                    for para_data in frontend_para_manager:
+                        para_manager.add_paragraph_from_dict(para_data)
+
+                # 更新或添加到analysised_para_manager中
+                for i, item in enumerate(analysised_para_manager):
+                    if item['doc_path'] == doc_path:
+                        analysised_para_manager[i]['para_manager'] = para_manager
+                        break
+                else:
+                    # 如果没有找到对应的条目，添加新的
+                    analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
+            except Exception as e:
+                print(f"加载前端传来的para_manager失败: {str(e)}")
+                # 如果加载失败，则使用后端的para_manager
+                para_manager = next((item['para_manager'] for item in analysised_para_manager if item['doc_path'] == doc_path), None)
+                if not para_manager:
+                    # 如果没有找到对应的para_manager，创建一个新的
+                    print(f"应用格式时未找到对应的para_manager，创建了新的实例")
+                    # 调用check_format获取para_manager
+                    errors, para_manager = check_format(doc_path, config_path, agents["format"])
+                    # 存储当前的para_manager
+                    analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
+        else:
+            # 如果前端没有传来para_manager，则使用后端的para_manager
+            para_manager = next((item['para_manager'] for item in analysised_para_manager if item['doc_path'] == doc_path), None)
+            if not para_manager:
+                # 如果没有找到对应的para_manager，创建一个新的
+                print(f"应用格式时未找到对应的para_manager，创建了新的实例")
+                # 调用check_format获取para_manager
+                errors, para_manager = check_format(doc_path, config_path, agents["format"])
+                # 存储当前的para_manager
+                analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
+
+        # 如果没有提供原始文件名，则使用文档路径中的文件名
+        if not original_filename:
+            original_filename = os.path.basename(doc_path)
+            output_filename = f"{os.path.splitext(original_filename)[0]}_formatted.docx"
+        else:
+            output_filename = f"{os.path.splitext(original_filename)[0]}_formatted.docx"
 
         # 将输出目录输出为doc_path的文件名
-        output_path = os.path.join(os.path.dirname(doc_path), os.path.basename(doc_path).split(".")[0] + "_formatted.docx")
+        output_path = os.path.join(os.path.dirname(doc_path), output_filename)
 
-        # 应用格式
-        output_path = generate_formatted_doc(config_path, para_manager, output_path)
+        # 如果没有提供错误列表，或者para_manager为空，则调用check_format获取
+        if not errors or not para_manager or not para_manager.paragraphs:
+            print(f"重新检查格式获取错误和para_manager")
+            errors, para_manager = check_format(doc_path, config_path, agents["format"])
+            # 更新存储的para_manager
+            for i, item in enumerate(analysised_para_manager):
+                if item['doc_path'] == doc_path:
+                    analysised_para_manager[i]['para_manager'] = para_manager
+                    break
+            else:
+                # 如果没有找到对应的条目，添加新的
+                analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
 
-        # 返回文件
-        return jsonify({"success": True, "message": "格式应用成功", "output_path": output_path})
+        # 确保para_manager有效
+        if not para_manager or not para_manager.paragraphs:
+            return jsonify({"success": False, "message": "无法获取文档段落信息，请重新检查格式"}), 500
+
+        # 应用格式，并将错误信息传递给 generate_formatted_doc 函数
+        try:
+            output_path = generate_formatted_doc(config_path, para_manager, output_path, errors)
+        except Exception as e:
+            print(f"生成格式化文档失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"success": False, "message": f"生成格式化文档失败: {str(e)}"}), 500
+
+        # 返回成功响应，前端将使用这个路径下载文件
+        return jsonify({
+            "success": True,
+            "message": "格式应用成功",
+            "output_path": output_path,
+            "original_filename": original_filename
+        })
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+# 下载格式化文档
+@app.route('/api/get-formatted-document', methods=['GET'])
+def get_formatted_document():
+    try:
+        doc_path = request.args.get('doc_path')
+        original_filename = request.args.get('original_filename', '')
+
+        if not doc_path:
+            return jsonify({"success": False, "message": "缺少文档路径参数"}), 400
+
+        # 检查文件是否存在
+        if not os.path.exists(doc_path):
+            return jsonify({"success": False, "message": "格式化文档不存在，请先应用格式"}), 404
+
+        # 如果没有提供原始文件名，则使用文档路径中的文件名
+        if not original_filename:
+            original_filename = os.path.basename(doc_path)
+            download_name = f"{os.path.splitext(original_filename)[0]}_formatted.docx"
+        else:
+            download_name = f"{os.path.splitext(original_filename)[0]}_formatted.docx"
+
+        # 返回文件
+        return send_from_directory(
+            os.path.dirname(doc_path),
+            os.path.basename(doc_path),
+            as_attachment=True,
+            download_name=download_name
+        )
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"下载格式化文档失败: {str(e)}"
+        }), 500
 
 
 # 和大模型交互
