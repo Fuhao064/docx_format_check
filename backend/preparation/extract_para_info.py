@@ -1,16 +1,93 @@
 import docx
 import xml.etree.ElementTree as ET
 import json, re, os, zipfile
-from preparation.para_type import ParsedParaType, ParagraphManager
+from backend.preparation.para_type import ParsedParaType, ParagraphManager
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
-from utils.utils import (
-    get_alignment_string,
-    get_alignment_display,
-    is_font_dict_empty,
-    merge_font_dictionaries,
-    is_all_caps_string
-)
+from backend.preparation.extract_media import add_media_to_manager
+# 定义工具函数
+def get_alignment_string(alignment):
+    """获取对齐方式的字符串表示"""
+    if alignment == 0:
+        return "left"
+    elif alignment == 1:
+        return "center"
+    elif alignment == 2:
+        return "right"
+    elif alignment == 3:
+        return "justify"
+    else:
+        return "unknown"
+
+def get_alignment_display(alignment_str):
+    """获取对齐方式的中文表示"""
+    alignment_map = {
+        "left": "左对齐",
+        "center": "居中",
+        "right": "右对齐",
+        "justify": "两端对齐",
+        "both": "两端对齐",
+        "start": "左对齐",
+        "end": "右对齐"
+    }
+    return alignment_map.get(alignment_str.lower(), "未知")
+
+def is_font_dict_empty(font_dict):
+    """检查字体字典是否为空"""
+    if not font_dict:
+        return True
+
+    for key, value in font_dict.items():
+        if value and value != set():
+            return False
+
+    return True
+
+def merge_font_dictionaries(dict1, dict2):
+    """合并两个字体字典"""
+    result = {}
+
+    # 合并所有键
+    all_keys = set(dict1.keys()) | set(dict2.keys())
+
+    for key in all_keys:
+        # 如果两个字典都有这个键，且值是集合，则合并集合
+        if key in dict1 and key in dict2:
+            if isinstance(dict1[key], set) and isinstance(dict2[key], set):
+                result[key] = dict1[key] | dict2[key]
+            # 如果其中一个值是None，使用另一个值
+            elif dict1[key] is None:
+                result[key] = dict2[key]
+            elif dict2[key] is None:
+                result[key] = dict1[key]
+            # 如果两个值都不是None，但也不是集合，优先使用dict1的值
+            else:
+                result[key] = dict1[key]
+        # 如果只有dict1有这个键
+        elif key in dict1:
+            result[key] = dict1[key]
+        # 如果只有dict2有这个键
+        else:
+            result[key] = dict2[key]
+
+    return result
+
+def is_all_caps_string(text):
+    """检查文本是否全部是大写字母"""
+    # 如果文本为空，返回False
+    if not text:
+        return False
+
+    # 移除空格和标点符号
+    import re
+    text = re.sub(r'[\s\p{P}]', '', text)
+
+    # 如果处理后的文本为空，返回False
+    if not text:
+        return False
+
+    # 检查是否全部是大写字母
+    return text.isupper()
 
 def extract_para_format_from_style(style)-> dict:
     # 获取段落样式
@@ -230,6 +307,9 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
 
     # 从styles.xml中提取默认字体大小信息
     default_font_sizes = extract_default_font_size_from_styles(doc_path)
+
+    # 提取图片和表格信息
+    manager = add_media_to_manager(manager, doc_path)
 
     # 将摘要等信息拆出来
     processed_paras = pre_process_paragraphs(doc)

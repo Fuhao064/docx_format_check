@@ -5,7 +5,7 @@ import os
 import re
 from datetime import datetime
 from typing import Dict, List, Optional, Union, Tuple, Any
-from preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
+from backend.preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
 from docx.oxml.ns import qn  # 导入qn函数，用于XML命名空间
 
 def mark_document_errors(doc_path: str, errors: List[Dict], para_manager: Optional[ParagraphManager] = None, output_path: Optional[str] = None) -> str:

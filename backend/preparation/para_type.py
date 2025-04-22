@@ -2,7 +2,37 @@ from typing import List, Dict, Optional
 from enum import Enum
 from dataclasses import dataclass
 import json, re
-from utils.translation_utils import translation_dict
+
+# 创建一个简单的translation_dict
+translation_dict = {
+    'cover': '页面设置',
+    'title_zh': '中文标题',
+    'title_en': '英文标题',
+    'abstract_zh': '中文摘要',
+    'abstract_content_zh': '中文摘要内容',
+    'abstract_en': '英文摘要',
+    'abstract_content_en': '英文摘要内容',
+    'keywords_zh': '中文关键词',
+    'keywords_content_zh': '中文关键词内容',
+    'keywords_en': '英文关键词',
+    'keywords_content_en': '英文关键词内容',
+    'heading1': '一级标题',
+    'heading2': '二级标题',
+    'heading3': '三级标题',
+    'body': '正文',
+    'figures': '图片',
+    'tables': '表格',
+    'references': '参考文献',
+    'references_content': '参考文献内容',
+    'acknowledgments': '致谢',
+    'acknowledgments_content': '致谢内容',
+    'equation': '公式',
+    'others': '其他',
+    'id': '编号',
+    'type': '类型',
+    'content': '内容',
+    'meta': '元数据'
+}
 
 class ParsedParaType(Enum):
     # 枚举定义保持不变，与用户提供的相同

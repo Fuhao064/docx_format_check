@@ -7,7 +7,7 @@ import os
 import re
 import requests
 from typing import Dict, List, Optional, Union, Tuple
-from preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
+from backend.preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
 from docx.oxml.ns import qn  # 导入qn函数，用于XML命名空间
 
 # 全局映射字典
@@ -666,7 +666,7 @@ def format_table_caption(config: Dict, doc_path: str, table_number: int, caption
 
     return output_file
 
-def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_path: str, errors: Optional[List[Dict]] = None) -> str:
+def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_path: str, errors: Optional[List[Dict]] = None, doc_path: Optional[str] = None) -> str:
     """
     根据段落管理器和配置文件生成格式化的文档，并根据错误信息进行修改
 
@@ -674,6 +674,8 @@ def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_
         config: 格式配置字典或配置文件路径
         para_manager: 段落管理器实例，包含所有需要格式化的段落
         output_path: 输出文档路径
+        errors: 错误信息列表（可选）
+        doc_path: 原文档路径（可选），如果提供则从原文档中提取图片和表格
 
     Returns:
         str: 生成的文档路径
@@ -688,6 +690,70 @@ def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_
     # 设置页面格式
     set_paper_format(doc, config)
 
+    # 如果提供了原文档路径，则从原文档中提取图片和表格
+    original_doc = None
+    original_tables = []
+    original_images = []
+    original_image_paths = []
+
+    if doc_path and os.path.exists(doc_path):
+        try:
+            # 打开原文档
+            original_doc = Document(doc_path)
+
+            # 提取原文档中的表格
+            for table in original_doc.tables:
+                original_tables.append(table)
+
+            # 提取原文档中的图片
+            # 注意：python-docx不直接支持提取图片，我们需要使用zipfile模块提取图片
+            try:
+                import zipfile
+                import tempfile
+                import base64
+                import io
+                from PIL import Image
+
+                # 创建临时目录来存储提取的图片
+                temp_dir = tempfile.mkdtemp()
+
+                # 打开docx文件（实际上是一个zip文件）
+                with zipfile.ZipFile(doc_path, 'r') as docx_zip:
+                    # 提取所有图片文件
+                    for item in docx_zip.namelist():
+                        if item.startswith('word/media/'):
+                            # 提取图片数据
+                            image_data = docx_zip.read(item)
+                            image_name = os.path.basename(item)
+
+                            # 保存图片到临时目录
+                            image_path = os.path.join(temp_dir, image_name)
+                            with open(image_path, 'wb') as f:
+                                f.write(image_data)
+
+                            # 获取图片尺寸
+                            try:
+                                with Image.open(io.BytesIO(image_data)) as img:
+                                    width, height = img.size
+                                    # 转换为英寸
+                                    width_inches = width / 96  # 假设96dpi
+                            except Exception as e:
+                                print(f"无法获取图片尺寸: {str(e)}")
+                                width_inches = 6  # 默认宽度
+
+                            # 将图片信息添加到列表中
+                            original_images.append({
+                                'path': image_path,
+                                'width': width_inches
+                            })
+                            original_image_paths.append(image_path)
+
+                print(f"从原文档中提取了 {len(original_tables)} 个表格和 {len(original_images)} 个图片")
+            except Exception as e:
+                print(f"提取原文档中的图片失败: {str(e)}")
+        except Exception as e:
+            print(f"打开原文档失败: {str(e)}")
+
     # 图表编号计数器
     figure_number = 1
     table_number = 1
@@ -700,6 +766,44 @@ def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_
         # 处理图片类型的段落
         if para_type == 'figures' and para_info.meta and 'image_path' in para_info.meta:
             image_path = para_info.meta['image_path']
+
+            # 尝试使用原文档中的图片
+            used_original_image = False
+            original_image = None
+
+            # 始终使用原文档中的图片，而不是只在路径不存在时使用
+            if original_images:
+                # 使用第一个原文档中的图片
+                original_image = original_images.pop(0)  # 从列表中移除该图片，避免重复使用
+                image_path = original_image['path']
+                used_original_image = True
+                print(f"使用原文档中的图片: {image_path}")
+            elif not os.path.exists(image_path):
+                # 如果没有原文档中的图片，并且段落管理器中的图片路径不存在
+                print(f"图片路径 {image_path} 不存在，且没有原文档中的图片")
+
+                # 尝试使用二进制数据
+                if 'binary_data' in para_info.meta and para_info.meta['binary_data']:
+                    try:
+                        # 创建临时文件来保存图片
+                        import tempfile
+                        import base64
+                        temp_dir = tempfile.mkdtemp()
+                        temp_path = os.path.join(temp_dir, f"image_{figure_number}.png")
+
+                        # 解码二进制数据并保存为图片
+                        binary_data = para_info.meta['binary_data']
+                        if isinstance(binary_data, str):
+                            binary_data = base64.b64decode(binary_data)
+
+                        with open(temp_path, 'wb') as f:
+                            f.write(binary_data)
+
+                        image_path = temp_path
+                        print(f"使用二进制数据创建图片: {image_path}")
+                    except Exception as e:
+                        print(f"使用二进制数据创建图片失败: {str(e)}")
+
             if os.path.exists(image_path):
                 # 添加图片段落
                 img_paragraph = doc.add_paragraph()
@@ -708,12 +812,17 @@ def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_
 
                 # 添加图片
                 width = Inches(6)  # 默认宽度
-                if 'width' in para_info.meta:
+                if used_original_image and original_image and 'width' in original_image:
+                    # 如果使用原文档中的图片，使用原图片的宽度
+                    width = Inches(original_image['width'])
+                    print(f"使用原图片宽度: {original_image['width']} 英寸")
+                elif 'width' in para_info.meta:
                     width_str = para_info.meta['width']
                     if isinstance(width_str, str) and 'inches' in width_str.lower():
                         width = Inches(float(width_str.lower().replace('inches', '')))
                     elif isinstance(width_str, (int, float)):
                         width = Inches(float(width_str))
+                    print(f"使用段落管理器中的图片宽度: {width_str}")
 
                 img_paragraph.add_run().add_picture(image_path, width=width)
 
@@ -773,8 +882,62 @@ def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_
                 if 'caption' in config['tables'] and 'fonts' in config['tables']['caption']:
                     apply_font_settings(caption_run, config['tables']['caption']['fonts'])
 
-            # 添加表格
-            if isinstance(table_data, list) and len(table_data) > 0:
+            # 尝试使用原文档中的表格
+            used_original_table = False
+            if original_tables:
+                # 使用第一个原文档中的表格
+                print(f"使用原文档中的表格")
+                original_table = original_tables.pop(0)  # 从列表中移除该表格，避免重复使用
+
+                # 复制表格 - 使用更可靠的方法
+                try:
+                    # 获取原表格的行数和列数
+                    num_rows = len(original_table.rows)
+                    num_cols = len(original_table.columns)
+
+                    # 创建新表格
+                    table = doc.add_table(rows=num_rows, cols=num_cols)
+
+                    # 复制表格样式
+                    if original_table.style:
+                        table.style = original_table.style
+                    else:
+                        table.style = 'Table Grid'
+
+                    # 复制表格内容
+                    for i, row in enumerate(original_table.rows):
+                        for j, cell in enumerate(row.cells):
+                            # 复制单元格文本
+                            table.cell(i, j).text = cell.text
+
+                            # 应用单元格格式
+                            for idx, paragraph in enumerate(cell.paragraphs):
+                                if idx < len(table.cell(i, j).paragraphs):
+                                    # 应用段落格式
+                                    if 'paragraph_format' in config['tables']:
+                                        apply_paragraph_format(table.cell(i, j).paragraphs[idx], config['tables']['paragraph_format'])
+
+                                    # 应用字体格式
+                                    for run_idx, run in enumerate(paragraph.runs):
+                                        if run_idx < len(table.cell(i, j).paragraphs[idx].runs):
+                                            if 'caption' in config['tables'] and 'fonts' in config['tables']['caption']:
+                                                apply_font_settings(table.cell(i, j).paragraphs[idx].runs[run_idx], config['tables']['caption']['fonts'])
+
+                    used_original_table = True
+                    print(f"成功复制表格，行数: {num_rows}, 列数: {num_cols}")
+                except Exception as e:
+                    print(f"复制表格失败: {str(e)}")
+                    # 如果复制失败，尝试使用原始方法
+                    try:
+                        table = doc.add_table(rows=1, cols=1)  # 创建一个空表格
+                        table._element = original_table._element  # 复制表格元素
+                        used_original_table = True
+                        print("使用原始方法复制表格成功")
+                    except Exception as e2:
+                        print(f"原始方法复制表格失败: {str(e2)}")
+                        used_original_table = False
+            # 如果没有原文档中的表格，或者复制失败，则创建新表格
+            if not used_original_table and isinstance(table_data, list) and len(table_data) > 0:
                 num_rows = len(table_data)
                 num_cols = len(table_data[0]) if isinstance(table_data[0], list) else 1
 
