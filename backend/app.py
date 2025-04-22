@@ -1015,7 +1015,8 @@ def apply_format():
 
         # 应用格式，并将错误信息传递给 generate_formatted_doc 函数
         try:
-            output_path = generate_formatted_doc(config_path, para_manager, output_path, errors)
+            # 传递原文档路径，使其从原文档中提取图片和表格
+            output_path = generate_formatted_doc(config_path, para_manager, output_path, errors, doc_path)
         except Exception as e:
             print(f"生成格式化文档失败: {str(e)}")
             import traceback
