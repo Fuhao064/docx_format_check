@@ -1099,49 +1099,34 @@ async function applyFormat() {
       console.error('获取para_manager失败:', dbError);
     }
 
+    // 直接使用 POST 请求并设置 responseType 为 blob
+    // 这样可以直接处理后端返回的文件
     const response = await axios.post('/api/apply-format', {
       doc_path: currentDocumentPath.value,
       config_path: currentConfigPath.value,
       errors: formatErrors.value,
       original_filename: uploadedFileName.value,
       para_manager: para_manager
+    }, {
+      responseType: 'blob'  // 设置响应类型为 blob，直接接收文件
     })
 
-    if (response.data.success) {
-      formattedFilePath.value = response.data.output_path
-      //自动下载格式化文档
-      if (formattedFilePath.value) {
-        try {
-          // 使用GET请求下载生成的格式化文档
-          const downloadResponse = await axios.get('/api/get-formatted-document', {
-            params: {
-              doc_path: formattedFilePath.value,
-              original_filename: uploadedFileName.value
-            },
-            responseType: 'blob'
-          })
+    // 处理返回的文件数据
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `${uploadedFileName.value.split('.')[0]}_formatted.docx`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
 
-          const url = window.URL.createObjectURL(new Blob([downloadResponse.data]))
-          const link = document.createElement('a')
-          link.href = url
-          link.setAttribute('download', `${uploadedFileName.value.split('.')[0]}_formatted.docx`)
-          document.body.appendChild(link)
-          link.click()
-          link.remove()
-          showNotification('success', '应用格式完成', '格式已成功应用', 3000)
-        } catch (downloadError) {
-          console.error('下载格式化文档失败:', downloadError)
-          showNotification('error', '下载失败', `下载格式化文档失败: ${downloadError.message || downloadError}`, 5000)
-        }
-      } else {
-        throw new Error('生成的文件路径无效')
-      }
-    } else {
-      throw new Error(response.data.message || '应用格式失败')
-    }
+    // 设置格式化文件路径为空，因为我们不需要再次下载
+    formattedFilePath.value = ''
+
+    showNotification('success', '应用格式完成', '格式已成功应用并已下载文档', 3000)
   } catch (error) {
     console.error('应用格式时出错:', error)
-    showNotification('error', '应用格式失败', `应用格式时出错: ${error.message || error}`, 5000)
+    showNotification('error', '应用格式失败', `应用格式时出错: ${error.response?.data?.message || error.message || error}`, 5000)
   }
 }
 

@@ -7,7 +7,7 @@ import os
 import re
 import requests
 from typing import Dict, List, Optional, Union, Tuple
-from backend.preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
+from preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
 from docx.oxml.ns import qn  # 导入qn函数，用于XML命名空间
 
 # 全局映射字典
@@ -193,7 +193,7 @@ def apply_paragraph_format(paragraph, format_settings: Dict):
                 except (ValueError, TypeError):
                     # 如果无法转换为浮点数，尝试处理字符单位
                     try:
-                        # 检查是否包含“字符”或“character”
+                        # 检查是否包含"字符"或"character"
                         if isinstance(first_line, str) and ("字符" in first_line or "character" in first_line.lower()):
                             # 提取字符数量
                             char_match = re.search(r'(\d+(\.\d+)?)', first_line)
@@ -387,7 +387,7 @@ def get_openai_image_caption(image_path: str) -> str:
         else:
             return f"图 {os.path.basename(image_path)}"
 
-    except Exception as e:
+    except Exception:
         return f"图 {os.path.basename(image_path)}"
 
 def set_paper_format(doc: Document, config: Dict):
@@ -669,6 +669,7 @@ def format_table_caption(config: Dict, doc_path: str, table_number: int, caption
 def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_path: str, errors: Optional[List[Dict]] = None, doc_path: Optional[str] = None) -> str:
     """
     根据段落管理器和配置文件生成格式化的文档，并根据错误信息进行修改
+    保留原文档中所有元素的相对位置
 
     Args:
         config: 格式配置字典或配置文件路径
@@ -684,325 +685,512 @@ def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_
     if isinstance(config, str):
         config = load_config(config)
 
-    # 如果提供了原文档路径，则直接在原文档上修改
+    # 判断是否有原文档
     if doc_path and os.path.exists(doc_path):
-        try:
-            # 打开原文档
-            doc = Document(doc_path)
+        # 直接打开原文档进行修改，而不是创建新文档
+        doc = Document(doc_path)
+        print(f"正在基于原文档 {doc_path} 进行格式化")
 
-            # 设置页面格式
-            set_paper_format(doc, config)
-
-            print(f"成功打开原文档，将直接在原文档上修改文本内容")
-        except Exception as e:
-            print(f"打开原文档失败: {str(e)}，将创建新文档")
-            # 如果打开原文档失败，则创建新文档
-            doc = Document()
-            # 设置页面格式
-            set_paper_format(doc, config)
-    else:
-        # 如果没有提供原文档路径，则创建新文档
-        doc = Document()
-        # 设置页面格式
-        set_paper_format(doc, config)
-
-    # 如果我们使用原文档，则需要记录原文档中的图片和表格段落
-    # 这样我们可以跳过这些段落，只修改文本段落
-    is_original_doc = doc_path and os.path.exists(doc_path) and 'doc' in locals()
-
-    # 如果我们使用原文档，则需要记录原文档中的图片和表格段落
-    if is_original_doc:
-        # 记录原文档中的图片和表格段落索引
+        # 提取原文档中的所有段落和元素
         original_paragraphs = list(doc.paragraphs)
         original_tables = list(doc.tables)
 
-        # 记录原文档中的图片和表格段落索引
-        image_paragraph_indices = []
-        table_indices = []
+        # 为段落管理器中的段落创建一个索引
+        para_index = 0
+        table_index = 0
 
-        # 查找原文档中的图片段落
+        # 逐个段落处理，修改格式但保持内容和相对位置
         for i, para in enumerate(original_paragraphs):
-            # 检查段落中是否有图片
-            if '<w:drawing>' in para._p.xml:
-                image_paragraph_indices.append(i)
-                print(f"发现图片段落，索引: {i}")
+            # 跳过空段落
+            if not para.text.strip():
+                continue
 
-        # 记录原文档中的表格索引
-        for i in range(len(original_tables)):
-            table_indices.append(i)
-            print(f"发现表格，索引: {i}")
+            # 获取段落信息
+            if para_index < len(para_manager.paragraphs):
+                para_info = para_manager.paragraphs[para_index]
+                para_type = para_info.type.value
 
-        print(f"原文档中发现 {len(image_paragraph_indices)} 个图片段落和 {len(table_indices)} 个表格")
+                # 判断是否为表格标题段落
+                is_table_caption = False
+                if i < len(original_paragraphs) - 1:
+                    # 检查下一个元素是否为表格
+                    next_para = original_paragraphs[i+1]
+                    if not next_para.text.strip() and table_index < len(original_tables):
+                        # 可能是表格标题
+                        if para.text.strip().startswith("表"):
+                            is_table_caption = True
 
-        # 删除原文档中的所有段落，但保留图片和表格段落
-        # 注意：我们需要从后向前删除，以避免索引变化
-        paragraphs_to_remove = [i for i in range(len(original_paragraphs)) if i not in image_paragraph_indices]
-        paragraphs_to_remove.reverse()  # 从后向前删除
+                # 判断是否为图片
+                is_figure = False
+                for run in para.runs:
+                    if hasattr(run, "_r") and run._r.xpath(".//a:blip"):
+                        is_figure = True
+                        break
 
-        # 删除非图片段落
-        for i in paragraphs_to_remove:
+                # 判断是否为图片标题
+                is_figure_caption = False
+                if para.text.strip().startswith("图") and not is_figure:
+                    is_figure_caption = True
+
+                # 判断是否为公式
+                is_equation = False
+                if para.text.strip().startswith("式") or para.text.strip().startswith("公式"):
+                    is_equation = True
+
+                # 应用格式设置
+                # 根据段落类型或特殊类型应用格式
+                if para_type in config:
+                    format_config = config[para_type]
+
+                    # 应用段落格式
+                    if 'paragraph_format' in format_config:
+                        apply_paragraph_format(para, format_config['paragraph_format'])
+
+                    # 更新段落文本内容
+                    if not is_figure and not is_table_caption and not is_figure_caption and not is_equation:
+                        # 清空段落内容准备重新设置
+                        for run in list(para.runs):
+                            p = run._element
+                            p.getparent().remove(p)
+
+                        # 处理文本内容并应用字体设置
+                        if 'fonts' in format_config:
+                            font_settings = format_config['fonts']
+
+                            # 拆分中英文
+                            segments = split_text_by_language(para_info.content)
+
+                            # 为每段添加相应的格式
+                            for text, is_chinese in segments:
+                                run = para.add_run(text)
+                                apply_font_settings(run, font_settings, is_chinese)
+                        else:
+                            # 无特殊字体设置，使用默认体
+                            para.add_run(para_info.content)
+
+                            # 如果是参考文献类型，根据配置设置字体
+                            if para_type == 'references' or para_type == 'references_content':
+                                # 尝试从配置中获取参考文献的字体设置
+                                ref_config = config.get('references', {}) or config.get('references_content', {})
+                                ref_fonts = ref_config.get('fonts', {})
+
+                                if ref_fonts:
+                                    # 如果配置中有字体设置，使用配置中的设置
+                                    for run in para.runs:
+                                        apply_font_settings(run, ref_fonts)
+                                else:
+                                    # 如果配置中没有字体设置，使用默认值
+                                    for run in para.runs:
+                                        # 设置英文字体
+                                        run.font.name = 'Times New Roman'
+                                        # 设置中文字体
+                                        run.element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                                        # 设置字体大小（如果没有特别指定）
+                                        if not hasattr(run.font, 'size') or run.font.size is None:
+                                            run.font.size = Pt(10.5)
+
+                if errors:
+                    # 标记错误段落
+                    for error in errors:
+                        if error['location'] and error['location'][:20] in para_info.content[:20]:
+                            for run in para.runs:
+                                run.font.color.rgb = RGBColor(255, 0, 0) # 红色标记错误
+                            break # 找到第一个匹配的错误就跳出循环
+
+                # 增加索引，处理下一个段落
+                if not is_figure and not is_table_caption and not is_figure_caption and not is_equation:
+                    para_index += 1
+
+        # 处理表格
+        for table in original_tables:
+            # 应用表格样式
+            if 'tables' in config and 'caption' in config['tables'] and 'border' in config['tables']['caption']:
+                border_config = config['tables']['caption']['border']
+                if 'style' in border_config and border_config['style'] == 'solid':
+                    table.style = 'Table Grid'
+
+            # 应用单元格格式
+            for row in table.rows:
+                for cell in row.cells:
+                    for paragraph in cell.paragraphs:
+                        if 'tables' in config and 'paragraph_format' in config['tables']:
+                            apply_paragraph_format(paragraph, config['tables']['paragraph_format'])
+
+                        for run in paragraph.runs:
+                            if 'tables' in config and 'caption' in config['tables'] and 'fonts' in config['tables']['caption']:
+                                apply_font_settings(run, config['tables']['caption']['fonts'])
+    else:
+        # 如果没有原文档，则创建新文档（原有逻辑）
+        doc = Document()
+
+        # 设置页面格式
+        set_paper_format(doc, config)
+
+        # 判断是否使用原文档中的图片和表格
+        use_original_media = doc_path and os.path.exists(doc_path)
+
+        # 如果使用原文档中的图片和表格，则提取原文档中的图片和表格
+        original_images = []
+        original_tables = []
+
+        if use_original_media:
             try:
-                p = original_paragraphs[i]._p
-                p.getparent().remove(p)
-                print(f"删除段落，索引: {i}")
+                # 打开原文档
+                original_doc = Document(doc_path)
+
+                # 提取原文档中的图片
+                try:
+                    import zipfile
+                    import tempfile
+                    import base64
+                    import io
+                    from PIL import Image
+
+                    # 创建临时目录来存储提取的图片
+                    temp_dir = tempfile.mkdtemp()
+
+                    # 打开docx文件（实际上是一个zip文件）
+                    with zipfile.ZipFile(doc_path, 'r') as docx_zip:
+                        # 提取所有图片文件
+                        for item in docx_zip.namelist():
+                            if item.startswith('word/media/'):
+                                # 提取图片数据
+                                image_data = docx_zip.read(item)
+                                image_name = os.path.basename(item)
+
+                                # 保存图片到临时目录
+                                image_path = os.path.join(temp_dir, image_name)
+                                with open(image_path, 'wb') as f:
+                                    f.write(image_data)
+
+                                # 获取图片尺寸
+                                try:
+                                    with Image.open(io.BytesIO(image_data)) as img:
+                                        width, height = img.size
+                                        # 转换为英寸
+                                        width_inches = width / 96  # 假设96dpi
+                                except Exception as e:
+                                    print(f"无法获取图片尺寸: {str(e)}")
+                                    width_inches = 6  # 默认宽度
+                                    height = 0
+
+                                # 将图片信息添加到列表中
+                                original_images.append({
+                                    'path': image_path,
+                                    'width': width_inches,
+                                    'binary_data': image_data
+                                })
+
+                    print(f"从原文档中提取了 {len(original_images)} 个图片")
+                except Exception as e:
+                    print(f"提取原文档中的图片失败: {str(e)}")
+
+                # 提取原文档中的表格
+                try:
+                    for i, table in enumerate(original_doc.tables):
+                        # 提取表格数据
+                        table_data = []
+                        for row in table.rows:
+                            row_data = []
+                            for cell in row.cells:
+                                row_data.append(cell.text)
+                            table_data.append(row_data)
+
+                        # 将表格信息添加到列表中
+                        original_tables.append({
+                            'data': table_data,
+                            'style': table.style.name if table.style else 'Table Grid',
+                            'position': i
+                        })
+
+                    print(f"从原文档中提取了 {len(original_tables)} 个表格")
+                except Exception as e:
+                    print(f"提取原文档中的表格失败: {str(e)}")
             except Exception as e:
-                print(f"删除段落失败，索引: {i}, 错误: {str(e)}")
+                print(f"打开原文档失败: {str(e)}")
+                use_original_media = False
 
-    # 图表编号计数器
-    figure_number = 1
-    table_number = 1
+        # 图表编号计数器
+        figure_number = 1
+        table_number = 1
 
-    # 遍历所有段落并应用相应格式
-    for para_info in para_manager.paragraphs:
-        # 获取段落类型
-        para_type = para_info.type.value
+        # 如果有原文档中的图片和表格，则将它们添加到原始图片和表格列表中
+        if use_original_media and original_images:
+            print(f"从原文档中提取了 {len(original_images)} 个图片")
+            # 将原文档中的图片信息保存到变量中，供后续使用
 
-        # 处理图片类型的段落
-        if para_type == 'figures' and para_info.meta and 'image_path' in para_info.meta:
-            image_path = para_info.meta['image_path']
+        if use_original_media and original_tables:
+            print(f"从原文档中提取了 {len(original_tables)} 个表格")
+            # 将原文档中的表格信息保存到变量中，供后续使用
 
-            # 尝试使用原文档中的图片
-            used_original_image = False
-            original_image = None
+        # 清空段落管理器中的段落，以便重新添加
+        if use_original_media:
+            # 保存非图片和表格的段落
+            non_media_paragraphs = []
+            for para in para_manager.paragraphs:
+                if para.type.value != 'figures' and para.type.value != 'tables':
+                    non_media_paragraphs.append(para)
 
-            # 始终使用原文档中的图片，而不是只在路径不存在时使用
-            if original_images:
-                # 使用第一个原文档中的图片
-                original_image = original_images.pop(0)  # 从列表中移除该图片，避免重复使用
-                image_path = original_image['path']
-                used_original_image = True
-                print(f"使用原文档中的图片: {image_path}")
-            elif not os.path.exists(image_path):
-                # 如果没有原文档中的图片，并且段落管理器中的图片路径不存在
-                print(f"图片路径 {image_path} 不存在，且没有原文档中的图片")
+            # 清空段落管理器
+            para_manager.paragraphs = []
 
-                # 尝试使用二进制数据
-                if 'binary_data' in para_info.meta and para_info.meta['binary_data']:
-                    try:
-                        # 创建临时文件来保存图片
-                        import tempfile
-                        import base64
-                        temp_dir = tempfile.mkdtemp()
-                        temp_path = os.path.join(temp_dir, f"image_{figure_number}.png")
+            # 添加非图片和表格的段落
+            for para in non_media_paragraphs:
+                para_manager.paragraphs.append(para)
 
-                        # 解码二进制数据并保存为图片
-                        binary_data = para_info.meta['binary_data']
-                        if isinstance(binary_data, str):
-                            binary_data = base64.b64decode(binary_data)
+            # 添加原文档中的图片
+            print(f"将原文档中的 {len(original_images)} 个图片添加到段落管理器中")
+            for i, image in enumerate(original_images):
+                # 创建图片段落的元数据
+                meta_data = {
+                    'image_path': image['path'],
+                    'width': image['width'],
+                    'binary_data': image['binary_data'],
+                    'figure_number': i + 1
+                }
 
-                        with open(temp_path, 'wb') as f:
-                            f.write(binary_data)
+                # 将图片添加到段落管理器中
+                para_manager.add_para(
+                    para_type=ParsedParaType.FIGURES,
+                    content=f"图片 {i+1}",  # 默认题注
+                    meta=meta_data
+                )
 
-                        image_path = temp_path
-                        print(f"使用二进制数据创建图片: {image_path}")
-                    except Exception as e:
-                        print(f"使用二进制数据创建图片失败: {str(e)}")
+            # 添加原文档中的表格
+            print(f"将原文档中的 {len(original_tables)} 个表格添加到段落管理器中")
+            for i, table in enumerate(original_tables):
+                # 创建表格段落的元数据
+                meta_data = {
+                    'table_data': table['data'],
+                    'table_number': i + 1,
+                    'style': table['style'],
+                    'position': table['position']
+                }
 
-            if os.path.exists(image_path):
-                # 添加图片段落
-                img_paragraph = doc.add_paragraph()
-                if 'paragraph_format' in config['figures']:
-                    apply_paragraph_format(img_paragraph, config['figures']['paragraph_format'])
+                # 将表格添加到段落管理器中
+                para_manager.add_para(
+                    para_type=ParsedParaType.TABLES,
+                    content=f"表格 {i+1}",  # 默认题注
+                    meta=meta_data
+                )
 
-                # 添加图片
-                width = Inches(6)  # 默认宽度
-                if used_original_image and original_image and 'width' in original_image:
-                    # 如果使用原文档中的图片，使用原图片的宽度
-                    width = Inches(original_image['width'])
-                    print(f"使用原图片宽度: {original_image['width']} 英寸")
-                elif 'width' in para_info.meta:
-                    width_str = para_info.meta['width']
-                    if isinstance(width_str, str) and 'inches' in width_str.lower():
-                        width = Inches(float(width_str.lower().replace('inches', '')))
-                    elif isinstance(width_str, (int, float)):
-                        width = Inches(float(width_str))
-                    print(f"使用段落管理器中的图片宽度: {width_str}")
+        # 遍历所有段落并应用相应格式
+        for para_info in para_manager.paragraphs:
+            # 获取段落类型
+            para_type = para_info.type.value
 
-                img_paragraph.add_run().add_picture(image_path, width=width)
+            # 如果是图片或表格段落，则正常处理
+            # 我们已经将原文档中的图片和表格添加到段落管理器中，所以不需要跳过
 
-                # 生成题注
-                caption = para_info.content
-                if not caption:
-                    caption = get_openai_image_caption(image_path)
+            # 处理图片类型的段落
+            if para_type == 'figures' and para_info.meta and 'image_path' in para_info.meta:
+                image_path = para_info.meta['image_path']
 
-                # 设置图片编号
-                fig_num = para_info.meta.get('figure_number', figure_number)
+                # 正常处理图片
+                # 我们已经将原文档中的图片添加到段落管理器中
+
+                # 如果图片路径不存在，尝试使用二进制数据
+                if not os.path.exists(image_path):
+                    print(f"图片路径 {image_path} 不存在，尝试使用二进制数据")
+
+                    # 尝试使用二进制数据
+                    if 'binary_data' in para_info.meta and para_info.meta['binary_data']:
+                        try:
+                            # 创建临时文件来保存图片
+                            import tempfile
+                            import base64
+                            temp_dir = tempfile.mkdtemp()
+                            temp_path = os.path.join(temp_dir, f"image_{figure_number}.png")
+
+                            # 解码二进制数据并保存为图片
+                            binary_data = para_info.meta['binary_data']
+                            if isinstance(binary_data, str):
+                                binary_data = base64.b64decode(binary_data)
+
+                            with open(temp_path, 'wb') as f:
+                                f.write(binary_data)
+
+                            image_path = temp_path
+                            print(f"使用二进制数据创建图片: {image_path}")
+                        except Exception as e:
+                            print(f"使用二进制数据创建图片失败: {str(e)}")
+
+                if os.path.exists(image_path):
+                    # 添加图片段落
+                    img_paragraph = doc.add_paragraph()
+                    if 'paragraph_format' in config['figures']:
+                        apply_paragraph_format(img_paragraph, config['figures']['paragraph_format'])
+
+                    # 添加图片
+                    width = Inches(6)  # 默认宽度
+                    if 'width' in para_info.meta:
+                        width_str = para_info.meta['width']
+                        if isinstance(width_str, str) and 'inches' in width_str.lower():
+                            width = Inches(float(width_str.lower().replace('inches', '')))
+                        elif isinstance(width_str, (int, float)):
+                            width = Inches(float(width_str))
+                        print(f"使用段落管理器中的图片宽度: {width_str}")
+
+                    img_paragraph.add_run().add_picture(image_path, width=width)
+
+                    # 生成题注
+                    caption = para_info.content
+                    if not caption:
+                        caption = get_openai_image_caption(image_path)
+
+                    # 设置图片编号
+                    fig_num = para_info.meta.get('figure_number', figure_number)
+
+                    # 获取题注位置设置
+                    position = "below"
+                    if 'caption' in config['figures'] and 'position' in config['figures']['caption']:
+                        position = config['figures']['caption']['position']
+
+                    # 添加题注段落
+                    caption_paragraph = doc.add_paragraph()
+                    if 'paragraph_format' in config['figures']:
+                        apply_paragraph_format(caption_paragraph, config['figures']['paragraph_format'])
+
+                    # 设置题注文本
+                    caption_text = f"图 {fig_num} {caption}"
+                    caption_run = caption_paragraph.add_run(caption_text)
+
+                    # 应用题注字体格式
+                    if 'caption' in config['figures'] and 'fonts' in config['figures']['caption']:
+                        apply_font_settings(caption_run, config['figures']['caption']['fonts'])
+
+                    # 更新图片编号
+                    figure_number += 1
+                continue
+
+            # 处理表格类型的段落
+            elif para_type == 'tables' and para_info.meta and 'table_data' in para_info.meta:
+                table_data = para_info.meta['table_data']
 
                 # 获取题注位置设置
-                position = "below"
-                if 'caption' in config['figures'] and 'position' in config['figures']['caption']:
-                    position = config['figures']['caption']['position']
+                position = "above"
+                if 'caption' in config['tables'] and 'position' in config['tables']['caption']:
+                    position = config['tables']['caption']['position']
 
-                # 添加题注段落
-                caption_paragraph = doc.add_paragraph()
-                if 'paragraph_format' in config['figures']:
-                    apply_paragraph_format(caption_paragraph, config['figures']['paragraph_format'])
+                # 如果题注在表格上方，先添加题注
+                if position.lower() == "above":
+                    # 添加题注段落
+                    caption_paragraph = doc.add_paragraph()
+                    if 'paragraph_format' in config['tables']:
+                        apply_paragraph_format(caption_paragraph, config['tables']['paragraph_format'])
 
-                # 设置题注文本
-                caption_text = f"图 {fig_num} {caption}"
-                caption_run = caption_paragraph.add_run(caption_text)
+                    # 设置题注文本
+                    caption = para_info.content
+                    tab_num = para_info.meta.get('table_number', table_number)
+                    caption_text = f"表 {tab_num} {caption}"
+                    caption_run = caption_paragraph.add_run(caption_text)
 
-                # 应用题注字体格式
-                if 'caption' in config['figures'] and 'fonts' in config['figures']['caption']:
-                    apply_font_settings(caption_run, config['figures']['caption']['fonts'])
+                    # 应用题注字体格式
+                    if 'caption' in config['tables'] and 'fonts' in config['tables']['caption']:
+                        apply_font_settings(caption_run, config['tables']['caption']['fonts'])
 
-                # 更新图片编号
-                figure_number += 1
-            continue
+                # 正常处理表格
+                # 我们已经将原文档中的表格添加到段落管理器中
+                # 创建新表格
+                if isinstance(table_data, list) and len(table_data) > 0:
+                    num_rows = len(table_data)
+                    num_cols = len(table_data[0]) if isinstance(table_data[0], list) else 1
 
-        # 处理表格类型的段落
-        elif para_type == 'tables' and para_info.meta and 'table_data' in para_info.meta:
-            table_data = para_info.meta['table_data']
-
-            # 获取题注位置设置
-            position = "above"
-            if 'caption' in config['tables'] and 'position' in config['tables']['caption']:
-                position = config['tables']['caption']['position']
-
-            # 如果题注在表格上方，先添加题注
-            if position.lower() == "above":
-                # 添加题注段落
-                caption_paragraph = doc.add_paragraph()
-                if 'paragraph_format' in config['tables']:
-                    apply_paragraph_format(caption_paragraph, config['tables']['paragraph_format'])
-
-                # 设置题注文本
-                caption = para_info.content
-                tab_num = para_info.meta.get('table_number', table_number)
-                caption_text = f"表 {tab_num} {caption}"
-                caption_run = caption_paragraph.add_run(caption_text)
-
-                # 应用题注字体格式
-                if 'caption' in config['tables'] and 'fonts' in config['tables']['caption']:
-                    apply_font_settings(caption_run, config['tables']['caption']['fonts'])
-
-            # 尝试使用原文档中的表格
-            used_original_table = False
-            if original_tables:
-                # 使用第一个原文档中的表格
-                print(f"使用原文档中的表格")
-                original_table = original_tables.pop(0)  # 从列表中移除该表格，避免重复使用
-
-                # 复制表格 - 使用更可靠的方法
-                try:
-                    # 获取原表格的行数和列数
-                    num_rows = len(original_table.rows)
-                    num_cols = len(original_table.columns)
-
-                    # 创建新表格
                     table = doc.add_table(rows=num_rows, cols=num_cols)
 
-                    # 复制表格样式
-                    if original_table.style:
-                        table.style = original_table.style
-                    else:
-                        table.style = 'Table Grid'
+                    # 应用表格样式
+                    if 'caption' in config['tables'] and 'border' in config['tables']['caption']:
+                        border_config = config['tables']['caption']['border']
+                        if 'style' in border_config and border_config['style'] == 'solid':
+                            table.style = 'Table Grid'
 
-                    # 复制表格内容
-                    for i, row in enumerate(original_table.rows):
-                        for j, cell in enumerate(row.cells):
-                            # 复制单元格文本
-                            table.cell(i, j).text = cell.text
+                    # 填充表格数据
+                    for i, row_data in enumerate(table_data):
+                        for j, cell_data in enumerate(row_data if isinstance(row_data, list) else [row_data]):
+                            cell = table.cell(i, j)
+                            cell.text = str(cell_data)
 
                             # 应用单元格格式
-                            for idx, paragraph in enumerate(cell.paragraphs):
-                                if idx < len(table.cell(i, j).paragraphs):
-                                    # 应用段落格式
-                                    if 'paragraph_format' in config['tables']:
-                                        apply_paragraph_format(table.cell(i, j).paragraphs[idx], config['tables']['paragraph_format'])
+                            for paragraph in cell.paragraphs:
+                                if 'paragraph_format' in config['tables']:
+                                    apply_paragraph_format(paragraph, config['tables']['paragraph_format'])
 
-                                    # 应用字体格式
-                                    for run_idx, run in enumerate(paragraph.runs):
-                                        if run_idx < len(table.cell(i, j).paragraphs[idx].runs):
-                                            if 'caption' in config['tables'] and 'fonts' in config['tables']['caption']:
-                                                apply_font_settings(table.cell(i, j).paragraphs[idx].runs[run_idx], config['tables']['caption']['fonts'])
+                                for run in paragraph.runs:
+                                    if 'caption' in config['tables'] and 'fonts' in config['tables']['caption']:
+                                        apply_font_settings(run, config['tables']['caption']['fonts'])
 
-                    used_original_table = True
-                    print(f"成功复制表格，行数: {num_rows}, 列数: {num_cols}")
-                except Exception as e:
-                    print(f"复制表格失败: {str(e)}")
-                    # 如果复制失败，尝试使用原始方法
-                    try:
-                        table = doc.add_table(rows=1, cols=1)  # 创建一个空表格
-                        table._element = original_table._element  # 复制表格元素
-                        used_original_table = True
-                        print("使用原始方法复制表格成功")
-                    except Exception as e2:
-                        print(f"原始方法复制表格失败: {str(e2)}")
-                        used_original_table = False
-            # 如果没有原文档中的表格，或者复制失败，则创建新表格
-            if not used_original_table and isinstance(table_data, list) and len(table_data) > 0:
-                num_rows = len(table_data)
-                num_cols = len(table_data[0]) if isinstance(table_data[0], list) else 1
+                # 如果题注在表格下方，在表格后添加题注
+                if position.lower() == "below":
+                    # 添加题注段落
+                    caption_paragraph = doc.add_paragraph()
+                    if 'paragraph_format' in config['tables']:
+                        apply_paragraph_format(caption_paragraph, config['tables']['paragraph_format'])
 
-                table = doc.add_table(rows=num_rows, cols=num_cols)
+                    # 设置题注文本
+                    caption = para_info.content
+                    tab_num = para_info.meta.get('table_number', table_number)
+                    caption_text = f"表 {tab_num} {caption}"
+                    caption_run = caption_paragraph.add_run(caption_text)
 
-                # 应用表格样式
-                if 'caption' in config['tables'] and 'border' in config['tables']['caption']:
-                    border_config = config['tables']['caption']['border']
-                    if 'style' in border_config and border_config['style'] == 'solid':
-                        table.style = 'Table Grid'
+                    # 应用题注字体格式
+                    if 'caption' in config['tables'] and 'fonts' in config['tables']['caption']:
+                        apply_font_settings(caption_run, config['tables']['caption']['fonts'])
 
-                # 填充表格数据
-                for i, row_data in enumerate(table_data):
-                    for j, cell_data in enumerate(row_data if isinstance(row_data, list) else [row_data]):
-                        cell = table.cell(i, j)
-                        cell.text = str(cell_data)
+                # 更新表格编号
+                table_number += 1
+                continue
 
-                        # 应用单元格格式
-                        for paragraph in cell.paragraphs:
-                            if 'paragraph_format' in config['tables']:
-                                apply_paragraph_format(paragraph, config['tables']['paragraph_format'])
+            # 创建普通段落
+            paragraph = doc.add_paragraph()
 
-                            for run in paragraph.runs:
-                                if 'caption' in config['tables'] and 'fonts' in config['tables']['caption']:
-                                    apply_font_settings(run, config['tables']['caption']['fonts'])
+            # 获取段落格式设置
+            if para_type in config:
+                format_config = config[para_type]
 
-            # 如果题注在表格下方，在表格后添加题注
-            if position.lower() == "below":
-                # 添加题注段落
-                caption_paragraph = doc.add_paragraph()
-                if 'paragraph_format' in config['tables']:
-                    apply_paragraph_format(caption_paragraph, config['tables']['paragraph_format'])
+                # 应用段落格式
+                if 'paragraph_format' in format_config:
+                    apply_paragraph_format(paragraph, format_config['paragraph_format'])
 
-                # 设置题注文本
-                caption = para_info.content
-                tab_num = para_info.meta.get('table_number', table_number)
-                caption_text = f"表 {tab_num} {caption}"
-                caption_run = caption_paragraph.add_run(caption_text)
+                # 处理文本内容并应用字体设置
+                if 'fonts' in format_config:
+                    font_settings = format_config['fonts']
 
-                # 应用题注字体格式
-                if 'caption' in config['tables'] and 'fonts' in config['tables']['caption']:
-                    apply_font_settings(caption_run, config['tables']['caption']['fonts'])
+                    # 拆分中英文
+                    segments = split_text_by_language(para_info.content)
 
-            # 更新表格编号
-            table_number += 1
-            continue
+                    # 为每段添加相应的格式
+                    for text, is_chinese in segments:
+                        run = paragraph.add_run(text)
+                        apply_font_settings(run, font_settings, is_chinese)
+                else:
+                    # 无特殊字体设置，使用默认体
+                    run = paragraph.add_run(para_info.content)
 
-        # 创建普通段落
-        paragraph = doc.add_paragraph()
+                    # 如果是参考文献类型，根据配置设置字体
+                    if para_type == 'references' or para_type == 'references_content':
+                        # 尝试从配置中获取参考文献的字体设置
+                        ref_config = config.get('references', {}) or config.get('references_content', {})
+                        ref_fonts = ref_config.get('fonts', {})
 
-        # 获取段落格式设置
-        if para_type in config:
-            format_config = config[para_type]
+                        if ref_fonts:
+                            # 如果配置中有字体设置，使用配置中的设置
+                            apply_font_settings(run, ref_fonts)
+                        else:
+                            # 如果配置中没有字体设置，使用默认值
+                            # 设置英文字体
+                            run.font.name = 'Times New Roman'
+                            # 设置中文字体
+                            run.element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
+                            # 设置字体大小（如果没有特别指定）
+                            if not hasattr(run.font, 'size') or run.font.size is None:
+                                run.font.size = Pt(10.5)
 
-            # 应用段落格式
-            if 'paragraph_format' in format_config:
-                apply_paragraph_format(paragraph, format_config['paragraph_format'])
-
-            # 处理文本内容并应用字体设置
-            if 'fonts' in format_config:
-                font_settings = format_config['fonts']
-
-                # 拆分中英文
-                segments = split_text_by_language(para_info.content)
-
-                # 为每段添加相应的格式
-                for text, is_chinese in segments:
-                    run = paragraph.add_run(text)
-                    apply_font_settings(run, font_settings, is_chinese)
+                if errors:
+                    for error in errors:
+                        if error['location'] and error['location'][:20] in para_info.content[:20]:
+                            run.font.color.rgb = RGBColor(255, 0, 0) # 红色标记错误
+                            break # 找到第一个匹配的错误就跳出循环
             else:
-                # 无特殊字体设置，使用默认体
                 # 使用默认体
                 run = paragraph.add_run(para_info.content)
 
@@ -1024,34 +1212,6 @@ def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_
                         # 设置字体大小（如果没有特别指定）
                         if not hasattr(run.font, 'size') or run.font.size is None:
                             run.font.size = Pt(10.5)
-
-                if errors:
-                    for error in errors:
-                        if error['location'] and error['location'][:20] in para_info.content[:20]:
-                            run.font.color.rgb = RGBColor(255, 0, 0) # 红色标记错误
-                            break # 找到第一个匹配的错误就跳出循环
-        else:
-            # 使用默认体
-            run = paragraph.add_run(para_info.content)
-
-            # 如果是参考文献类型，根据配置设置字体
-            if para_type == 'references' or para_type == 'references_content':
-                # 尝试从配置中获取参考文献的字体设置
-                ref_config = config.get('references', {}) or config.get('references_content', {})
-                ref_fonts = ref_config.get('fonts', {})
-
-                if ref_fonts:
-                    # 如果配置中有字体设置，使用配置中的设置
-                    apply_font_settings(run, ref_fonts)
-                else:
-                    # 如果配置中没有字体设置，使用默认值
-                    # 设置英文字体
-                    run.font.name = 'Times New Roman'
-                    # 设置中文字体
-                    run.element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
-                    # 设置字体大小（如果没有特别指定）
-                    if not hasattr(run.font, 'size') or run.font.size is None:
-                        run.font.size = Pt(10.5)
 
     # 保存文档
     doc.save(output_path)
