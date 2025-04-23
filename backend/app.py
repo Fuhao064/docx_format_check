@@ -5,33 +5,38 @@ from werkzeug.utils import secure_filename
 from typing import List, Dict, Optional
 import os, time, sys
 import json
-from agents.setting import LLMs
-from editors.format_editor import generate_formatted_doc
-from editors.document_marker import mark_document_errors
-from preparation.para_type import ParagraphManager
-from checkers.checker import check_format
+import sys
+import os
+
+# 添加项目根目录到系统路径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from backend.agents.setting import LLMs
+from backend.editors.format_editor import generate_formatted_doc
+from backend.editors.document_marker import mark_document_errors
+from backend.preparation.para_type import ParagraphManager
+from backend.checkers.checker import check_format
 from datetime import datetime
-import preparation.docx_parser as docx_parser
-from agents.advice_agent import AdviceAgent
-from agents.editor_agent import EditorAgent
-from agents.format_agent import FormatAgent
-from agents.communicate_agent import CommunicateAgent
-from agents.setting import LLMs
+import backend.preparation.docx_parser as docx_parser
+from backend.agents.advice_agent import AdviceAgent
+from backend.agents.editor_agent import EditorAgent
+from backend.agents.format_agent import FormatAgent
+from backend.agents.communicate_agent import CommunicateAgent
 from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn  # 导入qn函数，用于XML命名空间
 import tempfile
-from utils.utils import parse_llm_json_response
+from backend.utils.utils import parse_llm_json_response
 
 # 导入agents包中的功能
-import agents
+import backend.agents as agents
 
 app = Flask(__name__)
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 创建一个全局的Agent中心
 agents_config = {
@@ -1015,21 +1020,26 @@ def apply_format():
 
         # 应用格式，并将错误信息传递给 generate_formatted_doc 函数
         try:
-            # 传递原文档路径，使其从原文档中提取图片和表格
-            output_path = generate_formatted_doc(config_path, para_manager, output_path, errors, doc_path)
+            # 传递原文档路径，使其在原文档基础上修改内容，保持所有元素的相对位置不变
+            output_path = generate_formatted_doc(config_path, para_manager, output_path, errors, doc_path=doc_path)
         except Exception as e:
             print(f"生成格式化文档失败: {str(e)}")
             import traceback
             traceback.print_exc()
             return jsonify({"success": False, "message": f"生成格式化文档失败: {str(e)}"}), 500
 
-        # 返回成功响应，前端将使用这个路径下载文件
-        return jsonify({
-            "success": True,
-            "message": "格式应用成功",
-            "output_path": output_path,
-            "original_filename": original_filename
-        })
+        # 生成下载文件名
+        download_name = f"{os.path.splitext(original_filename)[0]}_formatted.docx"
+
+        # 直接返回文件，而不是返回 JSON 响应
+        # 这将触发浏览器的下载行为
+        print(f"格式应用成功，直接返回文件: {output_path}")
+        return send_from_directory(
+            os.path.dirname(output_path),
+            os.path.basename(output_path),
+            as_attachment=True,
+            download_name=download_name
+        )
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
