@@ -802,11 +802,11 @@ def get_report():
         # 直接以二进制模式读取文件并返回
         with open(doc_path, 'rb') as f:
             file_data = f.read()
-        
+
         # 对文件名进行URL编码，避免非ASCII字符导致的编码问题
         from urllib.parse import quote
         encoded_filename = quote(download_name)
-        
+
         response = Response(
             file_data,
             mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -927,11 +927,11 @@ def get_marked_document():
         # 直接以二进制模式读取文件并返回
         with open(doc_path, 'rb') as f:
             file_data = f.read()
-        
+
         # 对文件名进行URL编码，避免非ASCII字符导致的编码问题
         from urllib.parse import quote
         encoded_filename = quote(download_name)
-        
+
         response = Response(
             file_data,
             mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -1009,12 +1009,12 @@ def apply_format():
                 else:
                     # 如果没有找到对应的条目，添加新的
                     analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
-                
+
                 print(f"应用格式时使用前端传来的para_manager")
             except Exception as e:
                 print(f"加载前端传来的para_manager失败: {str(e)}")
                 para_manager = None
-        
+
         # 如果没有从前端获取到有效的para_manager
         if not para_manager:
             # 尝试从后端已存储的para_manager中获取
@@ -1038,11 +1038,11 @@ def apply_format():
         # 如果没有提供原始文件名，则使用文档路径中的文件名
         if not original_filename:
             original_filename = os.path.basename(doc_path)
-            
+
         # 使用原始文件名生成输出文件名，但去除特殊字符防止路径问题
         safe_filename = ''.join(c for c in os.path.splitext(original_filename)[0] if c.isalnum() or c in '._- ')
         output_filename = f"{safe_filename}_formatted.docx"
-        
+
         # 确保输出到临时目录，防止权限问题
         temp_dir = tempfile.mkdtemp()
         output_path = os.path.join(temp_dir, output_filename)
@@ -1107,7 +1107,7 @@ def apply_format():
                     status=500,
                     mimetype='application/json'
                 )
-            
+
             # 检查文件大小是否合理 (不超过100MB)
             if file_size > 100 * 1024 * 1024:
                 return Response(
@@ -1115,39 +1115,39 @@ def apply_format():
                     status=500,
                     mimetype='application/json'
                 )
-                
+
             print(f"格式应用成功，文件大小: {file_size} 字节，准备返回文件: {output_path}")
-            
+
             # 生成下载文件名 (仅字母数字和部分符号，避免编码问题)
             download_name = f"{safe_filename}_formatted.docx"
-            
+
             # 使用更安全的方式返回文件
             from werkzeug.utils import secure_filename
-            
+
             # 直接以二进制模式读取文件并返回
             with open(output_path, 'rb') as f:
                 file_data = f.read()
-            
+
             # 对文件名进行URL编码，避免非ASCII字符导致的编码问题
             from urllib.parse import quote
             encoded_filename = quote(download_name)
-            
+
             # 设置响应头，支持断点续传和正确的MIME类型
             headers = {
                 'Content-Disposition': f'attachment; filename="{encoded_filename}"; filename*=UTF-8\'\'{encoded_filename}',
                 'Content-Length': str(file_size),
                 'Accept-Ranges': 'bytes'
             }
-            
+
             # 创建响应对象
             response = Response(
                 file_data,
                 mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                 headers=headers
             )
-            
+
             return response
-            
+
         except Exception as file_error:
             print(f"读取或准备文件数据失败: {str(file_error)}")
             import traceback
@@ -1157,7 +1157,7 @@ def apply_format():
                 status=500,
                 mimetype='application/json'
             )
-            
+
     except Exception as e:
         print(f"应用格式时出错: {str(e)}")
         import traceback
@@ -1194,11 +1194,11 @@ def get_formatted_document():
         # 直接以二进制模式读取文件并返回
         with open(doc_path, 'rb') as f:
             file_data = f.read()
-        
+
         # 对文件名进行URL编码，避免非ASCII字符导致的编码问题
         from urllib.parse import quote
         encoded_filename = quote(download_name)
-        
+
         response = Response(
             file_data,
             mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -1223,12 +1223,148 @@ def send_message():
             return jsonify({"success": False, "message": "缺少必要参数"}), 400
         message = data.get('message')
         doc_path = data.get('doc_path')
+        config_path = data.get('config_path')
         doc_content = docx_parser.extract_doc_content(doc_path)
-        # 使用CommunicateAgent处理消息，包含意图分析和分发，同时传入文档全文
-        response = agents["communicate"].get_response(message, doc_content)
+
+        # 获取段落管理器
+        para_manager = None
+        frontend_para_manager = data.get('para_manager', None)
+
+        # 如果前端传来了para_manager，则使用前端的para_manager
+        if frontend_para_manager:
+            try:
+                # 创建一个新的ParagraphManager实例
+                para_manager = ParagraphManager()
+
+                # 将前端传来的数据加载到para_manager中
+                if isinstance(frontend_para_manager, list):
+                    for para_data in frontend_para_manager:
+                        para_manager.add_paragraph_from_dict(para_data)
+
+                # 更新或添加到analysised_para_manager中
+                for i, item in enumerate(analysised_para_manager):
+                    if item['doc_path'] == doc_path:
+                        analysised_para_manager[i]['para_manager'] = para_manager
+                        break
+                else:
+                    # 如果没有找到对应的条目，添加新的
+                    analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
+            except Exception as e:
+                print(f"加载前端传来的para_manager失败: {str(e)}")
+                para_manager = None
+
+        # 如果没有从前端获取到有效的para_manager
+        if not para_manager:
+            # 尝试从后端已存储的para_manager中获取
+            para_manager = next((item['para_manager'] for item in analysised_para_manager if item['doc_path'] == doc_path), None)
+
+        # 使用CommunicateAgent处理消息，包含意图分析和分发，同时传入文档全文和段落管理器
+        response = agents["communicate"].get_response(message, doc_content, para_manager, config_path)
 
         return jsonify({"success": True, "message": response})
     except Exception as e:
+        print(f"发送消息时出错: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# 段落分析API
+@app.route('/api/analyze-paragraph', methods=['POST'])
+def analyze_paragraph():
+    try:
+        data = request.get_json()
+        if not data or 'doc_path' not in data or 'para_index' not in data:
+            return jsonify({"success": False, "message": "缺少必要参数"}), 400
+
+        doc_path = data.get('doc_path')
+        para_index = data.get('para_index')
+        context_range = data.get('context_range', 2)  # 默认前后各取2个段落作为上下文
+
+        # 获取段落管理器
+        para_manager = None
+        frontend_para_manager = data.get('para_manager', None)
+
+        # 如果前端传来了para_manager，则使用前端的para_manager
+        if frontend_para_manager:
+            try:
+                # 创建一个新的ParagraphManager实例
+                para_manager = ParagraphManager()
+
+                # 将前端传来的数据加载到para_manager中
+                if isinstance(frontend_para_manager, list):
+                    for para_data in frontend_para_manager:
+                        para_manager.add_paragraph_from_dict(para_data)
+            except Exception as e:
+                print(f"加载前端传来的para_manager失败: {str(e)}")
+                para_manager = None
+
+        # 如果没有从前端获取到有效的para_manager
+        if not para_manager:
+            # 尝试从后端已存储的para_manager中获取
+            para_manager = next((item['para_manager'] for item in analysised_para_manager if item['doc_path'] == doc_path), None)
+            if not para_manager:
+                return jsonify({"success": False, "message": "找不到段落管理器，请先检查格式"}), 404
+
+        # 检查段落索引是否有效
+        if para_index < 0 or para_index >= len(para_manager.paragraphs):
+            return jsonify({"success": False, "message": f"段落索引超出范围，有效范围为0-{len(para_manager.paragraphs)-1}"}), 400
+
+        # 使用AdviceAgent分析段落
+        advice_agent = agents["advice"]
+        result = advice_agent.analyze_paragraph_manager(para_manager, para_index, context_range)
+
+        return jsonify({"success": True, "result": result})
+    except Exception as e:
+        print(f"分析段落时出错: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+# 增强段落内容API
+@app.route('/api/enhance-paragraphs', methods=['POST'])
+def enhance_paragraphs():
+    try:
+        data = request.get_json()
+        if not data or 'doc_path' not in data:
+            return jsonify({"success": False, "message": "缺少必要参数"}), 400
+
+        doc_path = data.get('doc_path')
+        para_indices = data.get('para_indices')  # 可选参数，如果不提供则增强所有段落
+
+        # 获取段落管理器
+        para_manager = None
+        frontend_para_manager = data.get('para_manager', None)
+
+        # 如果前端传来了para_manager，则使用前端的para_manager
+        if frontend_para_manager:
+            try:
+                # 创建一个新的ParagraphManager实例
+                para_manager = ParagraphManager()
+
+                # 将前端传来的数据加载到para_manager中
+                if isinstance(frontend_para_manager, list):
+                    for para_data in frontend_para_manager:
+                        para_manager.add_paragraph_from_dict(para_data)
+            except Exception as e:
+                print(f"加载前端传来的para_manager失败: {str(e)}")
+                para_manager = None
+
+        # 如果没有从前端获取到有效的para_manager
+        if not para_manager:
+            # 尝试从后端已存储的para_manager中获取
+            para_manager = next((item['para_manager'] for item in analysised_para_manager if item['doc_path'] == doc_path), None)
+            if not para_manager:
+                return jsonify({"success": False, "message": "找不到段落管理器，请先检查格式"}), 404
+
+        # 使用EditorAgent增强段落
+        editor_agent = agents["editor"]
+        result = editor_agent.enhance_paragraph_manager(para_manager, para_indices)
+
+        return jsonify({"success": True, "result": result})
+    except Exception as e:
+        print(f"增强段落时出错: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
 
 # 获取docx文档内容API

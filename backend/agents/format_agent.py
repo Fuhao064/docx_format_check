@@ -1,7 +1,9 @@
-import json, re
-from preparation.para_type import ParsedParaType
+import json
+from typing import Dict, List, Optional, Any
+from preparation.para_type import ParsedParaType, ParagraphManager, ParaInfo
 from agents.setting import LLMs
 from utils.utils import parse_llm_json_response
+from utils.config_utils import load_config
 
 class FormatAgent:
     def __init__(self, model="qwen-plus"):
@@ -43,7 +45,7 @@ class FormatAgent:
         )
         return response.choices[0].message.content
 
-    def predict_location(self, doc_content, fragment_str: str, flag:bool, para_meta=None, prev_para_type=None, next_para_type=None) -> dict:
+    def predict_location(self, doc_content, fragment_str: str, para_meta=None, prev_para_type=None, next_para_type=None) -> dict:
         """预测段落位置信息"""
         example_data = {
             "location": "title_zh",
@@ -203,16 +205,236 @@ class FormatAgent:
     #     for para in config["para"]:
     #         pass
     #     return config
-    def process(self, user_message: str, function_name: str) -> str:
+    def analyze_paragraph(self, para_info: ParaInfo, config: Dict) -> List[Dict]:
+        """
+        分析段落格式是否符合配置要求
+
+        Args:
+            para_info: 段落信息对象
+            config: 格式配置字典
+
+        Returns:
+            List[Dict]: 错误列表
+        """
+        errors = []
+        para_type = para_info.type.value
+        para_content = para_info.content
+        para_meta = para_info.meta
+
+        # 检查该类型段落是否有配置要求
+        if para_type not in config:
+            return errors
+
+        # 获取该类型段落的格式要求
+        type_config = config[para_type]
+
+        # 检查段落格式
+        if "paragraph_format" in type_config and "paragraph_format" in para_meta:
+            para_format = para_meta["paragraph_format"]
+            required_format = type_config["paragraph_format"]
+
+            # 检查对齐方式
+            if "alignment" in required_format and "alignment" in para_format:
+                if para_format["alignment"] != required_format["alignment"]:
+                    errors.append({
+                        "message": f"段落对齐方式不符合要求，当前为{para_format['alignment']}，应为{required_format['alignment']}",
+                        "location": para_content[:20] if len(para_content) > 20 else para_content
+                    })
+
+            # 检查首行缩进
+            if "first_line_indent" in required_format and "first_line_indent" in para_format:
+                if para_format["first_line_indent"] != required_format["first_line_indent"]:
+                    errors.append({
+                        "message": f"段落首行缩进不符合要求，当前为{para_format['first_line_indent']}，应为{required_format['first_line_indent']}",
+                        "location": para_content[:20] if len(para_content) > 20 else para_content
+                    })
+
+            # 检查行间距
+            if "line_spacing" in required_format and "line_spacing" in para_format:
+                if para_format["line_spacing"] != required_format["line_spacing"]:
+                    errors.append({
+                        "message": f"段落行间距不符合要求，当前为{para_format['line_spacing']}，应为{required_format['line_spacing']}",
+                        "location": para_content[:20] if len(para_content) > 20 else para_content
+                    })
+
+        # 检查字体设置
+        if "fonts" in type_config and "fonts" in para_meta:
+            fonts = para_meta["fonts"]
+            required_fonts = type_config["fonts"]
+
+            # 检查中文字体
+            if "zh_family" in required_fonts and "zh_family" in fonts:
+                zh_font = list(fonts["zh_family"]) if isinstance(fonts["zh_family"], set) else fonts["zh_family"]
+                required_zh_font = required_fonts["zh_family"]
+                if required_zh_font not in zh_font:
+                    errors.append({
+                        "message": f"中文字体不符合要求，当前为{zh_font}，应为{required_zh_font}",
+                        "location": para_content[:20] if len(para_content) > 20 else para_content
+                    })
+
+            # 检查英文字体
+            if "en_family" in required_fonts and "en_family" in fonts:
+                en_font = list(fonts["en_family"]) if isinstance(fonts["en_family"], set) else fonts["en_family"]
+                required_en_font = required_fonts["en_family"]
+                if required_en_font not in en_font:
+                    errors.append({
+                        "message": f"英文字体不符合要求，当前为{en_font}，应为{required_en_font}",
+                        "location": para_content[:20] if len(para_content) > 20 else para_content
+                    })
+
+            # 检查字号
+            if "size" in required_fonts and "size" in fonts:
+                font_size = fonts["size"]
+                required_size = required_fonts["size"]
+
+                # 处理字体大小不一致的情况
+                if isinstance(font_size, list):
+                    errors.append({
+                        "message": f"段落字体大小不一致: {font_size}",
+                        "location": para_content[:20] if len(para_content) > 20 else para_content
+                    })
+                elif font_size != required_size:
+                    errors.append({
+                        "message": f"字号不符合要求，当前为{font_size}，应为{required_size}",
+                        "location": para_content[:20] if len(para_content) > 20 else para_content
+                    })
+
+            # 检查加粗
+            if "bold" in required_fonts and "bold" in fonts:
+                # 处理不同类型的bold值
+                if isinstance(fonts["bold"], list):
+                    is_bold = True in fonts["bold"]
+                else:
+                    is_bold = fonts["bold"]
+                required_bold = required_fonts["bold"]
+                if is_bold != required_bold:
+                    errors.append({
+                        "message": f"加粗设置不符合要求，当前为{'是' if is_bold else '否'}，应为{'是' if required_bold else '否'}",
+                        "location": para_content[:20] if len(para_content) > 20 else para_content
+                    })
+
+            # 检查斜体
+            if "italic" in required_fonts and "italic" in fonts:
+                # 处理不同类型的italic值
+                if isinstance(fonts["italic"], list):
+                    is_italic = True in fonts["italic"]
+                else:
+                    is_italic = fonts["italic"]
+                required_italic = required_fonts["italic"]
+                if is_italic != required_italic:
+                    errors.append({
+                        "message": f"斜体设置不符合要求，当前为{'是' if is_italic else '否'}，应为{'是' if required_italic else '否'}",
+                        "location": para_content[:20] if len(para_content) > 20 else para_content
+                    })
+
+        return errors
+
+    def check_paragraph_manager(self, para_manager: ParagraphManager, config_path: str) -> List[Dict]:
+        """
+        检查段落管理器中的所有段落是否符合格式要求
+
+        Args:
+            para_manager: 段落管理器实例
+            config_path: 配置文件路径
+
+        Returns:
+            List[Dict]: 错误列表
+        """
+        errors = []
+
+        # 加载配置文件
+        config = load_config(config_path)
+
+        # 检查每个段落
+        for para_info in para_manager.paragraphs:
+            para_errors = self.analyze_paragraph(para_info, config)
+            errors.extend(para_errors)
+
+        return errors
+
+    def suggest_paragraph_fix(self, para_info: ParaInfo, config: Dict) -> Dict:
+        """
+        为段落提供格式修复建议
+
+        Args:
+            para_info: 段落信息对象
+            config: 格式配置字典
+
+        Returns:
+            Dict: 修复建议
+        """
+        para_type = para_info.type.value
+        para_content = para_info.content
+
+        # 检查该类型段落是否有配置要求
+        if para_type not in config:
+            return {"content": para_content, "meta": para_info.meta}
+
+        # 获取该类型段落的格式要求
+        type_config = config[para_type]
+
+        # 创建新的元数据，基于配置要求
+        new_meta = {}
+
+        # 设置段落格式
+        if "paragraph_format" in type_config:
+            new_meta["paragraph_format"] = type_config["paragraph_format"]
+
+        # 设置字体格式
+        if "fonts" in type_config:
+            new_meta["fonts"] = type_config["fonts"]
+
+        return {
+            "content": para_content,
+            "meta": new_meta
+        }
+
+    def fix_paragraph_manager(self, para_manager: ParagraphManager, config_path: str) -> ParagraphManager:
+        """
+        修复段落管理器中的所有段落格式
+
+        Args:
+            para_manager: 段落管理器实例
+            config_path: 配置文件路径
+
+        Returns:
+            ParagraphManager: 修复后的段落管理器
+        """
+        # 加载配置文件
+        config = load_config(config_path)
+
+        # 创建新的段落管理器
+        fixed_manager = ParagraphManager()
+
+        # 复制图片和表格信息
+        fixed_manager.figures = para_manager.figures.copy()
+        fixed_manager.tables = para_manager.tables.copy()
+
+        # 修复每个段落
+        for para_info in para_manager.paragraphs:
+            fix_suggestion = self.suggest_paragraph_fix(para_info, config)
+
+            # 添加修复后的段落
+            fixed_manager.add_para(
+                para_type=para_info.type,
+                content=fix_suggestion["content"],
+                meta=fix_suggestion["meta"]
+            )
+
+        return fixed_manager
+
+    def process(self, user_message: str, function_name: str, para_manager: Optional[ParagraphManager] = None, config_path: Optional[str] = None) -> Any:
         """
         处理用户请求的通用方法
 
         Args:
             user_message: 用户消息内容
             function_name: 要执行的函数名
+            para_manager: 可选的段落管理器实例
+            config_path: 可选的配置文件路径
 
         Returns:
-            str: 处理结果
+            Any: 处理结果
         """
         try:
             if self.client is None:
@@ -223,6 +445,10 @@ class FormatAgent:
                 return self.parse_format(user_message, "{}")
             elif function_name == "parse_table":
                 return self.parse_table(user_message)
+            elif function_name == "check_paragraph_manager" and para_manager and config_path:
+                return self.check_paragraph_manager(para_manager, config_path)
+            elif function_name == "fix_paragraph_manager" and para_manager and config_path:
+                return self.fix_paragraph_manager(para_manager, config_path)
             else:
                 # 默认响应
                 response = self.client.chat.completions.create(
