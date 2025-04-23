@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_from_directory, send_file, Response
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
@@ -762,7 +762,7 @@ def download_report():
         report_path = os.path.join(temp_dir, report_filename)
         doc.save(report_path)
 
-        # 返回成功响应，前端将使用这个路径下载文件
+        # 返回成功响应和报告路径信息，让前端使用GET请求下载
         return jsonify({
             "success": True,
             "message": "报告生成成功",
@@ -799,13 +799,22 @@ def get_report():
         else:
             download_name = f"report_{original_filename}"
 
-        # 返回文件
-        return send_from_directory(
-            os.path.dirname(doc_path),
-            os.path.basename(doc_path),
-            as_attachment=True,
-            download_name=download_name
+        # 直接以二进制模式读取文件并返回
+        with open(doc_path, 'rb') as f:
+            file_data = f.read()
+        
+        # 对文件名进行URL编码，避免非ASCII字符导致的编码问题
+        from urllib.parse import quote
+        encoded_filename = quote(download_name)
+        
+        response = Response(
+            file_data,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            headers={
+                'Content-Disposition': f'attachment; filename="{encoded_filename}"; filename*=UTF-8\'\'{encoded_filename}'
+            }
         )
+        return response
     except Exception as e:
         print(f"下载报告失败: {str(e)}")
         return jsonify({
@@ -878,7 +887,7 @@ def download_marked_document():
         # 使用前端传来的错误列表标记文档
         marked_doc_path = mark_document_errors(doc_path, errors, para_manager, marked_doc_path)
 
-        # 返回成功响应，前端将使用这个路径下载文件
+        # 返回成功响应和标记文档路径信息，让前端使用GET请求下载
         return jsonify({
             "success": True,
             "message": "文档标记成功",
@@ -915,13 +924,22 @@ def get_marked_document():
         else:
             download_name = f"marked_{original_filename}"
 
-        # 返回文件
-        return send_from_directory(
-            os.path.dirname(doc_path),
-            os.path.basename(doc_path),
-            as_attachment=True,
-            download_name=download_name
+        # 直接以二进制模式读取文件并返回
+        with open(doc_path, 'rb') as f:
+            file_data = f.read()
+        
+        # 对文件名进行URL编码，避免非ASCII字符导致的编码问题
+        from urllib.parse import quote
+        encoded_filename = quote(download_name)
+        
+        response = Response(
+            file_data,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            headers={
+                'Content-Disposition': f'attachment; filename="{encoded_filename}"; filename*=UTF-8\'\'{encoded_filename}'
+            }
         )
+        return response
     except Exception as e:
         return jsonify({
             "success": False,
@@ -932,9 +950,23 @@ def get_marked_document():
 @app.route('/api/apply-format', methods=['POST'])
 def apply_format():
     try:
-        data = request.get_json()
+        # 检查内容类型，如果是JSON，则解析请求体
+        if request.is_json:
+            data = request.get_json()
+        else:
+            # 如果不是JSON，可能是表单数据或其他格式
+            return Response(
+                json.dumps({"success": False, "message": "请求格式不正确，需要JSON数据"}),
+                status=400,
+                mimetype='application/json'
+            )
+
         if not data or 'doc_path' not in data or 'config_path' not in data:
-            return jsonify({"success": False, "message": "缺少必要参数"}), 400
+            return Response(
+                json.dumps({"success": False, "message": "缺少必要参数"}),
+                status=400,
+                mimetype='application/json'
+            )
 
         doc_path = data.get('doc_path')
         config_path = data.get('config_path')
@@ -944,14 +976,22 @@ def apply_format():
 
         # 验证文件存在
         if not os.path.exists(doc_path):
-            return jsonify({"success": False, "message": "文档文件不存在"}), 404
+            return Response(
+                json.dumps({"success": False, "message": "文档文件不存在"}),
+                status=404,
+                mimetype='application/json'
+            )
 
         if not os.path.exists(config_path):
-            return jsonify({"success": False, "message": "配置文件不存在"}), 404
+            return Response(
+                json.dumps({"success": False, "message": "配置文件不存在"}),
+                status=404,
+                mimetype='application/json'
+            )
 
         # 如果前端传来了para_manager，则使用前端的para_manager
+        para_manager = None
         if frontend_para_manager:
-            print(f"应用格式时使用前端传来的para_manager")
             try:
                 # 创建一个新的ParagraphManager实例
                 para_manager = ParagraphManager()
@@ -969,54 +1009,72 @@ def apply_format():
                 else:
                     # 如果没有找到对应的条目，添加新的
                     analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
+                
+                print(f"应用格式时使用前端传来的para_manager")
             except Exception as e:
                 print(f"加载前端传来的para_manager失败: {str(e)}")
-                # 如果加载失败，则使用后端的para_manager
-                para_manager = next((item['para_manager'] for item in analysised_para_manager if item['doc_path'] == doc_path), None)
-                if not para_manager:
-                    # 如果没有找到对应的para_manager，创建一个新的
-                    print(f"应用格式时未找到对应的para_manager，创建了新的实例")
-                    # 调用check_format获取para_manager
-                    errors, para_manager = check_format(doc_path, config_path, agents["format"])
-                    # 存储当前的para_manager
-                    analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
-        else:
-            # 如果前端没有传来para_manager，则使用后端的para_manager
+                para_manager = None
+        
+        # 如果没有从前端获取到有效的para_manager
+        if not para_manager:
+            # 尝试从后端已存储的para_manager中获取
             para_manager = next((item['para_manager'] for item in analysised_para_manager if item['doc_path'] == doc_path), None)
             if not para_manager:
                 # 如果没有找到对应的para_manager，创建一个新的
                 print(f"应用格式时未找到对应的para_manager，创建了新的实例")
                 # 调用check_format获取para_manager
-                errors, para_manager = check_format(doc_path, config_path, agents["format"])
-                # 存储当前的para_manager
-                analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
+                try:
+                    errors, para_manager = check_format(doc_path, config_path, agents["format"])
+                    # 存储当前的para_manager
+                    analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
+                except Exception as check_error:
+                    print(f"检查格式创建para_manager失败: {str(check_error)}")
+                    return Response(
+                        json.dumps({"success": False, "message": f"检查格式创建para_manager失败: {str(check_error)}"}),
+                        status=500,
+                        mimetype='application/json'
+                    )
 
         # 如果没有提供原始文件名，则使用文档路径中的文件名
         if not original_filename:
             original_filename = os.path.basename(doc_path)
-            output_filename = f"{os.path.splitext(original_filename)[0]}_formatted.docx"
-        else:
-            output_filename = f"{os.path.splitext(original_filename)[0]}_formatted.docx"
+            
+        # 使用原始文件名生成输出文件名，但去除特殊字符防止路径问题
+        safe_filename = ''.join(c for c in os.path.splitext(original_filename)[0] if c.isalnum() or c in '._- ')
+        output_filename = f"{safe_filename}_formatted.docx"
+        
+        # 确保输出到临时目录，防止权限问题
+        temp_dir = tempfile.mkdtemp()
+        output_path = os.path.join(temp_dir, output_filename)
 
-        # 将输出目录输出为doc_path的文件名
-        output_path = os.path.join(os.path.dirname(doc_path), output_filename)
-
-        # 如果没有提供错误列表，或者para_manager为空，则调用check_format获取
-        if not errors or not para_manager or not para_manager.paragraphs:
+        # 如果没有有效的para_manager，重新检查获取
+        if not para_manager or not para_manager.paragraphs:
             print(f"重新检查格式获取错误和para_manager")
-            errors, para_manager = check_format(doc_path, config_path, agents["format"])
-            # 更新存储的para_manager
-            for i, item in enumerate(analysised_para_manager):
-                if item['doc_path'] == doc_path:
-                    analysised_para_manager[i]['para_manager'] = para_manager
-                    break
-            else:
-                # 如果没有找到对应的条目，添加新的
-                analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
+            try:
+                errors, para_manager = check_format(doc_path, config_path, agents["format"])
+                # 更新存储的para_manager
+                for i, item in enumerate(analysised_para_manager):
+                    if item['doc_path'] == doc_path:
+                        analysised_para_manager[i]['para_manager'] = para_manager
+                        break
+                else:
+                    # 如果没有找到对应的条目，添加新的
+                    analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
+            except Exception as check_error:
+                print(f"重新检查格式失败: {str(check_error)}")
+                return Response(
+                    json.dumps({"success": False, "message": f"重新检查格式失败: {str(check_error)}"}),
+                    status=500,
+                    mimetype='application/json'
+                )
 
         # 确保para_manager有效
         if not para_manager or not para_manager.paragraphs:
-            return jsonify({"success": False, "message": "无法获取文档段落信息，请重新检查格式"}), 500
+            return Response(
+                json.dumps({"success": False, "message": "无法获取文档段落信息，请重新检查格式"}),
+                status=500,
+                mimetype='application/json'
+            )
 
         # 应用格式，并将错误信息传递给 generate_formatted_doc 函数
         try:
@@ -1026,22 +1084,90 @@ def apply_format():
             print(f"生成格式化文档失败: {str(e)}")
             import traceback
             traceback.print_exc()
-            return jsonify({"success": False, "message": f"生成格式化文档失败: {str(e)}"}), 500
+            return Response(
+                json.dumps({"success": False, "message": f"生成格式化文档失败: {str(e)}"}),
+                status=500,
+                mimetype='application/json'
+            )
 
-        # 生成下载文件名
-        download_name = f"{os.path.splitext(original_filename)[0]}_formatted.docx"
+        # 检查文件是否存在且可读
+        if not os.path.exists(output_path):
+            return Response(
+                json.dumps({"success": False, "message": "生成格式化文档后找不到文件"}),
+                status=404,
+                mimetype='application/json'
+            )
 
-        # 直接返回文件，而不是返回 JSON 响应
-        # 这将触发浏览器的下载行为
-        print(f"格式应用成功，直接返回文件: {output_path}")
-        return send_from_directory(
-            os.path.dirname(output_path),
-            os.path.basename(output_path),
-            as_attachment=True,
-            download_name=download_name
-        )
+        try:
+            # 尝试获取文件大小，确保可读
+            file_size = os.path.getsize(output_path)
+            if file_size == 0:
+                return Response(
+                    json.dumps({"success": False, "message": "生成的文档为空文件"}),
+                    status=500,
+                    mimetype='application/json'
+                )
+            
+            # 检查文件大小是否合理 (不超过100MB)
+            if file_size > 100 * 1024 * 1024:
+                return Response(
+                    json.dumps({"success": False, "message": "生成的文档过大，请重试"}),
+                    status=500,
+                    mimetype='application/json'
+                )
+                
+            print(f"格式应用成功，文件大小: {file_size} 字节，准备返回文件: {output_path}")
+            
+            # 生成下载文件名 (仅字母数字和部分符号，避免编码问题)
+            download_name = f"{safe_filename}_formatted.docx"
+            
+            # 使用更安全的方式返回文件
+            from werkzeug.utils import secure_filename
+            
+            # 直接以二进制模式读取文件并返回
+            with open(output_path, 'rb') as f:
+                file_data = f.read()
+            
+            # 对文件名进行URL编码，避免非ASCII字符导致的编码问题
+            from urllib.parse import quote
+            encoded_filename = quote(download_name)
+            
+            # 设置响应头，支持断点续传和正确的MIME类型
+            headers = {
+                'Content-Disposition': f'attachment; filename="{encoded_filename}"; filename*=UTF-8\'\'{encoded_filename}',
+                'Content-Length': str(file_size),
+                'Accept-Ranges': 'bytes'
+            }
+            
+            # 创建响应对象
+            response = Response(
+                file_data,
+                mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                headers=headers
+            )
+            
+            return response
+            
+        except Exception as file_error:
+            print(f"读取或准备文件数据失败: {str(file_error)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                json.dumps({"success": False, "message": f"读取或准备文件数据失败: {str(file_error)}"}),
+                status=500,
+                mimetype='application/json'
+            )
+            
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        print(f"应用格式时出错: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # 返回JSON错误响应
+        return Response(
+            json.dumps({"success": False, "message": str(e)}),
+            status=500,
+            mimetype='application/json'
+        )
 
 
 # 下载格式化文档
@@ -1065,13 +1191,22 @@ def get_formatted_document():
         else:
             download_name = f"{os.path.splitext(original_filename)[0]}_formatted.docx"
 
-        # 返回文件
-        return send_from_directory(
-            os.path.dirname(doc_path),
-            os.path.basename(doc_path),
-            as_attachment=True,
-            download_name=download_name
+        # 直接以二进制模式读取文件并返回
+        with open(doc_path, 'rb') as f:
+            file_data = f.read()
+        
+        # 对文件名进行URL编码，避免非ASCII字符导致的编码问题
+        from urllib.parse import quote
+        encoded_filename = quote(download_name)
+        
+        response = Response(
+            file_data,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            headers={
+                'Content-Disposition': f'attachment; filename="{encoded_filename}"; filename*=UTF-8\'\'{encoded_filename}'
+            }
         )
+        return response
     except Exception as e:
         return jsonify({
             "success": False,

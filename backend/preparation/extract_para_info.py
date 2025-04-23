@@ -147,60 +147,71 @@ def extract_para_format_info_from_paragraph_fromat(para)-> dict:
     before_spacing = None
     after_spacing = None
     line_spacing = None
-    # 获取段落xml数据
-    para_xml = para._p.xml
-    # print(para_xml)
-    # 命名空间
-    namespaces = {
-        'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
-        'w14': 'http://schemas.microsoft.com/office/word/2010/wordml'
-    }
-    root = ET.fromstring(para_xml)
-    pPr = root.find('.//w:pPr', namespaces)
-    # 输出节点信息
-    # print(ET.tostring(pPr, encoding='utf-8').decode('utf-8'))
-    if pPr is not None:
-        # 查找缩进节点
-        ind = pPr.find('w:ind', namespaces)
-        if ind is not None:
-            # 使用完整的命名空间URI获取属性
-            # print(ET.tostring(ind, encoding='utf-8').decode('utf-8'))
-            w_ns = namespaces['w']
-            first_line_indent = ind.get(f'{{{w_ns}}}firstLineChars')
-            if first_line_indent is not None:
-                first_line_indent = 0 if first_line_indent == 0 else int(first_line_indent) / 100
-            # 如果没有首行字符缩进，则获取首行缩进值
-            if first_line_indent is None:
-                first_line_indent = ind.get(f'{{{w_ns}}}firstLine')
-    else:
-        first_line_indent = None
-    # 获取段落对齐方式
-    if para.paragraph_format.alignment is not None:
-        alignment = analysise_alignment(para.paragraph_format.alignment)
-    else:
-        # 尝试从 XML 中提取对齐方式
+    
+    try:
+        # 获取段落xml数据
+        para_xml = para._p.xml
+        # print(para_xml)
+        # 命名空间
+        namespaces = {
+            'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+            'w14': 'http://schemas.microsoft.com/office/word/2010/wordml'
+        }
+        root = ET.fromstring(para_xml)
+        pPr = root.find('.//w:pPr', namespaces)
+        # 输出节点信息
+        # print(ET.tostring(pPr, encoding='utf-8').decode('utf-8'))
         if pPr is not None:
-            jc = pPr.find('w:jc', namespaces)
-            if jc is not None:
+            # 查找缩进节点
+            ind = pPr.find('w:ind', namespaces)
+            if ind is not None:
+                # 使用完整的命名空间URI获取属性
+                # print(ET.tostring(ind, encoding='utf-8').decode('utf-8'))
                 w_ns = namespaces['w']
-                val = jc.get(f'{{{w_ns}}}val')
-                # 使用 get_alignment_display 函数将对齐方式转换为中文表示
-                alignment = get_alignment_display(val)
-    # 获取左缩进
-    if para.paragraph_format.left_indent is not None:
-        left_indent = para.paragraph_format.left_indent
-    # 获取右缩进
-    if para.paragraph_format.right_indent is not None:
-        right_indent = para.paragraph_format.right_indent
-    # 获取段前间距
-    if para.paragraph_format.space_before is not None:
-        before_spacing = para.paragraph_format.space_before
-    # 获取段后间距
-    if para.paragraph_format.space_after is not None:
-        after_spacing = para.paragraph_format.space_after
-    # 获取行间距
-    if para.paragraph_format.line_spacing is not None:
-        line_spacing = para.paragraph_format.line_spacing
+                first_line_indent = ind.get(f'{{{w_ns}}}firstLineChars')
+                if first_line_indent is not None:
+                    first_line_indent = 0 if first_line_indent == 0 else int(first_line_indent) / 100
+                # 如果没有首行字符缩进，则获取首行缩进值
+                if first_line_indent is None:
+                    first_line_indent = ind.get(f'{{{w_ns}}}firstLine')
+        else:
+            first_line_indent = None
+            
+        # 获取段落对齐方式
+        if para.paragraph_format.alignment is not None:
+            alignment = analysise_alignment(para.paragraph_format.alignment)
+        else:
+            # 尝试从 XML 中提取对齐方式
+            if pPr is not None:
+                jc = pPr.find('w:jc', namespaces)
+                if jc is not None:
+                    w_ns = namespaces['w']
+                    val = jc.get(f'{{{w_ns}}}val')
+                    # 使用 get_alignment_display 函数将对齐方式转换为中文表示
+                    alignment = get_alignment_display(val)
+        
+        # 获取左缩进
+        if para.paragraph_format.left_indent is not None:
+            left_indent = para.paragraph_format.left_indent
+            
+        # 获取右缩进
+        if para.paragraph_format.right_indent is not None:
+            right_indent = para.paragraph_format.right_indent
+            
+        # 获取段前间距
+        if para.paragraph_format.space_before is not None:
+            before_spacing = para.paragraph_format.space_before
+            
+        # 获取段后间距
+        if para.paragraph_format.space_after is not None:
+            after_spacing = para.paragraph_format.space_after
+            
+        # 获取行间距
+        if para.paragraph_format.line_spacing is not None:
+            line_spacing = para.paragraph_format.line_spacing
+    except Exception as e:
+        print(f"解析段落格式信息出错: {str(e)}")
+        # 发生错误时，使用默认值
 
     current_style_info['alignment'] = alignment
     current_style_info['first_line_indent'] = first_line_indent
