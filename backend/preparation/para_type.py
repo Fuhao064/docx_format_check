@@ -90,18 +90,6 @@ class ParagraphManager:
         self.figures = []  # 存储图片信息
         self.tables = []   # 存储表格信息
 
-    def seek(self, offset, whence=0):
-        """模拟文件seek操作"""
-        if whence == 0:  # 从文件开始计算
-            self.position = offset
-        elif whence == 1:  # 从当前位置计算
-            self.position += offset
-        elif whence == 2:  # 从文件末尾计算
-            self.position = len(self.paragraphs) + offset
-        else:
-            raise ValueError("Invalid whence value")
-        return self.position
-
     def add_para(self, para_type: ParsedParaType, content: str, meta: Dict = None) -> None:
         """
         添加段落
