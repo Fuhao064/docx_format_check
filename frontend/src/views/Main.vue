@@ -1079,7 +1079,7 @@ async function sendMessage() {
 // 应用格式
 async function applyFormat() {
   try {
-    showNotification('info', '应用格式中', '正在应用格式...', 0)
+    showNotification('info', '应用格式中', '正在应用格式，这可能需要一些时间...', 0)
 
     // 打印错误列表，便于调试
     console.log('应用格式错误列表:', formatErrors.value)
@@ -1099,34 +1099,135 @@ async function applyFormat() {
       console.error('获取para_manager失败:', dbError);
     }
 
-    // 直接使用 POST 请求并设置 responseType 为 blob
-    // 这样可以直接处理后端返回的文件
-    const response = await axios.post('/api/apply-format', {
-      doc_path: currentDocumentPath.value,
-      config_path: currentConfigPath.value,
-      errors: formatErrors.value,
-      original_filename: uploadedFileName.value,
-      para_manager: para_manager
-    }, {
-      responseType: 'blob'  // 设置响应类型为 blob，直接接收文件
-    })
+    // 配置请求，增加超时设置，较长的超时时间适用于处理大文档
+    const requestConfig = {
+      responseType: 'blob',  // 设置响应类型为 blob，直接接收文件
+      timeout: 180000,  // 设置较长的超时时间 (3分钟)
+      onDownloadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          // 更新下载进度通知
+          const percent = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+          console.log(`下载进度: ${percent}%`);
+        }
+      }
+    };
 
-    // 处理返回的文件数据
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.setAttribute('download', `${uploadedFileName.value.split('.')[0]}_formatted.docx`)
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
+    // 创建 AbortController 以便可以取消请求
+    const controller = new AbortController();
+    requestConfig.signal = controller.signal;
 
-    // 设置格式化文件路径为空，因为我们不需要再次下载
-    formattedFilePath.value = ''
+    // 设置超时取消
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      showNotification('error', '应用格式超时', '操作超时，请尝试处理更小的文档或减少错误数量', 5000);
+    }, requestConfig.timeout);
 
-    showNotification('success', '应用格式完成', '格式已成功应用并已下载文档', 3000)
+    try {
+      // 直接使用 POST 请求处理文件下载
+      const response = await axios.post('/api/apply-format', {
+        doc_path: currentDocumentPath.value,
+        config_path: currentConfigPath.value,
+        errors: formatErrors.value,
+        original_filename: uploadedFileName.value,
+        para_manager: para_manager
+      }, requestConfig);
+
+      // 清除超时定时器
+      clearTimeout(timeoutId);
+
+      // 检查响应状态和数据
+      if (!response.data || response.data.size === 0) {
+        throw new Error('服务器返回了空数据');
+      }
+
+      // 检查返回的数据是否为JSON错误响应
+      const isJsonError = response.headers['content-type']?.includes('application/json');
+      if (isJsonError) {
+        // 尝试解析JSON错误消息
+        const reader = new FileReader();
+        reader.onload = function() {
+          try {
+            const jsonResponse = JSON.parse(reader.result);
+            showNotification('error', '应用格式失败', jsonResponse.message || '未知错误', 5000);
+          } catch (e) {
+            showNotification('error', '应用格式失败', '服务器返回了无效的错误响应', 5000);
+          }
+        };
+        reader.readAsText(response.data);
+        return;
+      }
+
+      // 正常处理文件下载
+      const blob = new Blob([response.data], {
+        type: response.headers['content-type'] || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      });
+
+      // 处理返回的文件数据
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // 从响应头中获取文件名，如果有的话
+      let filename = '';
+      const disposition = response.headers['content-disposition'];
+      if (disposition && disposition.includes('filename*=UTF-8\'\'')) {
+        // 处理RFC 5987编码的文件名
+        const filenameMatch = disposition.match(/filename\*=UTF-8\'\'([^;]+)/i);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = decodeURIComponent(filenameMatch[1].trim());
+        }
+      } else if (disposition && disposition.includes('filename=')) {
+        // 处理标准文件名
+        const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].trim();
+        }
+      }
+
+      // 如果无法从响应头获取文件名，则使用默认名称
+      if (!filename) {
+        filename = `${uploadedFileName.value.split('.')[0]}_formatted.docx`;
+      }
+
+      link.setAttribute('download', filename);
+      
+      // 添加到文档并触发点击
+      document.body.appendChild(link);
+      link.click();
+      
+      // 清理
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(link);
+      }, 100);
+
+      // 设置格式化文件路径为空，因为我们不需要再次下载
+      formattedFilePath.value = '';
+
+      showNotification('success', '应用格式完成', '格式已成功应用并已下载文档', 3000);
+    } catch (downloadError) {
+      clearTimeout(timeoutId);
+      throw downloadError;
+    }
   } catch (error) {
-    console.error('应用格式时出错:', error)
-    showNotification('error', '应用格式失败', `应用格式时出错: ${error.response?.data?.message || error.message || error}`, 5000)
+    console.error('应用格式时出错:', error);
+    
+    // 处理不同类型的错误
+    if (error.name === 'AbortError' || error.code === 'ECONNABORTED') {
+      showNotification('error', '应用格式超时', '请求超时，请尝试处理更小的文档', 5000);
+    } else if (error.response) {
+      if (error.response.status === 413) {
+        showNotification('error', '文件过大', '服务器拒绝处理过大的文件', 5000);
+      } else {
+        // 尝试从错误响应中获取具体消息
+        const errorMessage = error.response.data?.message || error.message || '未知错误';
+        showNotification('error', '应用格式失败', `应用格式时出错: ${errorMessage}`, 5000);
+      }
+    } else if (error.request) {
+      showNotification('error', '网络错误', '无法连接到服务器，请检查网络连接', 5000);
+    } else {
+      showNotification('error', '应用格式失败', `应用格式时出错: ${error.message || error}`, 5000);
+    }
   }
 }
 
