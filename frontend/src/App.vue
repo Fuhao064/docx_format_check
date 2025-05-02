@@ -76,8 +76,8 @@
             </div>
           </div>
           <!-- 删除按钮 -->
-          <button 
-            v-if="!sidebarCollapsed && chatHistory.length > 1" 
+          <button
+            v-if="!sidebarCollapsed && chatHistory.length > 1"
             @click="deleteChat(chat)"
             class="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 rounded-full text-[hsl(var(--sidebar-foreground))] opacity-0 group-hover:opacity-100 hover:bg-[hsl(var(--sidebar-accent))] hover:text-[hsl(var(--destructive))] transition-opacity duration-200"
           >
@@ -149,10 +149,9 @@
                 d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                 clip-rule="evenodd" />
             </svg>
-            <svg v-else class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z"
+            <svg v-else class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z"
                 clip-rule="evenodd" />
             </svg>
           </div>
@@ -182,12 +181,12 @@
 <script setup>
 import { ref, computed, onMounted, h, provide, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { 
-  getAllTasks, 
-  createTask, 
-  deleteTask, 
-  switchTask, 
-  getCurrentTaskState 
+import {
+  getAllTasks,
+  createTask,
+  deleteTask,
+  switchTask,
+  getCurrentTaskState
 } from './lib/db.js'
 
 // 路由配置
@@ -350,13 +349,13 @@ async function loadTasks() {
       docName: task.title,
       timestamp: task.lastUpdated
     }));
-    
+
     // 查找当前活动的任务
     if (chatHistory.value.length > 0) {
       const currentTaskState = await getCurrentTaskState();
       const currentTaskId = currentTaskState.taskId;
       const currentTaskIndex = chatHistory.value.findIndex(chat => chat.id === currentTaskId);
-      
+
       if (currentTaskIndex >= 0) {
         // 确保创建新引用，触发监听器
         currentChat.value = { ...chatHistory.value[currentTaskIndex] };
@@ -393,7 +392,7 @@ async function selectChat(chat) {
       // 更新当前任务引用
       currentChat.value = { ...chat, _timestamp: Date.now() };
     }
-    
+
     // 跳转到首页，确保显示对话内容
     if (route.path !== '/') {
       router.push('/');
@@ -409,10 +408,10 @@ async function createNewChat() {
   try {
     // 创建新任务
     const taskId = await createTask(`新任务 #${chatHistory.value.length + 1}`);
-    
+
     // 重新加载任务列表
     await loadTasks();
-    
+
     // 选择新创建的任务
     const newTaskIndex = chatHistory.value.findIndex(chat => chat.id === taskId);
     if (newTaskIndex >= 0) {
@@ -422,7 +421,7 @@ async function createNewChat() {
       // 创建新引用以触发监听器
       currentChat.value = { ...newChat };
     }
-    
+
     // 确保跳转到聊天页面
     router.push('/');
   } catch (error) {
@@ -435,10 +434,10 @@ async function createNewChat() {
 async function deleteChat(chat) {
   try {
     await deleteTask(chat.id);
-    
+
     // 重新加载任务列表
     await loadTasks();
-    
+
     // 如果删除的是当前选中的聊天，自动选择第一个
     if (currentChat.value && currentChat.value.id === chat.id) {
       currentChat.value = chatHistory.value.length > 0 ? chatHistory.value[0] : null;

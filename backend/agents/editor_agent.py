@@ -2,7 +2,7 @@ import os
 import base64
 from typing import Dict, List, Any
 from agents.setting import LLMs
-from preparation.para_type import ParagraphManager, ParaInfo, ParsedParaType
+from backend.preparation.para_type import ParagraphManager, ParaInfo, ParsedParaType
 
 class EditorAgent:
     def __init__(self, model_name='qwen-plus'):

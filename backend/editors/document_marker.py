@@ -230,12 +230,12 @@ def mark_document_errors(doc_path: str, errors: List[Dict], para_manager: Option
         print(f"文档已成功标记并保存到: {output_path}")
     except Exception as e:
         print(f"保存标记文档时出错: {str(e)}")
-        # 尝试使用临时目录
-        import tempfile
-        temp_dir = tempfile.gettempdir()
-        temp_output_path = os.path.join(temp_dir, f"marked_{os.path.basename(doc_path)}")
+        # 尝试使用caches目录
+        caches_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'caches')
+        os.makedirs(caches_folder, exist_ok=True)
+        temp_output_path = os.path.join(caches_folder, f"marked_{os.path.basename(doc_path)}")
         doc.save(temp_output_path)
-        print(f"文档已保存到临时目录: {temp_output_path}")
+        print(f"文档已保存到caches目录: {temp_output_path}")
         output_path = temp_output_path
 
     return output_path

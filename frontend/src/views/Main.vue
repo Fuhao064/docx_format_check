@@ -47,6 +47,24 @@
             <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
           </svg>
         </button>
+        <!-- 返回顶部按钮 -->
+        <button
+          class="p-2 rounded-full hover:bg-[hsl(var(--secondary))] transition-colors duration-[--transition-speed]"
+          @click="scrollToTop">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" class="text-[hsl(var(--muted-foreground))]">
+            <path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </button>
+        <!-- 返回底部按钮 -->
+        <button
+          class="p-2 rounded-full hover:bg-[hsl(var(--secondary))] transition-colors duration-[--transition-speed]"
+          @click="scrollToBottom">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" class="text-[hsl(var(--muted-foreground))]">
+            <path d="M12 5v14M5 12l7 7 7-7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"></path>
+          </svg>
+        </button>
         <button
           class="p-2 rounded-full hover:bg-[hsl(var(--secondary))]
                  transition-colors duration-[--transition-speed]"
@@ -423,6 +441,21 @@ const formatErrors = ref([])
 
 // 文档预览相关
 const showDocPreview = ref(false)
+
+// 滚动控制函数
+function scrollToTop() {
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = 0
+    showNotification('info', '已滚动到顶部', '', 1000)
+  }
+}
+
+function scrollToBottom() {
+  if (messagesContainer.value) {
+    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    showNotification('info', '已滚动到底部', '', 1000)
+  }
+}
 
 // 注入任务相关
 const currentTask = inject('currentTask', ref(null))
@@ -1166,7 +1199,7 @@ async function applyFormat() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
+
       // 从响应头中获取文件名，如果有的话
       let filename = '';
       const disposition = response.headers['content-disposition'];
@@ -1190,11 +1223,11 @@ async function applyFormat() {
       }
 
       link.setAttribute('download', filename);
-      
+
       // 添加到文档并触发点击
       document.body.appendChild(link);
       link.click();
-      
+
       // 清理
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
@@ -1211,7 +1244,7 @@ async function applyFormat() {
     }
   } catch (error) {
     console.error('应用格式时出错:', error);
-    
+
     // 处理不同类型的错误
     if (error.name === 'AbortError' || error.code === 'ECONNABORTED') {
       showNotification('error', '应用格式超时', '请求超时，请尝试处理更小的文档', 5000);

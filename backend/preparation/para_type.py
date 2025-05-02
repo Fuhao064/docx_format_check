@@ -1,7 +1,7 @@
 from typing import List, Dict, Optional
 from enum import Enum
 from dataclasses import dataclass
-import json, re
+import json
 
 # 创建一个简单的translation_dict
 translation_dict = {
@@ -97,8 +97,11 @@ class ParagraphManager:
         :param content: 段落文本内容
         :param meta: 附加元数据（可选）
         """
-        new_para = ParaInfo(para_type, content, meta)
-        self.paragraphs.append(new_para)
+        try:
+            new_para = ParaInfo(para_type, content, meta)
+            self.paragraphs.append(new_para)
+        except Exception as e:
+            raise # Re-raise the exception to see the original traceback
 
     def remove_para(self, *,
                    para_type: Optional[ParsedParaType] = None,
@@ -297,9 +300,29 @@ class ParagraphManager:
 
             try:
                 para_type = ParsedParaType(para_type_str)
+                # 确保para_type是ParsedParaType枚举类型
+                if not isinstance(para_type, ParsedParaType):
+                    print(f"警告：段落类型不是ParsedParaType枚举，而是{type(para_type)}，将使用OTHERS类型")
+                    para_type = ParsedParaType.OTHERS
             except ValueError:
                 print(f"无效的段落类型: {para_type_str}")
-                para_type = ParsedParaType.OTHERS
+                # 尝试使用OTHERS类型
+                try:
+                    para_type = ParsedParaType.OTHERS
+                    if not isinstance(para_type, ParsedParaType):
+                        print(f"警告：OTHERS类型不是ParsedParaType枚举，将尝试重新获取")
+                        # 尝试重新获取枚举值
+                        for enum_type in ParsedParaType:
+                            if enum_type.value == 'others':
+                                para_type = enum_type
+                                break
+                except Exception as e:
+                    print(f"获取OTHERS类型失败: {str(e)}")
+                    # 最后的尝试：直接使用枚举值
+                    for enum_type in ParsedParaType:
+                        if enum_type.value == 'body':  # 使用body作为最后的备选
+                            para_type = enum_type
+                            break
 
             content = para_dict.get("content", "")
             meta = para_dict.get("meta", {})

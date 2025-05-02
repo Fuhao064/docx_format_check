@@ -219,9 +219,14 @@ def _check_table_number_format(caption_text: str) -> List[Dict]:
 
     return errors
 
-def check_figure_format(doc_path: str, required_format: Dict) -> List[Dict]:
+def check_figure_format(doc_path: str, required_format: Dict, paragraph_manager=None) -> List[Dict]:
     """
     检查图片格式是否符合要求
+
+    Args:
+        doc_path: 文档路径
+        required_format: 格式要求字典
+        paragraph_manager: 段落管理器实例，用于检查是否存在图片段落
     """
     errors = []
     doc = docx.Document(doc_path)
@@ -231,6 +236,15 @@ def check_figure_format(doc_path: str, required_format: Dict) -> List[Dict]:
 
     # 检查图片标题和内容
     figure_count = 0
+    has_figure_in_manager = False
+
+    # 如果提供了段落管理器，检查其中是否存在图片类型的段落
+    if paragraph_manager:
+        from backend.preparation.para_type import ParsedParaType
+        figure_paras = paragraph_manager.get_by_type(ParsedParaType.FIGURES)
+        has_figure_in_manager = len(figure_paras) > 0
+        if has_figure_in_manager:
+            print(f"在段落管理器中找到 {len(figure_paras)} 个图片段落")
 
     # 遍历段落查找图片标题
     for i, para in enumerate(doc.paragraphs):
@@ -255,8 +269,8 @@ def check_figure_format(doc_path: str, required_format: Dict) -> List[Dict]:
                 else:
                     errors.append(f"图片标题'{para.text}'应位于图片下方")
 
-    # 检查是否有图片
-    if figure_count == 0:
+    # 检查是否有图片 - 只有当文档中没有找到图片标题且段落管理器中也没有图片时才报错
+    if figure_count == 0 and not has_figure_in_manager:
         errors.append("文档中未找到图片")
 
     # 将错误列表转换为标准格式
