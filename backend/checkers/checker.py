@@ -3,7 +3,7 @@ import concurrent.futures
 import os
 import json
 from datetime import datetime
-from preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
+from backend.preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
 from preparation.docx_parser import extract_doc_content
 import preparation.extract_para_info as extract_para_info
 from utils.utils import is_value_equal
@@ -279,7 +279,7 @@ def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> 
         errors.extend(check_required_paragraphs(manager, required_format))
         errors.extend(check_reference_format(doc_path, required_format))
         errors.extend(check_table_format(doc_path, required_format))
-        errors.extend(check_figure_format(doc_path, required_format))
+        errors.extend(check_figure_format(doc_path, required_format, manager))
 
         # 将段落信息转换为字典格式（包含完整的meta信息）
         paragraphs_dict = manager.to_dict()
@@ -299,8 +299,14 @@ def check_format(doc_path: str, config_path: str, format_agent: FormatAgent) -> 
     except Exception as e:
         print(f"处理文件时出错: {str(e)}")
         # 确保在异常情况下也返回值
-        return [], ParagraphManager()
+        # 将捕获到的异常信息添加到错误列表
+        errors.append({
+            "message": f"处理文件时发生内部错误: {str(e)}",
+            "location": "格式检查过程"
+        })
+        # 即使发生错误，也尝试返回当前收集到的错误和空的管理器
+        return translate_errors(errors), ParagraphManager()
 
 
 if __name__ == "__main__":
-    check_format("test.docx", "config.json")
+    check_format("测试文档.docx", "config.json")

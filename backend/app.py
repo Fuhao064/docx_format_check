@@ -416,8 +416,9 @@ def analyse_format_doc():
         with open(test_config_path, 'w', encoding='utf-8') as f:
             json.dump(format_json, f, ensure_ascii=False, indent=4)
 
-        # 生成唯一的缓存文件名
-        cache_filename = f"format_{int(time.time())}.json"
+        # 生成唯一的缓存文件名，添加年月日时分秒便于观察处理时间
+        current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+        cache_filename = f"format_{int(time.time())}_{current_time}.json"
         cache_path = os.path.join(app.config['CACHES_FOLDER'], cache_filename)
 
         # 保存解析结果到缓存文件夹
@@ -486,20 +487,7 @@ def process_file():
     except Exception as e:
         return jsonify({"success": False,
                         "message": str(e)}), 500
-# 格式修改Agent
-# @app.route('/api/use-format-agent', methods=['POST'])
-# def use_format_agent():
-#     try:
-#         data = request.get_json()
-#         if not data or 'messages' not in data:
-#             return jsonify({"error": "缺少必要参数"}), 400
 
-
-#         return jsonify({"success": True,
-#                         "result": result})
-#     except Exception as e:
-#         return jsonify({"success": False,
-#                         "message": str(e)}), 500
 # 检查文档格式
 @app.route('/api/check-format', methods=['POST'])
 def start_check_format():
@@ -540,8 +528,9 @@ def start_check_format():
         # 将文档抽取为JSON格式，便于调试
         try:
             doc_json = para_manager.to_dict()
-            # 保存抽取的JSON到缓存文件
-            json_cache_path = os.path.join(app.config['CACHES_FOLDER'], f"doc_json_{int(time.time())}.json")
+            # 保存抽取的JSON到缓存文件，添加年月日时分秒便于观察处理时间
+            current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+            json_cache_path = os.path.join(app.config['CACHES_FOLDER'], f"doc_json_{int(time.time())}_{current_time}.json")
             with open(json_cache_path, 'w', encoding='utf-8') as f:
                 json.dump(doc_json, f, ensure_ascii=False, indent=4)
         except Exception as json_err:
@@ -612,10 +601,9 @@ def generate_report():
         if not original_filename:
             original_filename = os.path.basename(file_path)
 
-        # 创建临时文件用于存储标记错误的文档
-        temp_dir = tempfile.gettempdir()
+        # 使用caches文件夹存储标记错误的文档
         doc_name = os.path.basename(file_path)
-        marked_doc_path = os.path.join(temp_dir, f"marked_{doc_name}")
+        marked_doc_path = os.path.join(app.config['CACHES_FOLDER'], f"marked_{doc_name}")
 
         # 打印错误列表，便于调试
         print(f"错误列表: {errors}")
@@ -756,10 +744,9 @@ def download_report():
             # 设置中文字体
             no_error_run.element.rPr.rFonts.set(qn('w:eastAsia'), '宋体')
 
-        # 保存报告到临时文件
-        temp_dir = tempfile.gettempdir()
+        # 保存报告到caches文件夹
         report_filename = f"report_{os.path.basename(file_path)}"
-        report_path = os.path.join(temp_dir, report_filename)
+        report_path = os.path.join(app.config['CACHES_FOLDER'], report_filename)
         doc.save(report_path)
 
         # 返回成功响应和报告路径信息，让前端使用GET请求下载
@@ -839,10 +826,9 @@ def download_marked_document():
         if not original_filename:
             original_filename = os.path.basename(doc_path)
 
-        # 构造标记文档的路径
-        temp_dir = tempfile.gettempdir()
+        # 使用caches文件夹存储标记错误的文档
         doc_name = os.path.basename(doc_path)
-        marked_doc_path = os.path.join(temp_dir, f"marked_{doc_name}")
+        marked_doc_path = os.path.join(app.config['CACHES_FOLDER'], f"marked_{doc_name}")
 
         # 如果前端传来了para_manager，则使用前端的para_manager
         if frontend_para_manager:
@@ -1043,9 +1029,8 @@ def apply_format():
         safe_filename = ''.join(c for c in os.path.splitext(original_filename)[0] if c.isalnum() or c in '._- ')
         output_filename = f"{safe_filename}_formatted.docx"
 
-        # 确保输出到临时目录，防止权限问题
-        temp_dir = tempfile.mkdtemp()
-        output_path = os.path.join(temp_dir, output_filename)
+        # 确保输出到caches目录，防止权限问题
+        output_path = os.path.join(app.config['CACHES_FOLDER'], output_filename)
 
         # 如果没有有效的para_manager，重新检查获取
         if not para_manager or not para_manager.paragraphs:

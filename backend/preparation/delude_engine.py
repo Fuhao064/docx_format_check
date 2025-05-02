@@ -1,7 +1,7 @@
 import re
 import concurrent.futures
 from typing import Dict, List, Optional, Union, Tuple
-from preparation.para_type import ParsedParaType, ParagraphManager, ParaInfo
+from backend.preparation.para_type import ParsedParaType, ParagraphManager, ParaInfo
 from agents.format_agent import FormatAgent
 from preparation.docx_parser import extract_doc_content
 import preparation.extract_para_info as extract_para_info
@@ -107,7 +107,8 @@ prev_para_type: Optional[ParsedParaType] = None, next_para_type: Optional[Parsed
 
     # 第二步：大模型推理
     try:
-        llm_response = format_agent.predict_location(doc_content, text, False, para_meta, prev_para_type, next_para_type)
+        # 移除多余的False参数
+        llm_response = format_agent.predict_location(doc_content, text, para_meta, prev_para_type, next_para_type)
 
         # 获取位置信息
         location = llm_response.get("location", "")
@@ -179,16 +180,28 @@ def remark_para_type(doc_path: str, format_agent: FormatAgent, paragraph_manager
 
     # 定义任务函数
     def process_paragraph(para_index: int, para: Dict, manager: ParagraphManager):
-        try:
-            # 提取当前段落信息
-            para_string = para["content"]
-            para_meta = para.get("meta", {})
+        # 初始化变量，避免未定义错误
+        para_string = ""
+        para_meta = {}
 
-            # 获取上下文段落类型
+        try:
+            # 提取当前段落信息，确保安全访问
+            if isinstance(para, dict):
+                para_string = para.get("content", "")
+                para_meta = para.get("meta", {})
+            else:
+                para_string = str(para)
+                print(f"Warning: para is not a dictionary, but {type(para)}")
+
+            # 确保para_string是字符串
+            if not isinstance(para_string, str):
+                para_string = str(para_string)
+
+            # 获取上下文段落类型，防止索引错误
             prev_para_type = None
             next_para_type = None
 
-            if para_index > 0:
+            if para_index > 0 and para_index - 1 < len(manager.paragraphs):
                 prev_para_type = manager.paragraphs[para_index - 1].type
             if para_index < len(manager.paragraphs) - 1:
                 next_para_type = manager.paragraphs[para_index + 1].type
@@ -198,15 +211,21 @@ def remark_para_type(doc_path: str, format_agent: FormatAgent, paragraph_manager
                 para_string, para_meta, format_agent, doc_content, prev_para_type, next_para_type
             )
 
-            # 更新段落类型
-            manager.paragraphs[para_index].type = predicted_type
-            print(f"Paragraph {para_index}: {para_string[:30]}... => {predicted_type.value} (confidence: {confidence:.2f})")
+            # 更新段落类型，确保索引有效
+            if 0 <= para_index < len(manager.paragraphs):
+                manager.paragraphs[para_index].type = predicted_type
+                print(f"Paragraph {para_index}: {para_string[:30]}... => {predicted_type.value} (confidence: {confidence:.2f})")
+            else:
+                print(f"Warning: Invalid paragraph index {para_index}, valid range is 0-{len(manager.paragraphs)-1}")
 
         except Exception as e:
             # 如果解析失败，将段落类型设置为 BODY
-            print(f"Error processing paragraph {para_index}: {para_string[:30] if isinstance(para_string, str) else str(para)[:30]}... Error: {e}")
+            print(f"Error processing paragraph {para_index}: {para_string[:30] if para_string else 'No content'}... Error: {e}")
             try:
-                manager.paragraphs[para_index].type = ParsedParaType.BODY
+                if 0 <= para_index < len(manager.paragraphs):
+                    manager.paragraphs[para_index].type = ParsedParaType.BODY
+                else:
+                    print(f"Cannot set paragraph type: Invalid index {para_index}")
             except Exception as inner_e:
                 print(f"Failed to set paragraph type: {inner_e}")
 
@@ -254,41 +273,58 @@ def check_para_type(format_agent: FormatAgent, paragraph_manager: ParagraphManag
         print(f"Error converting to Chinese dict in check_para_type: {e}")
 
     def process_paragraph(i: int, para: ParaInfo):
-        para_string = para.content
-        para_meta = para.meta
-        prev_para_type = paragraph_manager.paragraphs[i - 1].type if i > 0 else None
-        next_para_type = paragraph_manager.paragraphs[i + 1].type if i < len(paragraph_manager.paragraphs) - 1 else None
+        try:
+            # 确保在使用前初始化变量
+            para_string = para.content if hasattr(para, 'content') else ""
+            para_meta = para.meta if hasattr(para, 'meta') else {}
 
-        if format_agent.check_rule_based_prediction(para_string, para_meta, prev_para_type, next_para_type):
-            print(f"Paragraph {i}: {para_string[:30]}... is correct")
-        else:
-            print(f"Paragraph {i}: {para_string[:30]}... is incorrect")
-            doc_content = ""
-            llm_response = format_agent.predict_location(doc_content, para_string, False, para_meta, prev_para_type, next_para_type)
-            try:
-                # 获取位置信息
-                location = llm_response.get("location", "")
+            # 防止索引错误
+            prev_para_type = None
+            next_para_type = None
+            if i > 0 and i - 1 < len(paragraph_manager.paragraphs):
+                prev_para_type = paragraph_manager.paragraphs[i - 1].type
+            if i + 1 < len(paragraph_manager.paragraphs):
+                next_para_type = paragraph_manager.paragraphs[i + 1].type
 
-                # 处理可能的无效位置格式，如 'others ()'
-                if location and ' ' in location:
-                    # 只保留空格前的部分
-                    location = location.split(' ')[0].strip()
-                    print(f"Cleaned location from '{llm_response.get('location')}' to '{location}'")
+            # 确保para_string是字符串
+            if not isinstance(para_string, str):
+                para_string = str(para_string)
 
-                # 检查是否是有效的枚举值
+            # 检查段落类型是否正确
+            if format_agent.check_rule_based_prediction(para_string, para_meta, prev_para_type, next_para_type):
+                print(f"Paragraph {i}: {para_string[:30]}... is correct")
+            else:
+                print(f"Paragraph {i}: {para_string[:30]}... is incorrect")
+                doc_content = ""
+                # 移除多余的False参数
+                llm_response = format_agent.predict_location(doc_content, para_string, para_meta, prev_para_type, next_para_type)
                 try:
-                    predicted_type = ParsedParaType(location)
-                    confidence = float(llm_response.get("confidence", 0.5))
-                    if confidence >= 0.8:
-                        return i, predicted_type
-                except ValueError as ve:
-                    print(f"Invalid location value: {location}, using OTHERS instead")
-                    # 如果是无效的位置值，使用OTHERS
-                    if float(llm_response.get("confidence", 0.5)) >= 0.8:
-                        return i, ParsedParaType.OTHERS
-            except (KeyError, TypeError) as e:
-                print(f"Error parsing LLM response: {e}")
-        return None
+                    # 获取位置信息
+                    location = llm_response.get("location", "")
+
+                    # 处理可能的无效位置格式，如 'others ()'
+                    if location and ' ' in location:
+                        # 只保留空格前的部分
+                        location = location.split(' ')[0].strip()
+                        print(f"Cleaned location from '{llm_response.get('location')}' to '{location}'")
+
+                    # 检查是否是有效的枚举值
+                    try:
+                        predicted_type = ParsedParaType(location)
+                        confidence = float(llm_response.get("confidence", 0.5))
+                        if confidence >= 0.8:
+                            return i, predicted_type
+                    except ValueError as ve:
+                        print(f"Invalid location value: {location}, using OTHERS instead")
+                        # 如果是无效的位置值，使用OTHERS
+                        if float(llm_response.get("confidence", 0.5)) >= 0.8:
+                            return i, ParsedParaType.OTHERS
+                except (KeyError, TypeError) as e:
+                    print(f"Error parsing LLM response: {e}")
+            return None
+        except Exception as e:
+            print(f"Error in process_paragraph for index {i}: {str(e)}")
+            return None
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         futures = [executor.submit(process_paragraph, i, para) for i, para in enumerate(paragraph_manager.paragraphs)]

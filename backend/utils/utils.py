@@ -95,8 +95,22 @@ def is_value_equal(expected: Union[str, float, bool], actual: Union[str, float, 
 
     # 处理颜色的特殊情况
     if key == 'color':
-        if (str(actual).lower() == 'black' or str(actual).lower() == '{"black"}') and str(expected).lower() == '#000000':
-            return True  # black 和 #000000 视为相同
+        # 标准化颜色值
+        actual_str = str(actual).lower().strip()
+        expected_str = str(expected).lower().strip()
+
+        # 处理集合字符串表示
+        if actual_str.startswith('{') and actual_str.endswith('}'):
+            actual_str = actual_str.strip('{}').strip('"\'')
+        if expected_str.startswith('{') and expected_str.endswith('}'):
+            expected_str = expected_str.strip('{}').strip('"\'')
+
+        # 处理黑色的各种表示形式
+        is_actual_black = actual_str in ['black', '#000000', '000000', '#0', '0']
+        is_expected_black = expected_str in ['black', '#000000', '000000', '#0', '0']
+
+        if is_actual_black and is_expected_black:
+            return True  # 各种黑色表示形式视为相同
 
     # 处理对齐方式的特殊情况
     if key == 'alignment':

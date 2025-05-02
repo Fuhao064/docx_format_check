@@ -11,3 +11,8 @@ __pycache__/
 backend/__pycache__/** 
 */caches
 caches
+*/*/results
+*/*/test_docx_unzip
+tests/*
+*/tests
+tests

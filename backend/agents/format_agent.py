@@ -1,6 +1,6 @@
 import json
 from typing import Dict, List, Optional, Any
-from preparation.para_type import ParsedParaType, ParagraphManager, ParaInfo
+from backend.preparation.para_type import ParsedParaType, ParagraphManager, ParaInfo
 from agents.setting import LLMs
 from utils.utils import parse_llm_json_response
 from utils.config_utils import load_config

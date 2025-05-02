@@ -7,7 +7,7 @@ import os
 import re
 import requests
 from typing import Dict, List, Optional, Union, Tuple
-from preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
+from backend.preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
 from docx.oxml.ns import qn  # 导入qn函数，用于XML命名空间
 
 # 全局映射字典

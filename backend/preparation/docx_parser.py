@@ -28,7 +28,9 @@ def extract_section_info(doc_path):
 
     }
     section = doc.sections[0]
-    print(f"Section: {section.start_type}")
+    # 获取分节类型
+    section_type = section.start_type
+    print(f"Section: {section_type} ({int(section_type)})")
     # 获取纸张信息
     print(f"Page width: {section.page_width}")
     print(f"Page height: {section.page_height}")
@@ -48,6 +50,8 @@ def extract_section_info(doc_path):
     }
     # 获取方向
     paper["orientation"] = "Portrait" if section.orientation == 0 else "Landscape"
+    # 添加分节类型信息
+    paper["section_type"] = int(section_type)
     return paper
 def analysis_paper_size(width, height) -> str:
     # 分析纸张大小
