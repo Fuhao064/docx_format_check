@@ -285,11 +285,17 @@
     </main>
     <!-- 底部输入框 -->
     <div v-if="currentStep >= 5"
-         class="fixed bottom-0 left-0 right-0 flex justify-center pb-4 pt-2 z-30 bg-gradient-to-t from-[hsl(var(--background))] via-[hsl(var(--background))] to-transparent backdrop-blur-sm transition-all duration-300 ease-in-out"
+         class="fixed bottom-0 left-0 right-0 flex flex-col justify-center pb-4 pt-2 z-30 bg-gradient-to-t from-[hsl(var(--background))] via-[hsl(var(--background))] to-transparent backdrop-blur-sm transition-all duration-300 ease-in-out"
          :class="[
            showDocPreview ? 'mr-[clamp(350px,45%,900px)]' : '',
            sidebarCollapsed ? 'ml-12' : 'ml-64'
          ]">
+      <!-- 大模型回答免责声明 -->
+      <div class="w-full max-w-3xl mx-auto px-4 mb-2">
+        <p class="text-xs text-center text-[hsl(var(--muted-foreground))]">
+          大模型的回答未必正确无误，请仔细核查
+        </p>
+      </div>
       <div class="w-full max-w-3xl mx-auto px-4">
         <div
           class="query-bar group bg-[hsl(var(--card)/0.9)] relative w-full ring-1 ring-[hsl(var(--border))] rounded-2xl shadow-lg backdrop-blur-md overflow-hidden transition-all duration-200 hover:ring-[hsl(var(--ring)/0.5)] focus-within:ring-2 focus-within:ring-[hsl(var(--primary))]">
@@ -366,6 +372,7 @@
     <DocxPreview
       v-if="showDocPreview"
       :docPath="currentDocumentPath"
+      :originalFileName="uploadedFileName"
       @close="showDocPreview = false"
     />
   </div>
