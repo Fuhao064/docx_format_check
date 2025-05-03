@@ -2,6 +2,7 @@ from typing import List, Dict, Optional
 from enum import Enum
 from dataclasses import dataclass
 import json
+import os
 
 # 创建一个简单的translation_dict
 translation_dict = {

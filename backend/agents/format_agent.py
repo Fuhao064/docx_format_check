@@ -1,9 +1,9 @@
 import json
 from typing import Dict, List, Optional, Any
 from backend.preparation.para_type import ParsedParaType, ParagraphManager, ParaInfo
-from agents.setting import LLMs
-from utils.utils import parse_llm_json_response
-from utils.config_utils import load_config
+from backend.agents.setting import LLMs
+from backend.utils.utils import parse_llm_json_response
+from backend.utils.config_utils import load_config
 
 class FormatAgent:
     def __init__(self, model="qwen-plus"):
@@ -46,7 +46,7 @@ class FormatAgent:
         return response.choices[0].message.content
 
     def predict_location(self, doc_content, fragment_str: str, para_meta=None, prev_para_type=None, next_para_type=None) -> dict:
-        """预测段落位置信息"""
+        """预测段落位置信息（使用文档全文）"""
         example_data = {
             "location": "title_zh",
             "confidence": 0.95,
@@ -81,8 +81,6 @@ class FormatAgent:
 
         # 构建上下文信息
         context_info = ""
-        if prev_para_type:
-            context_info += f"上一段落类型: {prev_para_type.value}\n"
         if next_para_type:
             context_info += f"下一段落类型: {next_para_type.value}\n"
 
@@ -93,6 +91,7 @@ class FormatAgent:
             for key, value in format_features.items():
                 format_info += f"- {key}: {value}\n"
 
+
         response = self.client.chat.completions.create(
             model=self.model,
             response_format={"type": "json_object"},
@@ -101,14 +100,11 @@ class FormatAgent:
                     1. 可用位置类型仅限：{ParsedParaType.get_enum_values()}
                     2. 必须返回包含 location 和 confidence 字段的JSON对象
                     3. 分析时要综合考虑段落内容、格式特征和上下文关系
-                    4. 对于标题类型，注意分析字体大小、加粗和对齐方式等特征
-                    5. 对于摘要和关键词，注意分析其位置和内容特征
-                    6. 对于正文段落，注意分析其缩进和行间距等特征
-                    7. 返回的confidence应该反映你对预测的确信程度，范围为0-1
-                    8. [number] + 文章标题 应该是参考文献的内容"""},
+                    4. 返回的confidence应该反映你对预测的确信程度，范围为0-1
+                    5. [number] + 文章标题 应该是参考文献的内容"""},
                 {"role": "user",
                 "content": f"""文档全文：[{doc_content[:2000]}...]（截断显示）
-                            需分析段落：[{fragment_str[:400]}...]
+                            需分析段落：{fragment_str}
                             {context_info}
                             {format_info}
                             请按示例格式返回：{example_data}"""}
@@ -116,6 +112,84 @@ class FormatAgent:
         )
 
         predict_json_str = response.choices[0].message.content
+
+        # 解析JSON响应
+        try:
+            result = parse_llm_json_response(predict_json_str)
+            print(f"LLM预测结果: {result}")
+            return result
+        except Exception as e:
+            print(f"JSON解析错误: {e}, 原始字符串: {predict_json_str}")
+            return {"location": "body", "confidence": 0.5}
+
+    def predict_location_with_context(self, doc_content, fragment_str: str, para_meta=None, prev_para_type=None, next_para_type=None, prev_content="", next_content="") -> dict:
+        """预测段落位置信息（使用上下文段落内容而非文档全文）"""
+        example_data = {
+            "location": "title_zh",
+            "confidence": 0.95,
+        }
+        # 提取段落格式特征
+        format_features = {}
+        if para_meta:
+            # 提取段落格式信息
+            if "paragraph_format" in para_meta:
+                para_format = para_meta["paragraph_format"]
+                if "alignment" in para_format and para_format["alignment"]:
+                    format_features["alignment"] = para_format["alignment"]
+                if "first_line_indent" in para_format and para_format["first_line_indent"]:
+                    format_features["first_line_indent"] = para_format["first_line_indent"]
+                if "line_spacing" in para_format and para_format["line_spacing"]:
+                    format_features["line_spacing"] = para_format["line_spacing"]
+
+            # 提取字体信息
+            if "fonts" in para_meta:
+                fonts = para_meta["fonts"]
+                if "zh_family" in fonts and fonts["zh_family"]:
+                    format_features["zh_font"] = list(fonts["zh_family"]) if isinstance(fonts["zh_family"], set) else fonts["zh_family"]
+                if "en_family" in fonts and fonts["en_family"]:
+                    format_features["en_font"] = list(fonts["en_family"]) if isinstance(fonts["en_family"], set) else fonts["en_family"]
+                if "size" in fonts and fonts["size"]:
+                    format_features["font_size"] = fonts["size"]
+                if "bold" in fonts and fonts["bold"]:
+                    format_features["bold"] = True in fonts["bold"]
+                if "italic" in fonts and fonts["italic"]:
+                    format_features["italic"] = True in fonts["italic"]
+
+        # 构建上下文信息
+        context_info = ""
+        if prev_para_type:
+            context_info += f"上一段落类型: {prev_para_type.value}\n"
+            context_info += f"上一段落内容: {prev_content}\n"
+        # 构建格式特征信息
+        format_info = ""
+        if format_features:
+            format_info = "段落格式特征:\n"
+            for key, value in format_features.items():
+                format_info += f"- {key}: {value}\n"
+        print(f"""需分析段落：{fragment_str}
+                            之前的段落类型和标题内容为：{context_info}
+                            这个段落的格式信息为：{format_info}
+                            请按示例格式返回：{example_data}""")
+        response = self.client.chat.completions.create(
+            model=self.model,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": f"""你是一个文档结构分析专家，请严格按照以下规则处理：
+                    1. 可用位置类型仅限：{ParsedParaType.get_enum_values()}
+                    2. 必须返回包含 location 和 confidence 字段的JSON对象
+                    3. 分析时要综合考虑段落内容、格式特征和上下文关系
+                    5. 返回的confidence应该反映你对预测的确信程度，范围为0-1
+                    6. [number] + 文章标题 应该是参考文献的内容"""},
+                {"role": "user",
+                "content": f"""需分析段落：{fragment_str}
+                            之前的段落类型和标题内容为：{context_info}
+                            这个段落的格式信息为：{format_info}
+                            请按示例格式返回：{example_data}"""}
+            ]
+        )
+
+        predict_json_str = response.choices[0].message.content
+
 
         # 解析JSON响应
         try:
@@ -139,10 +213,7 @@ class FormatAgent:
             1. 可用位置类型仅限：{ParsedParaType.get_enum_values()}
             2. 必须返回包含 is_correct 和 confidence 字段的JSON对象
             3. 分析时要综合考虑段落内容、格式特征和上下文关系，判断段落位置推理是否正确
-            4. 对于标题类型，注意分析字体大小、加粗和对齐方式等特征
-            5. 对于摘要和关键词，注意分析其位置和内容特征
-            6. 对于正文段落，注意分析其缩进和行间距等特征
-            7. 返回的confidence应该反映你对预测的确信程度，范围为0-1"""
+            """
 
         # 如果是doubao系列模型，在system_content中添加JSON格式要求
         if hasattr(self.llm, 'is_doubao_model') and self.llm.is_doubao_model:
@@ -197,14 +268,7 @@ class FormatAgent:
             ]
         )
         return response.choices[0].message.content
-    # def search_para_config(self, user_message: str) -> str:
-    #     """搜索config.json文件"""
-    #     with open("..//..//config.json", "r") as f:
-    #         config = json.load(f)
-    #     # 返回用户搜索的段落的设置
-    #     for para in config["para"]:
-    #         pass
-    #     return config
+
     def analyze_paragraph(self, para_info: ParaInfo, config: Dict) -> List[Dict]:
         """
         分析段落格式是否符合配置要求
