@@ -106,8 +106,8 @@ def is_value_equal(expected: Union[str, float, bool], actual: Union[str, float, 
             expected_str = expected_str.strip('{}').strip('"\'')
 
         # 处理黑色的各种表示形式
-        is_actual_black = actual_str in ['black', '#000000', '000000', '#0', '0']
-        is_expected_black = expected_str in ['black', '#000000', '000000', '#0', '0']
+        is_actual_black = actual_str in ['black', '#000000', '000000', '#0', '0', '#black']
+        is_expected_black = expected_str in ['black', '#000000', '000000', '#0', '0', '#black']
 
         if is_actual_black and is_expected_black:
             return True  # 各种黑色表示形式视为相同
