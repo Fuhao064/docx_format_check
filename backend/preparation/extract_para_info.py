@@ -709,8 +709,12 @@ def extract_font_info_from_runs(runs: list) -> dict:
             # 提取字体名称 - 优化：不再使用正则判断中英文字体，而是通过XML获取
             font_name = run.font.name
             if font_name:
-                # 优先从 XML 判断中英文字体，避免基于名称的正则误判
-                fonts['en_family'].add(font_name)  # 暂时添加，后续由 XML 覆盖
+                # 检查是否是中文字体，如果是则只添加到中文字体集合，否则添加到英文字体集合
+                if any(cn_font in font_name for cn_font in ['宋体', '黑体', '楷体', '仿宋', '华文', '微软雅黑', '等线', '方正', '思源', '苹方']):
+                    fonts['zh_family'].add(font_name)
+                else:
+                    # 如果不是明确的中文字体，则添加到英文字体集合
+                    fonts['en_family'].add(font_name)  # 暂时添加，后续由 XML 覆盖
 
             # 尝试获取字体大小
             if hasattr(run.font, 'size') and run.font.size is not None:
@@ -999,36 +1003,54 @@ def extract_font_from_theme(docx_path):
                 for font in root.findall('.//a:font[@script="Latn"]', namespaces):
                     if 'typeface' in font.attrib:
                         typeface = font.get('typeface')
-                        fonts['en_family'].add(typeface)
-                        print(f"从theme1.xml提取到Latn英文字体: {typeface}")
-                        # 如果是双语字体，也添加到中文字体集合中
-                        if typeface in bilingual_fonts or any(bi_font in typeface for bi_font in bilingual_fonts):
+                        # 检查是否是中文字体，如果是则只添加到中文字体集合，否则添加到英文字体集合
+                        if not any(cn_font in typeface for cn_font in common_cn_fonts):
+                            fonts['en_family'].add(typeface)
+                            print(f"从theme1.xml提取到Latn英文字体: {typeface}")
+                            # 如果是双语字体，也添加到中文字体集合中
+                            if typeface in bilingual_fonts or any(bi_font in typeface for bi_font in bilingual_fonts):
+                                fonts['zh_family'].add(typeface)
+                                print(f"将双语字体添加到中文字体集合: {typeface}")
+                        else:
+                            # 如果是中文字体，则只添加到中文字体集合
                             fonts['zh_family'].add(typeface)
-                            print(f"将双语字体添加到中文字体集合: {typeface}")
+                            print(f"从Latn标签中提取到中文字体并正确分类: {typeface}")
 
                 # 如果没有找到Latn字体，尝试从latin节点获取
                 if not fonts['en_family']:
                     for latin in root.findall('.//a:latin', namespaces):
                         if 'typeface' in latin.attrib:
                             typeface = latin.get('typeface')
-                            fonts['en_family'].add(typeface)
-                            print(f"从theme1.xml提取到latin字体: {typeface}")
-                            # 如果是双语字体，也添加到中文字体集合中
-                            if typeface in bilingual_fonts or any(bi_font in typeface for bi_font in bilingual_fonts):
+                            # 检查是否是中文字体，如果是则只添加到中文字体集合，否则添加到英文字体集合
+                            if not any(cn_font in typeface for cn_font in common_cn_fonts):
+                                fonts['en_family'].add(typeface)
+                                print(f"从theme1.xml提取到latin字体: {typeface}")
+                                # 如果是双语字体，也添加到中文字体集合中
+                                if typeface in bilingual_fonts or any(bi_font in typeface for bi_font in bilingual_fonts):
+                                    fonts['zh_family'].add(typeface)
+                                    print(f"将双语字体添加到中文字体集合: {typeface}")
+                            else:
+                                # 如果是中文字体，则只添加到中文字体集合
                                 fonts['zh_family'].add(typeface)
-                                print(f"将双语字体添加到中文字体集合: {typeface}")
+                                print(f"从latin标签中提取到中文字体并正确分类: {typeface}")
 
                 # 如果还是没有找到，尝试从ascii节点获取
                 if not fonts['en_family']:
                     for ascii_font in root.findall('.//a:font[@script="Ascii"]', namespaces):
                         if 'typeface' in ascii_font.attrib:
                             typeface = ascii_font.get('typeface')
-                            fonts['en_family'].add(typeface)
-                            print(f"从theme1.xml提取到Ascii英文字体: {typeface}")
-                            # 如果是双语字体，也添加到中文字体集合中
-                            if typeface in bilingual_fonts or any(bi_font in typeface for bi_font in bilingual_fonts):
+                            # 检查是否是中文字体，如果是则只添加到中文字体集合，否则添加到英文字体集合
+                            if not any(cn_font in typeface for cn_font in common_cn_fonts):
+                                fonts['en_family'].add(typeface)
+                                print(f"从theme1.xml提取到Ascii英文字体: {typeface}")
+                                # 如果是双语字体，也添加到中文字体集合中
+                                if typeface in bilingual_fonts or any(bi_font in typeface for bi_font in bilingual_fonts):
+                                    fonts['zh_family'].add(typeface)
+                                    print(f"将双语字体添加到中文字体集合: {typeface}")
+                            else:
+                                # 如果是中文字体，则只添加到中文字体集合
                                 fonts['zh_family'].add(typeface)
-                                print(f"将双语字体添加到中文字体集合: {typeface}")
+                                print(f"从Ascii标签中提取到中文字体并正确分类: {typeface}")
 
                 # 最后一次尝试，查找majorFont和minorFont中的typeface
                 if not fonts['en_family']:
@@ -1038,12 +1060,18 @@ def extract_font_from_theme(docx_path):
                             latin = font_elem.find('./a:latin', namespaces)
                             if latin is not None and 'typeface' in latin.attrib:
                                 typeface = latin.get('typeface')
-                                fonts['en_family'].add(typeface)
-                                print(f"从{font_type}提取到英文字体: {typeface}")
-                                # 如果是双语字体，也添加到中文字体集合中
-                                if typeface in bilingual_fonts or any(bi_font in typeface for bi_font in bilingual_fonts):
+                                # 检查是否是中文字体，如果是则只添加到中文字体集合，否则添加到英文字体集合
+                                if not any(cn_font in typeface for cn_font in common_cn_fonts):
+                                    fonts['en_family'].add(typeface)
+                                    print(f"从{font_type}提取到英文字体: {typeface}")
+                                    # 如果是双语字体，也添加到中文字体集合中
+                                    if typeface in bilingual_fonts or any(bi_font in typeface for bi_font in bilingual_fonts):
+                                        fonts['zh_family'].add(typeface)
+                                        print(f"将双语字体添加到中文字体集合: {typeface}")
+                                else:
+                                    # 如果是中文字体，则只添加到中文字体集合
                                     fonts['zh_family'].add(typeface)
-                                    print(f"将双语字体添加到中文字体集合: {typeface}")
+                                    print(f"从{font_type}标签中提取到中文字体并正确分类: {typeface}")
 
                 print(f"从theme1.xml提取的字体: 中文字体={fonts['zh_family']}, 英文字体={fonts['en_family']}")
     except Exception as e:
@@ -1075,12 +1103,22 @@ def extract_font_info_from_xml(xml_data):
 
         # 提取字体信息
         for rFonts in root.findall('.//w:rFonts', namespaces):
+            # 获取中文字体
             east_asia = rFonts.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}eastAsia')
             if east_asia:
                 fonts['zh_family'].add(east_asia)
+
+            # 获取英文字体，确保不是中文字体
             ascii = rFonts.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}ascii')
             if ascii:
-                fonts['en_family'].add(ascii)
+                # 检查是否是中文字体
+                if any(cn_font in ascii for cn_font in ['宋体', '黑体', '楷体', '仿宋', '华文', '微软雅黑', '等线', '方正', '思源', '苹方']):
+                    # 如果是中文字体，则只添加到中文字体集合，不添加到英文字体集合
+                    fonts['zh_family'].add(ascii)
+                    print(f"从XML中提取到中文字体并正确分类: {ascii}")
+                else:
+                    # 如果不是中文字体，则添加到英文字体集合
+                    fonts['en_family'].add(ascii)
 
         # 提取字体大小
         for sz in root.findall('.//w:sz', namespaces) + root.findall('.//w:szCs', namespaces):
