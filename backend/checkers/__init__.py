@@ -5,7 +5,7 @@ from .checker import (
     check_abstract,
     check_keywords,
     check_required_paragraphs,
-    remark_para_type
+    check_format
 )
 
 from .check_paper import check_paper_format
@@ -17,7 +17,7 @@ __all__ = [
     'check_abstract',
     'check_keywords',
     'check_required_paragraphs',
-    'remark_para_type',
+    'check_format',
     'check_paper_format',
     'check_reference_format',
     'check_table_format',
