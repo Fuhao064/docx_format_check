@@ -15,7 +15,8 @@ from backend.agents.setting import LLMs
 from backend.editors.format_editor import generate_formatted_doc
 from backend.editors.document_marker import mark_document_errors
 from backend.preparation.para_type import ParagraphManager
-from backend.checkers.checker import check_format
+# 移除循环导入
+# from backend.checkers.checker import check_format
 from datetime import datetime
 import backend.preparation.docx_parser as docx_parser
 from backend.agents.advice_agent import AdviceAgent
@@ -510,6 +511,8 @@ def start_check_format():
 
         # 处理文件信息
         try:
+            # 使用延迟导入避免循环依赖
+            from backend.checkers.checker import check_format
             docx_errors, para_manager = check_format(file_path, config_path, agents["format"])
 
             # 检查返回值是否有效
@@ -582,6 +585,8 @@ def generate_report():
             config_path = data.get('config_path')
             if not config_path or not os.path.exists(config_path):
                 return jsonify({"success": False, "message": "配置文件不存在"}), 404
+            # 使用延迟导入避免循环依赖
+            from backend.checkers.checker import check_format
             errors, _ = check_format(file_path, config_path, agents["format"])
 
             # 确保errors是列表类型
@@ -1010,6 +1015,8 @@ def apply_format():
                 print(f"应用格式时未找到对应的para_manager，创建了新的实例")
                 # 调用check_format获取para_manager
                 try:
+                    # 使用延迟导入避免循环依赖
+                    from backend.checkers.checker import check_format
                     errors, para_manager = check_format(doc_path, config_path, agents["format"])
                     # 存储当前的para_manager
                     analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
@@ -1036,6 +1043,8 @@ def apply_format():
         if not para_manager or not para_manager.paragraphs:
             print(f"重新检查格式获取错误和para_manager")
             try:
+                # 使用延迟导入避免循环依赖
+                from backend.checkers.checker import check_format
                 errors, para_manager = check_format(doc_path, config_path, agents["format"])
                 # 更新存储的para_manager
                 for i, item in enumerate(analysised_para_manager):
@@ -1103,11 +1112,12 @@ def apply_format():
 
             print(f"格式应用成功，文件大小: {file_size} 字节，准备返回文件: {output_path}")
 
-            # 生成下载文件名 (仅字母数字和部分符号，避免编码问题)
-            download_name = f"{safe_filename}_formatted.docx"
-
             # 使用更安全的方式返回文件
             from werkzeug.utils import secure_filename
+
+            # 生成下载文件名 (仅字母数字和部分符号，避免编码问题)
+            safe_filename = secure_filename(os.path.splitext(os.path.basename(doc_path))[0])
+            download_name = f"{safe_filename}_formatted.docx"
 
             # 直接以二进制模式读取文件并返回
             with open(output_path, 'rb') as f:

@@ -1,9 +1,15 @@
 import json
-from typing import Dict, List, Optional, Any
+import os
+from typing import Dict, List, Optional, Any, Tuple
 from backend.preparation.para_type import ParsedParaType, ParagraphManager, ParaInfo
 from backend.agents.setting import LLMs
 from backend.utils.utils import parse_llm_json_response
 from backend.utils.config_utils import load_config
+# 移除循环导入
+# from backend.checkers.checker import check_format
+from backend.editors.document_marker import mark_document_errors
+from backend.editors.format_fixer import batch_fix_errors, apply_format_requirements
+from backend.editors.format_editor import generate_formatted_doc
 
 class FormatAgent:
     def __init__(self, model="qwen-plus"):
@@ -487,6 +493,157 @@ class FormatAgent:
 
         return fixed_manager
 
+    def analyze_format_issues(self, doc_path: str, config_path: str) -> Tuple[List[Dict], ParagraphManager]:
+        """
+        分析文档中的格式问题
+
+        Args:
+            doc_path: 文档路径
+            config_path: 配置文件路径
+
+        Returns:
+            Tuple[List[Dict], ParagraphManager]: 错误列表和段落管理器
+        """
+        try:
+            # 使用延迟导入避免循环依赖
+            from backend.checkers.checker import check_format
+
+            # 调用check_format函数检查文档格式
+            errors, para_manager = check_format(doc_path, config_path, self)
+
+            return errors, para_manager
+        except Exception as e:
+            print(f"分析格式问题时出错: {str(e)}")
+            return [{"message": f"分析格式问题时出错: {str(e)}", "location": "格式分析过程"}], ParagraphManager()
+
+    def provide_format_fix_suggestions(self, errors: List[Dict], doc_content: str) -> str:
+        """
+        提供修复格式错误的建议
+
+        Args:
+            errors: 错误列表
+            doc_content: 文档内容
+
+        Returns:
+            str: 修复建议
+        """
+        try:
+            if self.client is None:
+                return "抱歉，我无法处理您的请求，因为LLM客户端未初始化。"
+
+            if not errors or len(errors) == 0:
+                return "文档中未发现格式问题，无需修复。"
+
+            # 准备错误信息
+            error_text = "\n".join([f"{i+1}. {error.get('message', '')} (位置: {error.get('location', '未知')})" for i, error in enumerate(errors)])
+
+            # 调用大模型提供修复建议
+            system_content = """你是一个专业的文档格式修复专家，请根据提供的格式错误列表，给出详细的修复建议。
+            对于每个错误，请提供：
+            1. 错误的具体原因
+            2. 修复方法的详细步骤
+            3. 如果可能，提供修复后的示例
+
+            请使用清晰的条理结构和编号列表来组织你的回答，使用户容易理解和操作。
+            """
+
+            user_content = f"""以下是文档中发现的格式问题：
+
+            {error_text}
+
+            请提供详细的修复建议，帮助用户解决这些格式问题。
+            """
+
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_content},
+                    {"role": "user", "content": user_content}
+                ]
+            )
+
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"提供格式修复建议时出错: {str(e)}")
+            return f"抱歉，提供格式修复建议时出错：{str(e)}"
+
+    def generate_format_report(self, doc_path: str, errors: List[Dict], para_manager: Optional[ParagraphManager] = None) -> Dict:
+        """
+        生成格式修正报告并标记文档
+
+        Args:
+            doc_path: 文档路径
+            errors: 错误列表
+            para_manager: 段落管理器（可选）
+
+        Returns:
+            Dict: 包含报告信息的字典
+        """
+        try:
+            # 确保caches文件夹存在
+            caches_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'caches')
+            os.makedirs(caches_folder, exist_ok=True)
+
+            # 生成标记文档的路径
+            doc_name = os.path.basename(doc_path)
+            marked_doc_path = os.path.join(caches_folder, f"marked_{doc_name}")
+
+            # 标记文档中的错误
+            marked_path = mark_document_errors(doc_path, errors, para_manager, marked_doc_path)
+
+            return {
+                "success": True,
+                "message": "格式修正报告生成成功",
+                "marked_doc_path": marked_path,
+                "error_count": len(errors)
+            }
+        except Exception as e:
+            print(f"生成格式修正报告时出错: {str(e)}")
+            return {
+                "success": False,
+                "message": f"生成格式修正报告时出错: {str(e)}"
+            }
+
+    def optimize_document_format(self, doc_path: str, config_path: str, para_manager: ParagraphManager, errors: List[Dict]) -> Dict:
+        """
+        优化文档的整体格式
+
+        Args:
+            doc_path: 文档路径
+            config_path: 配置文件路径
+            para_manager: 段落管理器
+            errors: 错误列表
+
+        Returns:
+            Dict: 包含优化结果的字典
+        """
+        try:
+            # 确保caches文件夹存在
+            caches_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'caches')
+            os.makedirs(caches_folder, exist_ok=True)
+
+            # 生成格式化文档的路径
+            doc_name = os.path.basename(doc_path)
+            formatted_doc_path = os.path.join(caches_folder, f"formatted_{doc_name}")
+
+            # 加载配置
+            config = load_config(config_path) if isinstance(config_path, str) else config_path
+
+            # 生成格式化文档
+            output_path = generate_formatted_doc(config, para_manager, formatted_doc_path, errors, doc_path=doc_path)
+
+            return {
+                "success": True,
+                "message": "文档格式优化成功",
+                "formatted_doc_path": output_path
+            }
+        except Exception as e:
+            print(f"优化文档格式时出错: {str(e)}")
+            return {
+                "success": False,
+                "message": f"优化文档格式时出错: {str(e)}"
+            }
+
     def process(self, user_message: str, function_name: str, para_manager: Optional[ParagraphManager] = None, config_path: Optional[str] = None) -> Any:
         """
         处理用户请求的通用方法
@@ -513,6 +670,27 @@ class FormatAgent:
                 return self.check_paragraph_manager(para_manager, config_path)
             elif function_name == "fix_paragraph_manager" and para_manager and config_path:
                 return self.fix_paragraph_manager(para_manager, config_path)
+            elif function_name == "analyze_format_issues" and config_path:
+                doc_path = user_message.strip()
+                errors, para_manager = self.analyze_format_issues(doc_path, config_path)
+                return {"errors": errors, "para_manager": para_manager}
+            elif function_name == "provide_format_fix_suggestions" and para_manager and config_path:
+                # 先检查格式错误
+                errors = self.check_paragraph_manager(para_manager, config_path)
+                # 提供修复建议
+                return self.provide_format_fix_suggestions(errors, user_message)
+            elif function_name == "generate_format_report" and para_manager and config_path:
+                doc_path = user_message.strip()
+                # 先检查格式错误
+                errors = self.check_paragraph_manager(para_manager, config_path)
+                # 生成格式修正报告
+                return self.generate_format_report(doc_path, errors, para_manager)
+            elif function_name == "optimize_document_format" and para_manager and config_path:
+                doc_path = user_message.strip()
+                # 先检查格式错误
+                errors = self.check_paragraph_manager(para_manager, config_path)
+                # 优化文档格式
+                return self.optimize_document_format(doc_path, config_path, para_manager, errors)
             else:
                 # 默认响应
                 response = self.client.chat.completions.create(
