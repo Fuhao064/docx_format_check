@@ -125,6 +125,17 @@ npm run dev
 npm run build
 ```
 
+### 在项目根目录下构建keys.json
+
+示例如下：
+{
+  "deepseek-r1": {
+    "base_url":"https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "api_key":"YOUR-API-KEY",
+    "model_name": "deepseek-r1"
+  }
+}
+
 ### 使用方法
 
 1. 在浏览器中访问 `http://localhost:3000`（前端开发服务器）
@@ -176,51 +187,15 @@ Scriptor 采用前后端分离的架构设计：
 - 表格和图片格式（标题、编号、样式等）
 - 必要段落要求（摘要、关键词、结论等）
 
-## 贡献指南
-
-我们欢迎各种形式的贡献，包括但不限于：
-
-- 提交问题和功能请求
-- 改进文档
-- 提交代码修复或新功能
-- 分享使用经验和案例
-
-请遵循以下步骤：
-
-1. Fork 本仓库
-2. 创建您的特性分支 (`git checkout -b feature/amazing-feature`)
-3. 提交您的更改 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 打开一个 Pull Request
-
-## 常见问题
-
-### Q: 系统支持哪些文档格式？
-A: 目前系统主要支持 Microsoft Word (.docx) 格式的文档。
-
-### Q: 如何自定义格式规范？
-A: 您可以在系统的"格式设置"页面中自定义格式规范，或直接编辑 `config.json` 文件。
-
-### Q: 系统是否支持多语言？
-A: 是的，系统界面支持中文和英文，并且可以分析多语言文档。
-
-### Q: 如何更新AI模型？
-A: 您可以在"模型管理"页面中查看、选择和更新AI模型。
 
 ## 许可证
 
-本项目采用 MIT 许可证 - 详情请参见 [LICENSE](LICENSE) 文件
+本项目采用 Apache 2.0 许可证 - 详情请参见 [LICENSE](LICENSE) 文件
 
 ## 联系我们
 
-如有任何问题或建议，请通过以下方式联系我们：
+如有任何问题或建议，请通过以下方式联系我：
 
 - 提交 GitHub Issue
-- 发送邮件至：[your-email@example.com](mailto:your-email@example.com)
-- 访问我们的网站：[https://www.example.com](https://www.example.com)
 
 ---
-
-<div align="center">
-  <p>© 2023 Scriptor Team. All Rights Reserved.</p>
-</div>
