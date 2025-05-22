@@ -265,7 +265,7 @@ def remark_para_type(doc_path: str, format_agent: FormatAgent, paragraph_manager
                 print(f"Failed to set paragraph type: {inner_e}")
 
     # 顺序处理段落，以便累积已处理的段落信息
-    for i, para in enumerate(paras_info_json_zh):
+    for i, para in enumerate(paragraph_manager.to_dict()):
         process_paragraph(i, para, paragraph_manager, processed_paragraphs)
 
     return paragraph_manager
@@ -359,7 +359,7 @@ def remark_para_type_with_llm(doc_path: str, format_agent: FormatAgent, paragrap
     except Exception as e:
         print(f"Error converting to Chinese dict: {e}")
         paras_info_json_zh = paragraph_manager.to_dict()
-
+    
     # 存储已处理的段落类型和内容
     processed_paragraphs = []
 
@@ -370,9 +370,11 @@ def remark_para_type_with_llm(doc_path: str, format_agent: FormatAgent, paragrap
         para_meta = {}
 
         try:
+            print("段落内容为：",para["content"])
             # 提取当前段落信息，确保安全访问
             if isinstance(para, dict):
                 para_string = para.get("content", "")
+        
                 print(f"Processing paragraph {para_index}: {para_string[:30]}...")
                 para_meta = para.get("meta", {})
             else:

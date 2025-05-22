@@ -37,6 +37,43 @@ def load_config(config_path: str) -> Dict:
 
 def apply_font_settings(run, font_settings: Dict, is_chinese: bool = True):
     """
+    优化后的字体设置函数，结构更清晰，异常处理更集中，支持中英文自动切换。
+    """
+    try:
+        # 设置字体族
+        if is_chinese and 'zh_family' in font_settings:
+            run.font.name = font_settings['zh_family']
+            run._element.rPr.rFonts.set(qn('w:eastAsia'), font_settings['zh_family'])
+        elif 'en_family' in font_settings:
+            run.font.name = font_settings['en_family']
+
+        # 字体大小
+        size = font_settings.get('size')
+        if size:
+            try:
+                if isinstance(size, str) and 'pt' in size:
+                    run.font.size = Pt(float(size.replace('pt', '')))
+                else:
+                    run.font.size = Pt(float(size))
+            except Exception:
+                run.font.size = Pt(10.5)
+
+        # 加粗、斜体、全部大写
+        run.font.bold = font_settings.get('bold', False)
+        run.font.italic = font_settings.get('italic', False)
+        run.font.all_caps = font_settings.get('isAllCaps', False)
+
+        # 字体颜色
+        color = font_settings.get('color')
+        if color:
+            color = color.lstrip('#')
+            if len(color) == 6:
+                r, g, b = int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16)
+                run.font.color.rgb = RGBColor(r, g, b)
+    except Exception as e:
+        print(f"字体设置异常: {e}")
+
+    """
     应用字体设置到文本运行对象
 
     Args:
@@ -106,6 +143,53 @@ def apply_font_settings(run, font_settings: Dict, is_chinese: bool = True):
             run.font.color.rgb = RGBColor(r, g, b)
 
 def apply_paragraph_format(paragraph, format_settings: Dict):
+    """
+    优化后的段落格式设置函数，结构更清晰，异常处理更集中。
+    """
+    try:
+        # 行间距
+        spacing = format_settings.get('line_spacing')
+        if spacing:
+            if isinstance(spacing, str) and ('固定值' in spacing or 'Fixed value' in spacing):
+                pt_match = re.search(r'(\d+(\.\d+)?)\s*pt', spacing)
+                if pt_match:
+                    paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.EXACTLY
+                    paragraph.paragraph_format.line_spacing = Pt(float(pt_match.group(1)))
+            elif spacing in LINE_SPACING_MAP:
+                paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+                paragraph.paragraph_format.line_spacing = LINE_SPACING_MAP[spacing]
+            else:
+                try:
+                    paragraph.paragraph_format.line_spacing_rule = WD_LINE_SPACING.MULTIPLE
+                    paragraph.paragraph_format.line_spacing = float(spacing)
+                except Exception:
+                    paragraph.paragraph_format.line_spacing = 1.5
+
+        # 对齐方式
+        alignment = format_settings.get('alignment', '').lower()
+        if alignment in ALIGNMENT_MAP:
+            paragraph.paragraph_format.alignment = ALIGNMENT_MAP[alignment]
+
+        # 缩进
+        indentation = format_settings.get('indentation', {})
+        if indentation:
+            def get_cm(val, default=0):
+                if val in ["Unknown", "unknown"]:
+                    return Cm(default)
+                if isinstance(val, str) and 'cm' in val:
+                    return Cm(float(val.replace('cm', '')))
+                try:
+                    return Cm(float(val))
+                except Exception:
+                    return Cm(default)
+            paragraph.paragraph_format.first_line_indent = get_cm(indentation.get('first_line', 0.5), 0.5)
+            paragraph.paragraph_format.left_indent = get_cm(indentation.get('left', 0), 0)
+            paragraph.paragraph_format.right_indent = get_cm(indentation.get('right', 0), 0)
+            paragraph.paragraph_format.space_before = get_cm(indentation.get('space_before', 0), 0)
+            paragraph.paragraph_format.space_after = get_cm(indentation.get('space_after', 0), 0)
+    except Exception as e:
+        print(f"段落格式设置异常: {e}")
+
     """
     应用段落格式设置
 
@@ -798,8 +882,9 @@ def generate_formatted_doc(config: Dict, para_manager: ParagraphManager, output_
                             break # 找到第一个匹配的错误就跳出循环
 
                 # 增加索引，处理下一个段落
-                if not is_figure and not is_table_caption and not is_figure_caption and not is_equation:
-                    para_index += 1
+                # 只要para_info被使用了，就应该增加para_index，确保与para_manager中的段落同步
+                # 特殊元素（图、表、公式）如果也在para_manager中有对应项，也应该消耗一个para_info
+                para_index += 1
 
         # 处理表格
         for table in original_tables:

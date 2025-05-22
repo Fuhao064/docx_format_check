@@ -156,7 +156,7 @@ def _recursive_check(actual, expected, para_content):
             if len(actual_value) > 1:
                 # 对于字体大小、字体名称等特定字段，如果有多个不同的值，报告不一致错误
                 if key in ['size', 'zh_family', 'en_family', 'color']:
-                    errors.append({
+                    errors.append({ 
                         "message": f"'{key}' 不一致: 包含多个不同的值 {actual_value}",
                         "location": para_content[:20]
                     })

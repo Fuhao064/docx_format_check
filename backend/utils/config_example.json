@@ -34,16 +34,16 @@
     "abstract_zh": {
         "fonts": {
             "zh_family": "黑体",
-            "en_family": "Unknown",
-            "size": "16pt",
-            "bold": false,
+            "en_family": "Times New Roman",
+            "size": "12pt",
+            "bold": true,
             "isAllCaps": false,
             "italic": false,
             "color": "#000000"
         },
         "paragraph_format": {
             "line_spacing": "Fixed value 20pt",
-            "alignment": "left",
+            "alignment": "center",
             "indentation": {
                 "first_line": "0cm",
                 "left": "0cm",
@@ -56,7 +56,7 @@
     "abstract_content_zh": {
         "fonts": {
             "zh_family": "宋体",
-            "en_family": "Unknown",
+            "en_family": "Times New Roman",
             "size": "10.5pt",
             "bold": false,
             "isAllCaps": false,

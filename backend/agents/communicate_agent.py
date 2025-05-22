@@ -53,10 +53,10 @@ class CommunicateAgent:
                     - reason: 简单说明做出这个判断的原因
 
                     特别注意以下几种常见的用户意图：
-                    1. 当用户询问"请分析文档中的格式问题"或类似内容时，应返回 {"agent": "format", "function": "analyze_format_issues"}
-                    2. 当用户询问"如何修复文档中的格式错误"或类似内容时，应返回 {"agent": "format", "function": "provide_format_fix_suggestions"}
-                    3. 当用户提到"生成格式修正报告"或"下载标记文档"时，应返回 {"agent": "format", "function": "generate_format_report"}
-                    4. 当用户提到"优化文档格式"或"下载格式化后的文档"时，应返回 {"agent": "format", "function": "optimize_document_format"}
+                    1. 当用户询问"请分析文档中的格式问题"或类似内容时，应返回 {"agent": "format", "function": "analyze_format_issues", "doc_id": current_doc_id}
+                    2. 当用户询问"如何修复文档中的格式错误"或类似内容时，应返回 {"agent": "format", "function": "provide_format_fix_suggestions", "doc_id": current_doc_id}
+                    3. 当用户提到"生成格式修正报告"或"下载标记文档"时，应返回 {"agent": "format", "function": "generate_format_report", "doc_id": current_doc_id}
+                    4. 当用户提到"优化文档格式"或"下载格式化后的文档"时，应返回 {"agent": "format", "function": "optimize_document_format", "doc_id": current_doc_id}
                     """
 
             # 如果是doubao系列模型，添加额外的JSON格式要求
