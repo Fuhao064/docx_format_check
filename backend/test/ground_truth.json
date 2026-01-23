@@ -1,0 +1,934 @@
+
+{
+    "paragraphs": [
+        {
+            "id": "para0",
+            "type": "title_zh",
+            "content": "生存为何需要金钱",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "center",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        16.0
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "黑体"
+                    ],
+                    "zh_family": [
+                        "黑体"
+                    ]
+                },
+                "extra_info": {
+                    "figures": [],
+                    "tables": []
+                }
+            }
+        },
+        {
+            "id": "para1",
+            "type": "title_en",
+            "content": "Why Survival Requires Money",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "center",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        16.0
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para2",
+            "type": "abstract_zh",
+            "content": "摘要：",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para3",
+            "type": "abstract_content_zh",
+            "content": "在现代社会，金钱是生存不可或缺的工具。它提供了获取基本生存资源、保障健康、接受教育以及融入社会的机会和能力，是实现个体福祉的基础。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para4",
+            "type": "abstract_en",
+            "content": "Abstract:",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para5",
+            "type": "abstract_content_en",
+            "content": " In modern society, money is an indispensable tool for survival. It provides the means and ability to access basic resources, ensure health, receive education, and integrate into society, forming the basis for individual well-being.",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para6",
+            "type": "keywords_zh",
+            "content": "关键词：",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para7",
+            "type": "keywords_content_zh",
+            "content": "金钱，生存，必需品，生活成本，经济",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para8",
+            "type": "keywords_en",
+            "content": "Keywords:",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para9",
+            "type": "keywords_content_en",
+            "content": " Money, Survival, Necessities, Cost of Living, Economy",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para10",
+            "type": "heading1",
+            "content": "一、生存对金钱的依赖",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        14.0
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para11",
+            "type": "body",
+            "content": "现代生活体系建立在经济交换之上。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para12",
+            "type": "heading2",
+            "content": "1基本生存资源的获取",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para13",
+            "type": "body",
+            "content": "无论是食物、住所、衣物，还是水、电等基本服务，都需要通过货币购买或支付费用才能获得。金钱直接关联到生命得以延续的物质基础。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para14",
+            "type": "heading2",
+            "content": "2健康与教育的保障",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para15",
+            "type": "body",
+            "content": "健康是生存质量的关键。医疗服务、药品、健康饮食等都需要经济支持。教育投资能提升个体能力和未来机会，同样需要资金。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para16",
+            "type": "heading2",
+            "content": "3安全与发展的投入",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para17",
+            "type": "body",
+            "content": "应对突发风险、保障人身财产安全（如保险、安保措施）也离不开经济储备。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para18",
+            "type": "heading2",
+            "content": "4社会融入与个人价值实现",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para19",
+            "type": "body",
+            "content": "金钱不仅仅满足基本需求，也是参与社会生活、实现个人发展的媒介。交通、通讯、文化娱乐、社交活动，乃至追求梦想、实现自我价值，很大程度上都依赖于经济能力。金钱提供了选择权和行动自由。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para20",
+            "type": "body",
+            "content": "尽管金钱并非万能，但在当前经济体系下，它扮演着连接个体与生存所需资源的桥梁角色。理解金钱的必要性，合理管理财务，是确保个体在复杂社会中生存并发展的关键。",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para21",
+            "type": "references",
+            "content": "参考文献：",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        true
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para22",
+            "type": "references_content",
+            "content": "[1] 张伟, 李静. 可再生能源发展与环境保护协同机制研究[J]. 环境科学学报, 2024, 44(5): 1234-1245. ",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para23",
+            "type": "references_content",
+            "content": "[2] 王芳. 数字经济时代的消费者行为[M]. 上海: 复旦大学出版社, 2023. ",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        },
+        {
+            "id": "para24",
+            "type": "references_content",
+            "content": "[3] 国家发展和改革委员会. 关于推动高质量发展的指导意见[EB/OL]. 2023-12-15[2025-05-03].",
+            "meta": {
+                "paragraph_format": {
+                    "alignment": "justify",
+                    "first_line_indent": 0,
+                    "left_indent": 0,
+                    "right_indent": 0,
+                    "before_spacing": 0,
+                    "after_spacing": 0,
+                    "line_spacing": "1.0"
+                },
+                "fonts": {
+                    "size": [
+                        10.5
+                    ],
+                    "bold": [
+                        false
+                    ],
+                    "isAllcaps": false,
+                    "italic": [
+                        false
+                    ],
+                    "color": [
+                        "#black"
+                    ],
+                    "en_family": [
+                        "Times New Roman"
+                    ],
+                    "zh_family": [
+                        "宋体"
+                    ]
+                }
+            }
+        }
+    ]
+}

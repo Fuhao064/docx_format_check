@@ -240,7 +240,7 @@ def check_figure_format(doc_path: str, required_format: Dict, paragraph_manager=
 
     # 如果提供了段落管理器，检查其中是否存在图片类型的段落
     if paragraph_manager:
-        from backend.preparation.para_type import ParsedParaType
+        from preparation.para_type import ParsedParaType
         figure_paras = paragraph_manager.get_by_type(ParsedParaType.FIGURES)
         has_figure_in_manager = len(figure_paras) > 0
         if has_figure_in_manager:

@@ -5,7 +5,7 @@ import tempfile
 import base64
 import io
 from PIL import Image
-from backend.preparation.para_type import ParagraphManager, ParsedParaType
+from preparation.para_type import ParagraphManager, ParsedParaType
 
 def extract_images_from_docx(doc_path):
     """从docx文件中提取图片信息"""

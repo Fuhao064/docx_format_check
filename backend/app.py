@@ -11,27 +11,27 @@ import os
 # 添加项目根目录到系统路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.agents.setting import LLMs
-from backend.editors.format_editor import generate_formatted_doc
-from backend.editors.document_marker import mark_document_errors
-from backend.preparation.para_type import ParagraphManager
+from agents.setting import LLMs
+from editors.format_editor import generate_formatted_doc
+from editors.document_marker import mark_document_errors
+from preparation.para_type import ParagraphManager
 # 移除循环导入
-# from backend.checkers.checker import check_format
+# from checkers.checker import check_format
 from datetime import datetime
-import backend.preparation.docx_parser as docx_parser
-from backend.agents.advice_agent import AdviceAgent
-from backend.agents.editor_agent import EditorAgent
-from backend.agents.format_agent import FormatAgent
-from backend.agents.communicate_agent import CommunicateAgent
+import preparation.docx_parser as docx_parser
+from agents.advice_agent import AdviceAgent
+from agents.editor_agent import EditorAgent
+from agents.format_agent import FormatAgent
+from agents.communicate_agent import CommunicateAgent
 from docx import Document
 from docx.shared import Pt
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn  # 导入qn函数，用于XML命名空间
 import tempfile
-from backend.utils.utils import parse_llm_json_response
+from utils.utils import parse_llm_json_response
 
 # 导入agents包中的功能
-import backend.agents as agents
+import agents as agents
 
 app = Flask(__name__)
 CORS(app)
@@ -41,10 +41,10 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 # 创建一个全局的Agent中心
 agents_config = {
-    "format_model": "qwen-plus",
-    "editor_model": "deepseek-r1",
-    "advice_model": "deepseek-r1",
-    "communicate_model": "deepseek-r1"
+    "format_model": "alibaba_qwen-plus",
+    "editor_model": "alibaba_deepseek-r1",
+    "advice_model": "alibaba_deepseek-r1",
+    "communicate_model": "alibaba_deepseek-r1"
 }
 agents = {
     "format": FormatAgent(agents_config["format_model"]),
@@ -193,24 +193,58 @@ def set_agent_model():
 @app.route('/api/models')
 def get_models():
     try:
-        # 使用全局的LLMs实例
-        models_config = llm.models_config
-        return jsonify({"models": models_config})
+        # 使用全局的LLMs实例get_models方法，返回包含provider信息的列表
+        models_data = llm.get_models()
+        # 将列表转换为字典，以便前端兼容
+        models_dict = {}
+        for model in models_data['models']:
+            models_dict[model['name']] = {
+                'base_url': model['base_url'],
+                'model_name': model['model_name'],
+                'api_key': model.get('api_key', ''),
+                'provider': model.get('provider', '')
+            }
+        return jsonify({"models": models_dict})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# 添加新模型
+# 添加新模型（到现有provider）
 @app.route('/api/add-model', methods=['POST'])
 def add_model():
     data = request.get_json()
-    required_fields = ['name', 'base_url', 'api_key', 'model_name']
+    required_fields = ['provider', 'model_key', 'model_name']
     if not data or not all(field in data for field in required_fields):
-        return jsonify({'error': '缺少必要的模型信息'}), 400
+        return jsonify({'error': '缺少必要的模型信息（provider, model_key, model_name）'}), 400
 
     try:
         # 使用全局的LLMs实例
-        llm.add_model(data['name'], data['base_url'], data['api_key'], data['model_name'])
-        return jsonify({'message': f'模型 {data["name"]} 添加成功'})
+        llm.add_model(data['provider'], data['model_key'], data['model_name'])
+        unique_name = f"{data['provider']}_{data['model_key']}"
+        return jsonify({'message': f'模型 {unique_name} 添加成功'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# 添加新的provider
+@app.route('/api/add-provider', methods=['POST'])
+def add_provider():
+    data = request.get_json()
+    required_fields = ['provider_name', 'base_url', 'api_key']
+    if not data or not all(field in data for field in required_fields):
+        return jsonify({'error': '缺少必要的provider信息（provider_name, base_url, api_key）'}), 400
+
+    try:
+        # 使用全局的LLMs实例
+        llm.add_provider(data['provider_name'], data['base_url'], data['api_key'])
+        return jsonify({'message': f'Provider {data["provider_name"]} 添加成功'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# 获取所有providers列表
+@app.route('/api/providers')
+def get_providers():
+    try:
+        providers = list(llm.raw_config.get('providers', {}).keys())
+        return jsonify({'providers': providers})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -512,7 +546,7 @@ def start_check_format():
         # 处理文件信息
         try:
             # 使用延迟导入避免循环依赖
-            from backend.checkers.checker import check_format
+            from checkers.checker import check_format
             docx_errors, para_manager = check_format(file_path, config_path, agents["format"])
 
             # 检查返回值是否有效
@@ -533,7 +567,8 @@ def start_check_format():
             doc_json = para_manager.to_dict()
             # 保存抽取的JSON到缓存文件，添加年月日时分秒便于观察处理时间
             current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-            json_cache_path = os.path.join(app.config['CACHES_FOLDER'], f"doc_json_{int(time.time())}_{current_time}.json")
+            filename = file_path.rsplit('/', 1)[-1].rsplit('.', 1)[0]
+            json_cache_path = os.path.join(app.config['CACHES_FOLDER'], f"{filename}_{int(time.time())}_{current_time}.json")
             with open(json_cache_path, 'w', encoding='utf-8') as f:
                 json.dump(doc_json, f, ensure_ascii=False, indent=4)
         except Exception as json_err:
@@ -586,7 +621,7 @@ def generate_report():
             if not config_path or not os.path.exists(config_path):
                 return jsonify({"success": False, "message": "配置文件不存在"}), 404
             # 使用延迟导入避免循环依赖
-            from backend.checkers.checker import check_format
+            from checkers.checker import check_format
             errors, _ = check_format(file_path, config_path, agents["format"])
 
             # 确保errors是列表类型
@@ -1016,7 +1051,7 @@ def apply_format():
                 # 调用check_format获取para_manager
                 try:
                     # 使用延迟导入避免循环依赖
-                    from backend.checkers.checker import check_format
+                    from checkers.checker import check_format
                     errors, para_manager = check_format(doc_path, config_path, agents["format"])
                     # 存储当前的para_manager
                     analysised_para_manager.append({"doc_path": doc_path, "para_manager": para_manager})
@@ -1044,7 +1079,7 @@ def apply_format():
             print(f"重新检查格式获取错误和para_manager")
             try:
                 # 使用延迟导入避免循环依赖
-                from backend.checkers.checker import check_format
+                from checkers.checker import check_format
                 errors, para_manager = check_format(doc_path, config_path, agents["format"])
                 # 更新存储的para_manager
                 for i, item in enumerate(analysised_para_manager):

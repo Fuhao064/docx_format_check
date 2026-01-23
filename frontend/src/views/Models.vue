@@ -3,21 +3,21 @@
        :class="isDarkMode ? 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))]' : 'bg-[hsl(var(--background))] text-[hsl(var(--foreground))]'">
     <div class="mb-6">
       <h1 class="text-2xl font-semibold mb-2 text-[hsl(var(--foreground))]">模型管理</h1>
-      <p class="text-[hsl(var(--muted-foreground))]">管理和配置可用的AI模型</p>
+      <p class="text-[hsl(var(--muted-foreground))]">管理和配置可用的AI模型提供商和模型</p>
     </div>
     
 
     <!-- 各代理模型配置 -->
-    <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-4 mb-6']">
+    <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-4 mb-6 border border-[hsl(var(--border))]']">
       <h2 class="text-lg font-medium mb-3 text-[hsl(var(--foreground))]">代理模型配置</h2>
-      <div class="grid grid-cols-1 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- 格式代理 -->
         <div class="p-3 border border-[hsl(var(--border))] rounded-md">
           <h3 class="font-medium mb-2 text-[hsl(var(--foreground))]">格式代理 (Format Agent)</h3>
           <div class="flex items-center justify-between">
             <select 
               v-model="agentModels.format" 
-              class="bg-[hsl(var(--input))] text-[hsl(var(--foreground))] rounded-md px-3 py-2 border border-[hsl(var(--border))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+              class="bg-[hsl(var(--input))] text-[hsl(var(--foreground))] rounded-md px-3 py-2 border border-[hsl(var(--border))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] w-full"
             >
               <option value="">请选择模型</option>
               <option v-for="(model, key) in models" :key="`format-${key}`" :value="key">
@@ -29,7 +29,7 @@
               :disabled="!agentModels.format"
               :class="[
                 'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
-                'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm ml-2',
+                'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm ml-2 whitespace-nowrap',
                 !agentModels.format ? 'opacity-50 cursor-not-allowed' : ''
               ]"
             >
@@ -44,7 +44,7 @@
           <div class="flex items-center justify-between">
             <select 
               v-model="agentModels.editor" 
-              class="bg-[hsl(var(--input))] text-[hsl(var(--foreground))] rounded-md px-3 py-2 border border-[hsl(var(--border))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+              class="bg-[hsl(var(--input))] text-[hsl(var(--foreground))] rounded-md px-3 py-2 border border-[hsl(var(--border))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] w-full"
             >
               <option value="">请选择模型</option>
               <option v-for="(model, key) in models" :key="`editor-${key}`" :value="key">
@@ -56,7 +56,7 @@
               :disabled="!agentModels.editor"
               :class="[
                 'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
-                'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm ml-2',
+                'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm ml-2 whitespace-nowrap',
                 !agentModels.editor ? 'opacity-50 cursor-not-allowed' : ''
               ]"
             >
@@ -71,7 +71,7 @@
           <div class="flex items-center justify-between">
             <select 
               v-model="agentModels.advice" 
-              class="bg-[hsl(var(--input))] text-[hsl(var(--foreground))] rounded-md px-3 py-2 border border-[hsl(var(--border))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+              class="bg-[hsl(var(--input))] text-[hsl(var(--foreground))] rounded-md px-3 py-2 border border-[hsl(var(--border))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] w-full"
             >
               <option value="">请选择模型</option>
               <option v-for="(model, key) in models" :key="`advice-${key}`" :value="key">
@@ -83,7 +83,7 @@
               :disabled="!agentModels.advice"
               :class="[
                 'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
-                'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm ml-2',
+                'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm ml-2 whitespace-nowrap',
                 !agentModels.advice ? 'opacity-50 cursor-not-allowed' : ''
               ]"
             >
@@ -98,7 +98,7 @@
           <div class="flex items-center justify-between">
             <select 
               v-model="agentModels.communicate" 
-              class="bg-[hsl(var(--input))] text-[hsl(var(--foreground))] rounded-md px-3 py-2 border border-[hsl(var(--border))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+              class="bg-[hsl(var(--input))] text-[hsl(var(--foreground))] rounded-md px-3 py-2 border border-[hsl(var(--border))] focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] w-full"
             >
               <option value="">请选择模型</option>
               <option v-for="(model, key) in models" :key="`communicate-${key}`" :value="key">
@@ -110,7 +110,7 @@
               :disabled="!agentModels.communicate"
               :class="[
                 'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
-                'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm ml-2',
+                'px-3 py-1.5 rounded-md transition-colors duration-[--transition-speed] text-sm ml-2 whitespace-nowrap',
                 !agentModels.communicate ? 'opacity-50 cursor-not-allowed' : ''
               ]"
             >
@@ -123,19 +123,25 @@
 
     <!-- 模型列表 -->
     <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md overflow-hidden mb-6 border border-[hsl(var(--border))]']">
+      <div class="flex justify-between items-center px-6 py-4 border-b border-[hsl(var(--border))]">
+        <h2 class="text-lg font-medium text-[hsl(var(--foreground))]">已配置模型</h2>
+        <button @click="refreshModels" class="text-sm text-[hsl(var(--primary))] hover:underline">刷新列表</button>
+      </div>
       <div class="overflow-x-auto">
         <table class="w-full border-collapse">
           <thead>
             <tr :class="isDarkMode ? 'bg-[hsl(var(--secondary))]' : 'bg-[hsl(var(--secondary))]'">
               <th :class="['text-[hsl(var(--secondary-foreground))]', 'px-6 py-3 text-left font-medium']">模型提供商</th>
-              <th :class="['text-[hsl(var(--secondary-foreground))]', 'px-6 py-3 text-left font-medium']">模型名称</th>
+              <th :class="['text-[hsl(var(--secondary-foreground))]', 'px-6 py-3 text-left font-medium']">标识符 (用于接口)</th>
+              <th :class="['text-[hsl(var(--secondary-foreground))]', 'px-6 py-3 text-left font-medium']">API名称</th>
               <th :class="['text-[hsl(var(--secondary-foreground))]', 'px-6 py-3 text-left font-medium']">API Key</th>
               <th :class="['text-[hsl(var(--secondary-foreground))]', 'px-6 py-3 text-left font-medium']">操作</th>
             </tr>
           </thead>
           <tbody :class="isDarkMode ? 'divide-y divide-[hsl(var(--border))]' : 'divide-y divide-[hsl(var(--border))]'">
             <tr v-for="(model, key) in models" :key="key" :class="isDarkMode ? 'hover:bg-[hsl(var(--secondary))/0.5]' : 'hover:bg-[hsl(var(--secondary))/0.5]'">
-              <td class="px-6 py-4 text-[hsl(var(--foreground))]">{{ getProviderName(key) }}</td>
+              <td class="px-6 py-4 text-[hsl(var(--foreground))]">{{ formatProviderName(model.provider) }}</td>
+              <td class="px-6 py-4 text-[hsl(var(--foreground))] font-mono text-sm">{{ key }}</td>
               <td class="px-6 py-4 text-[hsl(var(--foreground))]">{{ model.model_name }}</td>
               <td class="px-6 py-4">
                 <span class="font-mono text-sm text-[hsl(var(--foreground))]">{{ maskApiKey(model.api_key) }}</span>
@@ -155,7 +161,7 @@
               </td>
             </tr>
             <tr v-if="Object.keys(models).length === 0">
-              <td colspan="4" :class="['text-[hsl(var(--muted-foreground))]', 'px-6 py-4 text-center']">
+              <td colspan="5" :class="['text-[hsl(var(--muted-foreground))]', 'px-6 py-4 text-center']">
                 暂无模型数据
               </td>
             </tr>
@@ -164,80 +170,120 @@
       </div>
     </div>
 
-    <!-- 添加模型表单 -->
-    <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-6']">
-      <h2 class="text-lg font-medium mb-4 text-[hsl(var(--foreground))]">添加新模型</h2>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div>
-          <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">模型名称</label>
-          <input
-            v-model="newModel.name"
-            type="text"
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <!-- 添加提供商表单 -->
+      <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-6 border border-[hsl(var(--border))]']">
+        <h2 class="text-lg font-medium mb-4 text-[hsl(var(--foreground))]">添加/更新提供商</h2>
+        <div class="space-y-4">
+          <div>
+            <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">提供商标识 (如: alibaba, openai)</label>
+            <input
+              v-model="newProvider.name"
+              type="text"
+              :class="[
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] border border-[hsl(var(--border))]'
+              ]"
+              placeholder="例如: alibaba"
+            />
+          </div>
+          <div>
+            <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">API 基础 URL</label>
+            <input
+              v-model="newProvider.base_url"
+              type="text"
+              :class="[
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] border border-[hsl(var(--border))]'
+              ]"
+              placeholder="例如: https://api.openai.com/v1"
+            />
+          </div>
+          <div>
+            <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">API Key</label>
+            <input
+              v-model="newProvider.api_key"
+              type="password"
+              :class="[
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] border border-[hsl(var(--border))]'
+              ]"
+              placeholder="输入API密钥"
+            />
+          </div>
+          <button
+            @click="addProvider"
             :class="[
-              'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
-              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
+              'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
+              'px-4 py-2 rounded-md transition-colors duration-[--transition-speed]',
+              !isProviderFormValid ? 'opacity-50 cursor-not-allowed' : ''
             ]"
-            placeholder="例如: gpt-4"
-          />
-        </div>
-
-        <div>
-          <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">API 基础 URL</label>
-          <input
-            v-model="newModel.base_url"
-            type="text"
-            :class="[
-              'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
-              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
-            ]"
-            placeholder="例如: https://api.openai.com"
-          />
-        </div>
-
-        <div>
-          <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">API Key</label>
-          <input
-            v-model="newModel.api_key"
-            type="text"
-            :class="[
-             'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
-              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
-            ]"
-            placeholder="输入API密钥"
-          />
-        </div>
-
-        <div>
-          <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">模型标识符</label>
-          <input
-            v-model="newModel.model_name"
-            type="text"
-            :class="[
-              'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
-              'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
-            ]"
-            placeholder="例如: gpt-3.5-turbo"
-          />
+            :disabled="!isProviderFormValid"
+          >
+            添加/更新提供商
+          </button>
         </div>
       </div>
 
-      <button
-        @click="addModel"
-        :class="[
-          'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
-          'px-4 py-2 rounded-md transition-colors duration-[--transition-speed]',
-          isAddButtonDisabled ? 'opacity-50 cursor-not-allowed' : ''
-        ]"
-        :disabled="isAddButtonDisabled"
-      >
-        添加模型
-      </button>
+      <!-- 添加模型表单 -->
+      <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-6 border border-[hsl(var(--border))]']">
+        <h2 class="text-lg font-medium mb-4 text-[hsl(var(--foreground))]">添加新模型</h2>
+        <div class="space-y-4">
+          <div>
+            <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">所属提供商</label>
+            <select
+              v-model="newModel.provider"
+              :class="[
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] border border-[hsl(var(--border))]'
+              ]"
+            >
+              <option value="">请选择提供商</option>
+              <option v-for="p in providers" :key="p" :value="p">{{ formatProviderName(p) }}</option>
+            </select>
+          </div>
+          <div>
+            <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">模型键 (用于标识，如: qwen-max)</label>
+            <input
+              v-model="newModel.key"
+              type="text"
+              :class="[
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] border border-[hsl(var(--border))]'
+              ]"
+              placeholder="例如: qwen-max"
+            />
+          </div>
+          <div>
+            <label :class="['text-[hsl(var(--muted-foreground))]', 'block text-sm font-medium mb-1']">API模型名称 (实际调用名称)</label>
+            <input
+              v-model="newModel.name"
+              type="text"
+              :class="[
+                'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))] border border-[hsl(var(--border))]'
+              ]"
+              placeholder="例如: qwen-max"
+            />
+          </div>
+          <button
+            @click="addModel"
+            :class="[
+              'bg-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.9)] text-[hsl(var(--primary-foreground))]',
+              'px-4 py-2 rounded-md transition-colors duration-[--transition-speed]',
+              !isModelFormValid ? 'opacity-50 cursor-not-allowed' : ''
+            ]"
+            :disabled="!isModelFormValid"
+          >
+            添加模型
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- 确认删除对话框 -->
     <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-6 max-w-md w-full mx-4']">
+      <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-6 max-w-md w-full mx-4 border border-[hsl(var(--border))]']">
         <h3 class="text-xl font-semibold mb-4 text-[hsl(var(--foreground))]">确认删除</h3>
         <p class="mb-6 text-[hsl(var(--muted-foreground))]">确定要删除模型 "{{ modelToDelete }}" 吗？此操作无法撤销。</p>
         <div class="flex justify-end space-x-3">
@@ -271,6 +317,7 @@ import axios from 'axios'
 
 // 模型数据
 const models = ref({})
+const providers = ref([])
 
 // 代理模型配置
 const agentModels = ref({
@@ -280,12 +327,18 @@ const agentModels = ref({
   communicate: ''
 })
 
-// 新模型表单
-const newModel = ref({
+// 新提供商表单
+const newProvider = ref({
   name: '',
   base_url: '',
-  api_key: '',
-  model_name: ''
+  api_key: ''
+})
+
+// 新模型表单
+const newModel = ref({
+  provider: '',
+  key: '',
+  name: ''
 })
 
 // 删除确认
@@ -296,42 +349,34 @@ const modelToDelete = ref('')
 const showNotification = inject('showNotification', null)
 const isDarkMode = inject('isDarkMode', ref(true))
 
-// 计算属性：添加按钮是否禁用
-const isAddButtonDisabled = computed(() => {
-  return !newModel.value.name ||
-         !newModel.value.base_url ||
-         !newModel.value.api_key ||
-         !newModel.value.model_name
+// 计算属性：表单验证
+const isProviderFormValid = computed(() => {
+  return newProvider.value.name && newProvider.value.base_url && newProvider.value.api_key
 })
 
-// 获取模型提供商名称
-function getProviderName(key) {
-  // 根据keys.json中的数据结构解析提供商名称
+const isModelFormValid = computed(() => {
+  return newModel.value.provider && newModel.value.key && newModel.value.name
+})
+
+// 格式化提供商显示名称
+function formatProviderName(provider) {
+  if (!provider) return '未知'
   const providerMap = {
-    'openai': 'OpenAI',
-    'deepseek': 'DeepSeek',
-    'qwen': 'Qwen (阿里云)',
-    'glm': 'GLM (智谱)',
-    'gemini': 'Gemini (Google)',
-    'deepseek-r1': 'DeepSeek R1'
+    'alibaba': '阿里云 (Qwen)',
+    'zhipuai': '智谱AI (GLM)',
+    'google': 'Google (Gemini)',
+    'bytedance': '字节跳动 (Doubao)',
+    'baidu': '百度 (ERNIE)',
+    'openai': 'OpenAI'
   }
-
-  // 尝试从key中提取提供商名称
-  for (const [provider, name] of Object.entries(providerMap)) {
-    if (key.toLowerCase().includes(provider)) {
-      return name
-    }
-  }
-
-  // 如果没有匹配到任何已知提供商，返回原始key
-  return key
+  return providerMap[provider.toLowerCase()] || provider
 }
 
 // 掩码API密钥
 function maskApiKey(apiKey) {
   if (!apiKey) return ''
   if (apiKey.length <= 8) return '*'.repeat(apiKey.length)
-  return apiKey.slice(0, 4) + '*'.repeat(apiKey.length - 8) + apiKey.slice(-4)
+  return apiKey.slice(0, 4) + '*'.repeat(Math.min(apiKey.length - 8, 12)) + apiKey.slice(-4)
 }
 
 // 获取所有模型和当前配置
@@ -340,6 +385,10 @@ async function fetchModels() {
     // 获取模型列表
     const modelsResponse = await axios.get('/api/models')
     models.value = modelsResponse.data.models || {}
+    
+    // 获取提供商列表
+    const providersResponse = await axios.get('/api/providers')
+    providers.value = providersResponse.data.providers || []
     
     // 获取所有代理的当前模型配置
     try {
@@ -355,20 +404,8 @@ async function fetchModels() {
       console.error('获取代理模型配置失败:', err)
     }
   } catch (error) {
-    console.error('获取模型列表失败:', error)
-    showNotification('error', '获取失败', '无法获取模型列表，请稍后重试')
-  }
-}
-
-// 选择默认模型
-async function selectModel(modelName) {
-  try {
-    await axios.post('/api/set-model', { model_name: modelName })
-    currentModel.value = modelName
-    showNotification('success', '选择成功', `已选择默认模型: ${modelName}`)
-  } catch (error) {
-    console.error('选择模型失败:', error)
-    showNotification('error', '选择失败', '无法选择该模型，请稍后重试')
+    console.error('获取模型数据失败:', error)
+    if (showNotification) showNotification('error', '获取失败', '无法获取模型列表，请稍后重试')
   }
 }
 
@@ -381,10 +418,10 @@ async function updateAgentModel(agentType, modelName) {
       agent_type: agentType,
       model_name: modelName
     })
-    showNotification('success', '更新成功', `已将${getAgentDisplayName(agentType)}模型设置为: ${modelName}`)
+    if (showNotification) showNotification('success', '更新成功', `已将${getAgentDisplayName(agentType)}模型设置为: ${modelName}`)
   } catch (error) {
     console.error('更新代理模型失败:', error)
-    showNotification('error', '更新失败', '无法更新代理模型，请稍后重试')
+    if (showNotification) showNotification('error', '更新失败', '无法更新代理模型，请稍后重试')
   }
 }
 
@@ -409,14 +446,13 @@ function confirmDeleteModel(modelName) {
 async function deleteModel() {
   try {
     await axios.delete(`/api/delete-model/${modelToDelete.value}`)
-    if (currentModel.value === modelToDelete.value) {
-      currentModel.value = ''
-    }
-    delete models.value[modelToDelete.value]
     showDeleteConfirm.value = false
-    showNotification('success', '删除成功', `已删除模型: ${modelToDelete.value}`)
+    if (showNotification) showNotification('success', '删除成功', `已删除模型: ${modelToDelete.value}`)
     
-    // 删除后检查所有代理的模型设置并重置已被删除的模型
+    // 刷新数据
+    await fetchModels()
+    
+    // 检查所有代理的模型设置并重置已被删除的模型
     Object.keys(agentModels.value).forEach(agentType => {
       if (agentModels.value[agentType] === modelToDelete.value) {
         agentModels.value[agentType] = ''
@@ -424,44 +460,72 @@ async function deleteModel() {
     })
   } catch (error) {
     console.error('删除模型失败:', error)
-    showNotification('error', '删除失败', '无法删除该模型，请稍后重试')
+    if (showNotification) showNotification('error', '删除失败', '无法删除该模型，请稍后重试')
+  }
+}
+
+// 添加提供商
+async function addProvider() {
+  if (!isProviderFormValid.value) return
+
+  try {
+    const providerData = {
+      provider_name: newProvider.value.name,
+      base_url: newProvider.value.base_url,
+      api_key: newProvider.value.api_key
+    }
+
+    await axios.post('/api/add-provider', providerData)
+
+    // 重置表单
+    newProvider.value = {
+      name: '',
+      base_url: '',
+      api_key: ''
+    }
+
+    // 刷新数据
+    await fetchModels()
+    if (showNotification) showNotification('success', '已更新', `提供商 ${providerData.provider_name} 已配置`)
+  } catch (error) {
+    console.error('添加提供商失败:', error)
+    if (showNotification) showNotification('error', '添加失败', '无法添加提供商，请检查网络或输入信息')
   }
 }
 
 // 添加模型
 async function addModel() {
-  if (isAddButtonDisabled.value) return
+  if (!isModelFormValid.value) return
 
   try {
     const modelData = {
-      name: newModel.value.name,
-      base_url: newModel.value.base_url,
-      api_key: newModel.value.api_key,
-      model_name: newModel.value.model_name
+      provider: newModel.value.provider,
+      model_key: newModel.value.key,
+      model_name: newModel.value.name
     }
 
-    await axios.post('/api/models', modelData)
+    await axios.post('/api/add-model', modelData)
 
     // 重置表单
     newModel.value = {
-      name: '',
-      base_url: '',
-      api_key: '',
-      model_name: ''
+      provider: '',
+      key: '',
+      name: ''
     }
 
-    // 刷新模型列表
+    // 刷新数据
     await fetchModels()
-    showNotification('success', '添加成功', `已添加新模型: ${modelData.name}`)
+    if (showNotification) showNotification('success', '添加成功', `已添加新模型: ${modelData.provider}_${modelData.model_key}`)
   } catch (error) {
     console.error('添加模型失败:', error)
-    showNotification('error', '添加失败', '无法添加新模型，请检查输入信息是否正确')
+    if (showNotification) showNotification('error', '添加失败', '无法添加新模型，请检查输入信息')
   }
 }
 
-// 刷新模型列表
+// 刷新并显示通知
 async function refreshModels() {
   await fetchModels()
+  if (showNotification) showNotification('success', '已刷新', '模型数据已更新')
 }
 
 // 组件挂载时获取模型列表

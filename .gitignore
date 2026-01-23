@@ -16,3 +16,6 @@ caches
 tests/*
 */tests
 tests
+backend/agents/keys.json.backup
+.claude/settings.local.json
+CLAUDE.md

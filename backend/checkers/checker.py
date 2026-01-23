@@ -3,7 +3,7 @@ import concurrent.futures
 import os
 import json
 from datetime import datetime
-from backend.preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
+from preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
 from preparation.docx_parser import extract_doc_content
 import preparation.extract_para_info as extract_para_info
 from utils.utils import is_value_equal
