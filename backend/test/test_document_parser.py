@@ -12,6 +12,7 @@ sys.path.insert(0, str(backend_dir))
 
 from preparation.para_type import ParagraphManager, ParsedParaType
 from preparation.extract_para_info import extract_para_format_info
+from agents.delude_engine import DeludeEngine
 
 
 def normalize_for_comparison(value):
@@ -208,7 +209,11 @@ def main():
 
     # 转换为字典格式
     actual_data = manager.to_dict()
-
+    
+    # 使用delude_engine进行校验和修正
+    delude_engine = DeludeEngine()
+    actual_data = delude_engine.correct_para_type(actual_data)
+    
     print("\n" + "=" * 60)
     print("实际提取结果")
     print("=" * 60)
