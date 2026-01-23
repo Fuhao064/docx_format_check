@@ -1,9 +1,9 @@
-from typing import Tuple
+from typing import Tuple, List, Dict, Optional, Any, Union
 from agents.setting import LLMs
-from preparation.para_type import ParagraphManager, ParsedParaType
+from preparation.para_type import ParsedParaType
 
 class FormatAgent:
-    def __init__(self, model_name='qwen-plus'):
+    def __init__(self, model_name='alibaba_qwen-flash'):
         # 初始化基本LLM客户端
         self.llm = LLMs()
         try:
@@ -15,6 +15,44 @@ class FormatAgent:
             self.llm = None
             self.client = None
             self.model = None
+
+    def provide_format_fix_suggestions(self, errors: List[Dict], doc_content: str = "") -> str:
+        """
+        提供格式修复建议 (LLM 方法)
+
+        Args:
+            errors: 错误列表
+            doc_content: 文档内容（可选，用于上下文）
+
+        Returns:
+            str: 修复建议
+        """
+        if not errors:
+            return "未发现格式错误，无需修复。"
+
+        # 构建提示词
+        error_summary = "\n".join([f"- {e['message']} ({e.get('location', '未知位置')})" for e in errors[:10]])
+        if len(errors) > 10:
+            error_summary += f"\n... 以及其他 {len(errors)-10} 个错误"
+
+        prompt = f"""
+        我在检查文档格式时发现了以下问题：
+        {error_summary}
+
+        请根据这些错误提供具体的修复建议和操作步骤。
+        """
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "你是一个专业的文档排版专家。请针对用户的格式错误提供清晰、可操作的修复建议。"},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            return f"生成修复建议时出错: {str(e)}"
 
     def llm_predict_para_type(self, para_string: str, para_meta: dict,
                               prev_para_type: ParsedParaType, next_para_type: ParsedParaType,

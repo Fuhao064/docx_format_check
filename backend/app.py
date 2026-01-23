@@ -41,10 +41,10 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 # 创建一个全局的Agent中心
 agents_config = {
-    "format_model": "alibaba_qwen-plus",
-    "editor_model": "alibaba_deepseek-r1",
-    "advice_model": "alibaba_deepseek-r1",
-    "communicate_model": "alibaba_deepseek-r1"
+    "format_model": "alibaba_qwen-flash",
+    "editor_model": "alibaba_deepseek-v3.2",
+    "advice_model": "alibaba_deepseek-v3.2",
+    "communicate_model": "alibaba_deepseek-v3.2"
 }
 agents = {
     "format": FormatAgent(agents_config["format_model"]),
@@ -546,9 +546,10 @@ def start_check_format():
         # 处理文件信息
         try:
             # 使用延迟导入避免循环依赖
-            from checkers.checker import check_format
-            docx_errors, para_manager = check_format(file_path, config_path, agents["format"])
-
+            from checkers.format_checker import FormatChecker
+            checker = FormatChecker()
+            docx_errors, para_manager = checker.analyze_format_issues(file_path, config_path, agents["format"])
+    
             # 检查返回值是否有效
             if para_manager is None:
                 para_manager = ParagraphManager()
@@ -621,8 +622,9 @@ def generate_report():
             if not config_path or not os.path.exists(config_path):
                 return jsonify({"success": False, "message": "配置文件不存在"}), 404
             # 使用延迟导入避免循环依赖
-            from checkers.checker import check_format
-            errors, _ = check_format(file_path, config_path, agents["format"])
+            from checkers.format_checker import FormatChecker
+            checker = FormatChecker()
+            errors, _ = checker.analyze_format_issues(file_path, config_path, agents["format"])
 
             # 确保errors是列表类型
             if errors is None:

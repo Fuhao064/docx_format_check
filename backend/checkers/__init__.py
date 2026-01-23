@@ -4,22 +4,22 @@
 from .checker import (
     check_abstract,
     check_keywords,
-    check_required_paragraphs,
-    check_format
+    check_required_paragraphs
 )
 
 from .check_paper import check_paper_format
 from .check_references import check_reference_format
 from .check_tables_figures import check_table_format, check_figure_format
+from .format_checker import FormatChecker
 
 # 导出所有公共函数
 __all__ = [
     'check_abstract',
     'check_keywords',
     'check_required_paragraphs',
-    'check_format',
     'check_paper_format',
     'check_reference_format',
     'check_table_format',
-    'check_figure_format'
+    'check_figure_format',
+    'FormatChecker'
 ]

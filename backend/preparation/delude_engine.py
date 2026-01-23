@@ -74,8 +74,8 @@ def correct_para_type(doc_path: str, format_agent: FormatAgent, paragraph_manage
                 # 检查规则置信度
                 if para.type == ParsedParaType.BODY:
                     # 对于规则返回 BODY 且置信度低的情况，调用 LLM
-                    predicted_type, confidence = llm_predict_para_type(
-                        para_string, format_agent, para_meta,
+                    predicted_type, confidence = format_agent.llm_predict_para_type(
+                        para_string, para_meta,
                         prev_para_type, next_para_type, next_para_content, processed_paragraphs.copy()
                     )
 

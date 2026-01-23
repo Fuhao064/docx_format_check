@@ -1,18 +1,22 @@
 import docx
 import xml.etree.ElementTree as ET
 import json, re, os, zipfile
-from backend.preparation.para_type import ParsedParaType, ParagraphManager
+from preparation.para_type import ParsedParaType, ParagraphManager
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
 
 # 尝试导入 extract_media 模块，如果不存在，则创建一个空函数
 try:
-    from backend.preparation.extract_media import add_media_to_manager
+    from preparation.extract_media import add_media_to_manager
 except ImportError:
-    # 如果模块不存在，创建一个空函数
-    def add_media_to_manager(manager, doc_path):
-        print("未找到 extract_media 模块，无法提取图片和表格")
-        return manager
+    # 如果模块不存在，尝试从backend导入
+    try:
+        from backend.preparation.extract_media import add_media_to_manager
+    except ImportError:
+        # 如果模块不存在，创建一个空函数
+        def add_media_to_manager(manager, doc_path):
+            print("未找到 extract_media 模块，无法提取图片和表格")
+            return manager
 # 定义工具函数
 def get_alignment_string(alignment):
     """获取对齐方式的字符串表示"""
@@ -599,14 +603,10 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
         # 将段落信息添加到段落管理器
         # 尝试确定段落类型
         try:
-            # 确保我们使用的是枚举实例而不是枚举类
             para_type = ParsedParaType.BODY  # 默认为正文类型
-            # print(f"  设置默认段落类型: {para_type}, 类型: {type(para_type)}")
         except Exception as e:
-            # print(f"  获取默认段落类型失败: {str(e)}")
-            # 使用字符串值作为备选
-            para_type = 'body'
-            # print(f"  使用字符串值'body'作为备选段落类型")
+            print(f"  获取默认段落类型失败: {str(e)}")
+            para_type = ParsedParaType.BODY
 
         # 检查是否是分节符或分页符
         if hasattr(para, '_p') and para._p is not None:
@@ -614,27 +614,15 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
             xml_str = para._p.xml if hasattr(para._p, 'xml') else ""
             if 'sectPr' in xml_str or 'w:br w:type="page"' in xml_str:
                 try:
-                    # 确保我们使用的是枚举实例而不是枚举类
                     para_type = ParsedParaType.OTHERS
-                    # print(f"  检测到分节符或分页符，使用OTHERS类型: {para_type}, 类型: {type(para_type)}")
                 except Exception as e:
-                    # print(f"  获取OTHERS段落类型失败: {str(e)}")
-                    # 使用字符串值作为备选
-                    para_type = 'others'
-                    # print(f"  使用字符串值'others'作为备选段落类型")
+                    print(f"  获取OTHERS段落类型失败: {str(e)}")
+                    para_type = ParsedParaType.OTHERS
 
         # 确保para_type是ParsedParaType枚举类型
         if not isinstance(para_type, ParsedParaType):
-            print(f"  警告：段落类型不是ParsedParaType枚举，而是{type(para_type)}，将使用BODY类型")
-            # 尝试获取BODY枚举值
-            try:
-                # 直接使用枚举值
-                para_type = 'body'  # 使用字符串值，让ParaInfo.__post_init__处理转换
-                print(f"  使用字符串值'body'作为段落类型")
-            except Exception as e:
-                print(f"  获取BODY类型失败: {str(e)}")
-                # 最后的尝试：使用枚举值字符串
-                para_type = 'body'
+            print(f"  警告：段落类型不是ParsedParaType枚举，而是{type(para_type)}，将强制使用BODY类型")
+            para_type = ParsedParaType.BODY
 
         try:
             # 添加段落到管理器
@@ -646,29 +634,29 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
             print(f"  已将段落添加到管理器: id=para{len(manager.paragraphs)-1}")
         except Exception as e:
             print(f"  添加段落到管理器时出错: {str(e)}")
-            # 尝试使用字符串值作为备选
+            # 尝试使用OTHERS作为备选
             try:
-                print(f"  尝试使用字符串值'others'作为备选段落类型")
+                print(f"  尝试使用ParsedParaType.OTHERS作为备选段落类型")
                 manager.add_para(
-                    para_type='others',  # 使用字符串值，让ParaInfo.__post_init__处理转换
+                    para_type=ParsedParaType.OTHERS,
                     content=para.text,
                     meta=meta_data
                 )
-                print(f"  使用字符串值'others'添加段落成功: id=para{len(manager.paragraphs)-1}")
+                print(f"  使用ParsedParaType.OTHERS添加段落成功: id=para{len(manager.paragraphs)-1}")
             except Exception as e2:
-                print(f"  使用字符串值'others'添加段落失败: {str(e2)}")
+                print(f"  使用ParsedParaType.OTHERS添加段落失败: {str(e2)}")
 
-                # 最后尝试使用'body'字符串值
+                # 最后尝试使用BODY
                 try:
-                    print(f"  尝试使用字符串值'body'作为最后的备选")
+                    print(f"  尝试使用ParsedParaType.BODY作为最后的备选")
                     manager.add_para(
-                        para_type='body',  # 使用字符串值，让ParaInfo.__post_init__处理转换
+                        para_type=ParsedParaType.BODY,
                         content=para.text,
                         meta=meta_data
                     )
-                    print(f"  使用字符串值'body'添加段落成功: id=para{len(manager.paragraphs)-1}")
+                    print(f"  使用ParsedParaType.BODY添加段落成功: id=para{len(manager.paragraphs)-1}")
                 except Exception as e3:
-                    print(f"  使用字符串值'body'添加段落也失败: {str(e3)}, 错误类型: {type(e3)}")
+                    print(f"  使用ParsedParaType.BODY添加段落也失败: {str(e3)}, 错误类型: {type(e3)}")
 
     print(f"\n文档处理完成，共处理 {processed_count} 个段落")
     return manager

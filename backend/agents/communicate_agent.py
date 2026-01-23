@@ -6,9 +6,10 @@ from agents.editor_agent import EditorAgent
 from agents.advice_agent import AdviceAgent
 from preparation.para_type import ParagraphManager
 from utils.utils import parse_llm_json_response
+from checkers.format_checker import FormatChecker
 
 class CommunicateAgent:
-    def __init__(self, model_name='qwen-plus'):
+    def __init__(self, model_name='alibaba_qwen-flash'):
         # 初始化基本LLM客户端
         self.llm = LLMs()
         try:
@@ -23,6 +24,7 @@ class CommunicateAgent:
 
         # 初始化可能用到的其他代理，但不立即实例化
         self.format_agent = None
+        self.format_checker = None
         self.editor_agent = None
         self.advice_agent = None
 
@@ -122,18 +124,18 @@ class CommunicateAgent:
             # 初始化格式代理（如果尚未初始化）
             if self.format_agent is None:
                 self.format_agent = FormatAgent(self.model)
+            
+            # 初始化检查器 (Lazy init)
+            if self.format_checker is None:
+                self.format_checker = FormatChecker()
 
             # 处理新增的格式分析和修复功能
             if function_name == "analyze_format_issues":
                 if not doc_path or not config_path:
                     return "需要提供文档路径和配置文件路径才能分析格式问题"
 
-                # 初始化格式代理（如果尚未初始化）
-                if self.format_agent is None:
-                    self.format_agent = FormatAgent(self.model)
-
-                # 分析文档格式问题
-                errors, para_manager = self.format_agent.analyze_format_issues(doc_path, config_path)
+                # 分析文档格式问题 (Use Checker)
+                errors, para_manager = self.format_checker.analyze_format_issues(doc_path, config_path)
 
                 # 如果没有错误
                 if not errors or len(errors) == 0:
@@ -148,82 +150,77 @@ class CommunicateAgent:
                 if not doc_path or not config_path:
                     return "需要提供文档路径和配置文件路径才能提供修复建议"
 
-                # 初始化格式代理（如果尚未初始化）
-                if self.format_agent is None:
-                    self.format_agent = FormatAgent(self.model)
-
                 # 如果没有提供错误列表，先分析文档格式问题
                 if not para_manager:
-                    errors, para_manager = self.format_agent.analyze_format_issues(doc_path, config_path)
+                    errors, para_manager = self.format_checker.analyze_format_issues(doc_path, config_path)
                 else:
                     # 使用提供的段落管理器检查格式
-                    errors = self.format_agent.check_paragraph_manager(para_manager, config_path)
+                    errors = self.format_checker.check_paragraph_manager(para_manager, config_path)
 
-                # 提供修复建议
+                # 提供修复建议 (Use Agent LLM)
                 return self.format_agent.provide_format_fix_suggestions(errors, doc_content)
 
             elif function_name == "generate_format_report":
                 if not doc_path or not config_path:
                     return "需要提供文档路径和配置文件路径才能生成格式修正报告"
 
-                # 初始化格式代理（如果尚未初始化）
-                if self.format_agent is None:
-                    self.format_agent = FormatAgent(self.model)
-
                 # 如果没有提供错误列表，先分析文档格式问题
                 if not para_manager:
-                    errors, para_manager = self.format_agent.analyze_format_issues(doc_path, config_path)
+                    errors, para_manager = self.format_checker.analyze_format_issues(doc_path, config_path)
                 else:
                     # 使用提供的段落管理器检查格式
-                    errors = self.format_agent.check_paragraph_manager(para_manager, config_path)
+                    errors = self.format_checker.check_paragraph_manager(para_manager, config_path)
 
-                # 生成格式修正报告
-                result = self.format_agent.generate_format_report(doc_path, errors, para_manager)
-
-                if result["success"]:
-                    return f"格式修正报告生成成功，共发现 {result['error_count']} 个格式问题。您可以下载标记文档查看详细错误位置。"
-                else:
-                    return f"生成格式修正报告失败：{result['message']}"
+                # 生成格式修正报告 (Use Editor directly)
+                try:
+                    output_path = mark_document_errors(doc_path, errors, para_manager)
+                    return f"格式修正报告生成成功，共发现 {len(errors)} 个格式问题。您可以下载标记文档查看详细错误位置。"
+                except Exception as e:
+                    return f"生成格式修正报告失败：{str(e)}"
 
             elif function_name == "optimize_document_format":
                 if not doc_path or not config_path:
                     return "需要提供文档路径和配置文件路径才能优化文档格式"
 
-                # 初始化格式代理（如果尚未初始化）
-                if self.format_agent is None:
-                    self.format_agent = FormatAgent(self.model)
-
                 # 如果没有提供段落管理器，先分析文档格式问题
                 if not para_manager:
-                    errors, para_manager = self.format_agent.analyze_format_issues(doc_path, config_path)
+                    errors, para_manager = self.format_checker.analyze_format_issues(doc_path, config_path)
                 else:
                     # 使用提供的段落管理器检查格式
-                    errors = self.format_agent.check_paragraph_manager(para_manager, config_path)
+                    errors = self.format_checker.check_paragraph_manager(para_manager, config_path)
 
-                # 优化文档格式
-                result = self.format_agent.optimize_document_format(doc_path, config_path, para_manager, errors)
-
-                if result["success"]:
+                # 优化文档格式 (Use Editor directly)
+                try:
+                    config = load_config(config_path)
+                    dir_name = os.path.dirname(doc_path)
+                    base_name = os.path.basename(doc_path)
+                    output_path = os.path.join(dir_name, f"formatted_{base_name}")
+                    
+                    result_path = generate_formatted_doc(config, para_manager, output_path, errors, doc_path)
                     return f"文档格式优化成功。您可以下载格式化后的文档。"
-                else:
-                    return f"优化文档格式失败：{result['message']}"
+                except Exception as e:
+                    return f"优化文档格式失败：{str(e)}"
 
             # 处理原有的格式分析功能
-            elif function_name in ["check_paragraph_manager", "fix_paragraph_manager"] and para_manager and config_path:
-                # 这些函数需要段落管理器和配置文件路径
-                return json.dumps(self.format_agent.process(user_message, function_name, para_manager, config_path))
+            elif function_name == "check_paragraph_manager" and para_manager and config_path:
+                errors = self.format_checker.check_paragraph_manager(para_manager, config_path)
+                return json.dumps({"errors": errors, "count": len(errors)})
+                
             elif function_name == "analyze_paragraph" and para_manager:
                 # 从用户消息中提取段落索引
                 try:
                     para_index = int(user_message.strip().split()[-1])
                     if 0 <= para_index < len(para_manager.paragraphs):
                         para_info = para_manager.paragraphs[para_index]
-                        # 加载配置文件并分析段落
                         if config_path:
-                            from utils.config_utils import load_config
                             config = load_config(config_path)
-                            result = self.format_agent.analyze_paragraph(para_info, config)
-                            return json.dumps(result)
+                            # Get expected format
+                            if para_info.type.value in config:
+                                expected = config[para_info.type.value]
+                                result = self.format_checker.check_paragraph(para_info, expected, para_index)
+                                return json.dumps(result)
+                            else:
+                                return "配置文件中未找到该段落类型的配置"
                         else:
                             return "需要提供配置文件路径才能分析段落"
                     else:
@@ -231,9 +228,8 @@ class CommunicateAgent:
                 except (ValueError, IndexError):
                     return "无法解析段落索引，请提供有效的段落编号"
             else:
-                # 调用format_agent的默认处理方法，传入文档全文
-                enhanced_message = f"基于以下文档全文的上下文，请处理用户请求：\n\n文档全文：\n{doc_content[:2000]}...\n\n用户请求：\n{user_message}"
-                return self.format_agent.process(enhanced_message, function_name)
+                # 默认使用communicate对话功能 (FormatAgent doesn't need to handle chat)
+                return self.chat(user_message, doc_content)
 
         elif agent_type == "editor":
             # 初始化编辑代理（如果尚未初始化）
