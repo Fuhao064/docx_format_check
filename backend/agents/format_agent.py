@@ -60,6 +60,11 @@ class FormatAgent:
         """
         使用LLM预测段落类型
 
+        改进点：
+        1. 增强上下文信息，包含更多段落特征
+        2. 改进提示词，提供更明确的判断规则
+        3. 添加模糊匹配处理
+
         Args:
             para_string: 段落内容
             para_meta: 段落元数据
@@ -71,27 +76,46 @@ class FormatAgent:
         Returns:
             Tuple[ParsedParaType, float]: 预测的段落类型和置信度
         """
-        # 构建精简上下文的用户提示
+        # 构建更详细的上下文
         context_info = ""
+
         if prev_para_type:
             context_info += f"上一段类型: {prev_para_type.value}\n"
 
         context_info += f"当前段落内容: {para_string}\n"
+        context_info += f"当前段落长度: {len(para_string.strip())}\n"
+
+        # 分析段落特征
+        stripped_content = para_string.strip()
+        has_chinese = any('\u4e00' <= char <= '\u9fff' for char in stripped_content)
+        has_english = any('a' <= char.lower() <= 'z' for char in stripped_content)
+
+        if has_chinese:
+            context_info += "语言特征: 包含中文\n"
+        if has_english:
+            context_info += "语言特征: 包含英文\n"
 
         if next_para_type:
             context_info += f"下一段类型: {next_para_type.value}\n"
-            context_info += f"下一段内容: {next_para_content[:50]}..."
+            if next_para_content:
+                context_info += f"下一段内容: {next_para_content[:50]}...\n"
 
         user_content = f"""基于以下上下文信息，请判断当前段落的类型：
 
         {context_info}
 
-        问题：基于上下文，这一段是正文还是某种内容的延续？
+        判断规则：
+        1. 如果上一段是 abstract_zh，且当前段落内容不是标题，当前段落通常是 abstract_content_zh
+        2. 如果上一段是 abstract_en，且当前段落内容不是标题，当前段落通常是 abstract_content_en
+        3. 如果上一段是 keywords_zh，且当前段落包含多个关键词（逗号分隔或空格分隔），当前段落通常是 keywords_content_zh
+        4. 如果上一段是 keywords_en，当前段落通常是 keywords_content_en
+        5. 如果上一段是 references，且当前段落以引用格式开头（如 [1], (1), 1. 等），当前段落通常是 references_content
+        6. 如果不符合以上任何规则，当前段落是正文 body
 
         要求：
-        1. 如果是正文，返回 "body"
-        2. 如果是其他内容的延续（如摘要内容、关键词内容、参考文献内容等），返回具体的类型
-        3. 只返回类型值，不要返回其他内容
+        1. 根据上一段类型和当前段落内容判断段落类型
+        2. 只返回类型值，不要返回其他内容
+        3. 返回类型必须是以下选项之一
 
         可用类型选项：
         - body (正文)
@@ -107,18 +131,37 @@ class FormatAgent:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "你是一个文档段落类型识别专家。你的任务是根据上下文信息判断段落类型。只返回类型值，不要返回其他内容。"},
+                    {"role": "system", "content": "你是一个文档段落类型识别专家。根据上下文判断段落类型，只返回类型值。"},
                     {"role": "user", "content": user_content}
                 ]
             )
 
             result = response.choices[0].message.content.strip().lower()
 
+            # 移除可能的引号和空格
+            result = result.strip().strip('"').strip("'").strip()
+
             # 尝试将结果转换为 ParsedParaType
-            if result in [t.value for t in ParsedParaType]:
+            valid_types = [t.value for t in ParsedParaType]
+
+            if result in valid_types:
                 return ParsedParaType(result), 0.9
-            else:
-                return ParsedParaType.BODY, 0.7
+
+            # 模糊匹配处理
+            if 'abstract' in result and 'zh' in result:
+                return ParsedParaType.ABSTRACT_CONTENT_ZH, 0.8
+            elif 'abstract' in result and 'en' in result:
+                return ParsedParaType.ABSTRACT_CONTENT_EN, 0.8
+            elif 'keyword' in result and 'zh' in result:
+                return ParsedParaType.KEYWORDS_CONTENT_ZH, 0.8
+            elif 'keyword' in result and 'en' in result:
+                return ParsedParaType.KEYWORDS_CONTENT_EN, 0.8
+            elif 'reference' in result:
+                return ParsedParaType.REFERENCES_CONTENT, 0.8
+            elif 'body' in result:
+                return ParsedParaType.BODY, 0.8
+
+            return ParsedParaType.BODY, 0.7
         except Exception as e:
             print(f"LLM prediction failed: {str(e)}")
             return ParsedParaType.BODY, 0.5

@@ -7,6 +7,7 @@ import os, time, sys
 import json
 import sys
 import os
+from datetime import datetime
 
 # 添加项目根目录到系统路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,8 +18,10 @@ from editors.document_marker import mark_document_errors
 from preparation.para_type import ParagraphManager
 # 移除循环导入
 # from checkers.checker import check_format
-from datetime import datetime
 import preparation.docx_parser as docx_parser
+
+# 导入 WebSocket 模块
+from websocket import init_websocket_events
 from agents.advice_agent import AdviceAgent
 from agents.editor_agent import EditorAgent
 from agents.format_agent import FormatAgent
@@ -35,7 +38,10 @@ import agents as agents
 
 app = Flask(__name__)
 CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# 初始化 WebSocket 事件处理器
+ws_handler = init_websocket_events(socketio)
 
 # sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

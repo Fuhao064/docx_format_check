@@ -149,6 +149,23 @@ db.version(4).stores({
   console.log('升级到数据库版本4，添加paragraphManager表');
 });
 
+// 升级数据库以支持工作台管理
+db.version(5).stores({
+  appState: 'id, lastUpdated, currentTaskId',
+  tasks: 'id, title, createdAt, lastUpdated',
+  taskState: 'id, taskId, hasUploadedFile, hasUploadedFormat, uploadedFileName, formattedFilePath, currentDocumentPath, currentConfigPath, currentStep, processingComplete, lastUpdated',
+  files: 'id, taskId, name, path, type, lastUpdated',
+  messages: '++id, taskId, content, sender, timestamp',
+  formatErrors: '++id, taskId, message, location, timestamp',
+  paragraphManager: 'id, taskId, docPath, data, lastUpdated',
+  workspace_state: 'id, layout, preferences, lastOpenedFiles',
+  task_queue: 'id, taskId, status, progress, result, error',
+  file_metadata: 'id, originalName, timestampedName, size, uploadTime, status',
+  sync_log: 'id, type, timestamp, data'
+}).upgrade(tx => {
+  console.log('升级到数据库版本5，添加工作台相关表');
+});
+
 // 获取应用状态
 const getAppState = async () => {
   await initializeDB();
@@ -536,6 +553,169 @@ const getParagraphManager = async (docPath) => {
   }
 };
 
+// ========== 工作台状态管理 ==========
+
+// 获取工作台状态
+const getWorkspaceState = async () => {
+  const state = await db.workspace_state.get(1);
+  if (!state) {
+    // 创建默认工作台状态
+    const defaultState = {
+      id: 1,
+      layout: {
+        sidebarCollapsed: false,
+        activeTab: 'dashboard'
+      },
+      preferences: {
+        theme: 'light',
+        language: 'zh-CN'
+      },
+      lastOpenedFiles: []
+    };
+    await db.workspace_state.put(defaultState);
+    return defaultState;
+  }
+  return state;
+};
+
+// 更新工作台状态
+const updateWorkspaceState = async (stateData) => {
+  const current = await getWorkspaceState();
+  await db.workspace_state.update(1, {
+    ...current,
+    ...stateData
+  });
+  return await getWorkspaceState();
+};
+
+// 添加最近打开的文件
+const addLastOpenedFile = async (filePath) => {
+  const state = await getWorkspaceState();
+  const lastOpenedFiles = state.lastOpenedFiles || [];
+
+  // 移除已存在的相同文件路径
+  const filteredFiles = lastOpenedFiles.filter(f => f !== filePath);
+
+  // 将文件添加到开头
+  const newFiles = [filePath, ...filteredFiles].slice(0, 10); // 最多保留10个
+
+  await db.workspace_state.update(1, {
+    ...state,
+    lastOpenedFiles: newFiles
+  });
+};
+
+// ========== 任务队列管理 ==========
+
+// 添加任务到队列
+const addTaskToQueue = async (taskId, taskData = {}) => {
+  const id = Date.now().toString();
+  await db.task_queue.put({
+    id,
+    taskId,
+    status: 'pending',
+    progress: 0,
+    result: null,
+    error: null,
+    timestamp: new Date().toISOString(),
+    ...taskData
+  });
+  return id;
+};
+
+// 更新队列中的任务
+const updateTaskInQueue = async (queueTaskId, updateData) => {
+  const task = await db.task_queue.get(queueTaskId);
+  if (!task) return null;
+
+  await db.task_queue.update(queueTaskId, {
+    ...task,
+    ...updateData,
+    timestamp: new Date().toISOString()
+  });
+  return await db.task_queue.get(queueTaskId);
+};
+
+// 获取任务队列
+const getTaskQueue = async () => {
+  return await db.task_queue.toArray();
+};
+
+// 清除已完成的任务
+const clearCompletedTasks = async () => {
+  await db.task_queue.where('status').equals('completed').delete();
+};
+
+// ========== 文件元数据管理 ==========
+
+// 保存文件元数据
+const saveFileMetadata = async (metadata) => {
+  const id = metadata.id || Date.now().toString();
+  await db.file_metadata.put({
+    id,
+    originalName: metadata.originalName,
+    timestampedName: metadata.timestampedName,
+    size: metadata.size,
+    uploadTime: metadata.uploadTime || new Date().toISOString(),
+    status: metadata.status || 'pending',
+    ...metadata
+  });
+  return id;
+};
+
+// 获取文件元数据
+const getFileMetadata = async (id) => {
+  return await db.file_metadata.get(id);
+};
+
+// 根据原始文件名查找元数据
+const findFileMetadataByName = async (originalName) => {
+  return await db.file_metadata.where('originalName').equals(originalName).first();
+};
+
+// 获取所有文件元数据
+const getAllFileMetadata = async () => {
+  return await db.file_metadata.toArray();
+};
+
+// 删除文件元数据
+const deleteFileMetadata = async (id) => {
+  await db.file_metadata.delete(id);
+};
+
+// ========== 同步日志管理 ==========
+
+// 添加同步日志
+const addSyncLog = async (type, data) => {
+  const id = Date.now().toString();
+  await db.sync_log.put({
+    id,
+    type,
+    timestamp: new Date().toISOString(),
+    data
+  });
+  return id;
+};
+
+// 获取同步日志
+const getSyncLogs = async (type = null) => {
+  if (type) {
+    return await db.sync_log.where('type').equals(type).toArray();
+  }
+  return await db.sync_log.toArray();
+};
+
+// 清除旧的同步日志（保留最近100条）
+const clearOldSyncLogs = async () => {
+  const logs = await db.sync_log.orderBy('timestamp').reverse().toArray();
+  if (logs.length > 100) {
+    const toDelete = logs.slice(100);
+    for (const log of toDelete) {
+      await db.sync_log.delete(log.id);
+    }
+  }
+};
+
 export {
   db,
   initializeDB,
@@ -567,5 +747,20 @@ export {
   saveFormatErrors,
   getFormatErrors,
   saveParagraphManager,
-  getParagraphManager
+  getParagraphManager,
+  getWorkspaceState,
+  updateWorkspaceState,
+  addLastOpenedFile,
+  addTaskToQueue,
+  updateTaskInQueue,
+  getTaskQueue,
+  clearCompletedTasks,
+  saveFileMetadata,
+  getFileMetadata,
+  findFileMetadataByName,
+  getAllFileMetadata,
+  deleteFileMetadata,
+  addSyncLog,
+  getSyncLogs,
+  clearOldSyncLogs
 };

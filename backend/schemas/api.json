@@ -1,0 +1,347 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Scriptor API Schemas",
+  "description": "JSON Schema definitions for Scriptor API request/response structures",
+  "definitions": {
+    "FileUploadRequest": {
+      "type": "object",
+      "properties": {
+        "file": {
+          "type": "string",
+          "format": "binary",
+          "description": "上传的文件（使用 multipart/form-data）"
+        }
+      },
+      "required": []
+    },
+
+    "FileUploadResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean",
+          "description": "是否上传成功"
+        },
+        "message": {
+          "type": "string",
+          "description": "响应消息"
+        },
+        "file": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "文件ID"
+            },
+            "originalName": {
+              "type": "string",
+              "description": "原始文件名"
+            },
+            "timestampedName": {
+              "type": "string",
+              "description": "带时间戳的文件名"
+            },
+            "size": {
+              "type": "number",
+              "description": "文件大小（字节）"
+            },
+            "uploadTime": {
+              "type": "string",
+              "format": "date-time",
+              "description": "上传时间"
+            },
+            "path": {
+              "type": "string",
+              "description": "文件存储路径"
+            }
+          }
+        }
+      },
+      "required": ["success", "message"]
+    },
+
+    "FileMetadata": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "originalName": {
+          "type": "string"
+        },
+        "timestampedName": {
+          "type": "string"
+        },
+        "size": {
+          "type": "number"
+        },
+        "uploadTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "uploading", "completed", "error"]
+        }
+      },
+      "required": ["id", "originalName", "timestampedName", "size", "uploadTime", "status"]
+    },
+
+    "DocumentCheckRequest": {
+      "type": "object",
+      "properties": {
+        "doc_path": {
+          "type": "string",
+          "description": "文档路径"
+        },
+        "config_path": {
+          "type": "string",
+          "description": "配置文件路径"
+        },
+        "use_llm": {
+          "type": "boolean",
+          "default": true,
+          "description": "是否使用LLM进行智能分析"
+        }
+      },
+      "required": ["doc_path", "config_path"]
+    },
+
+    "DocumentCheckResponse": {
+      "type": "object",
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FormatError"
+          }
+        },
+        "para_manager": {
+          "type": "object",
+          "description": "段落管理器数据"
+        }
+      },
+      "required": ["success", "message"]
+    },
+
+    "FormatError": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "location": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"]
+        }
+      },
+      "required": ["message"]
+    },
+
+    "TaskStatusUpdate": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "in_progress", "completed", "error"]
+        },
+        "progress": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": ["task_id", "status", "progress"]
+    },
+
+    "AnalysisProgress": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "string"
+        },
+        "stage": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "progress": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["task_id", "stage", "progress"]
+    },
+
+    "NotificationMessage": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["success", "warning", "error", "info"]
+        },
+        "title": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["level", "title", "message"]
+    },
+
+    "ApplyFormatRequest": {
+      "type": "object",
+      "properties": {
+        "doc_path": {
+          "type": "string"
+        },
+        "config_path": {
+          "type": "string"
+        },
+        "fixes": {
+          "type": "array",
+          "description": "应用的修复列表"
+        }
+      },
+      "required": ["doc_path", "config_path"]
+    },
+
+    "SendMessageRequest": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        },
+        "context": {
+          "type": "object",
+          "description": "上下文信息"
+        }
+      },
+      "required": ["message"]
+    },
+
+    "AnalyzeParagraphRequest": {
+      "type": "object",
+      "properties": {
+        "paragraph": {
+          "type": "string"
+        },
+        "context": {
+          "type": "object"
+        }
+      },
+      "required": ["paragraph"]
+    },
+
+    "EnhanceParagraphsRequest": {
+      "type": "object",
+      "properties": {
+        "paragraphs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "options": {
+          "type": "object"
+        }
+      },
+      "required": ["paragraphs"]
+    },
+
+    "ModelConfigRequest": {
+      "type": "object",
+      "properties": {
+        "model_key": {
+          "type": "string"
+        },
+        "base_url": {
+          "type": "string"
+        },
+        "api_key": {
+          "type": "string"
+        },
+        "model_name": {
+          "type": "string"
+        }
+      },
+      "required": ["model_key", "base_url", "api_key", "model_name"]
+    },
+
+    "SetAgentModelRequest": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "type": "string",
+          "enum": ["format_agent", "editor_agent", "advice_agent", "communicate_agent"]
+        },
+        "model": {
+          "type": "string"
+        }
+      },
+      "required": ["agent", "model"]
+    },
+
+    "GenerateReportRequest": {
+      "type": "object",
+      "properties": {
+        "doc_path": {
+          "type": "string"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FormatError"
+          }
+        }
+      },
+      "required": ["doc_path"]
+    },
+
+    "CreateConfigRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "config": {
+          "type": "object",
+          "description": "格式配置对象"
+        }
+      },
+      "required": ["name", "config"]
+    }
+  }
+}

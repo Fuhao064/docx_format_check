@@ -6,9 +6,13 @@
       <p class="text-[hsl(var(--muted-foreground))]">管理和配置可用的AI模型提供商和模型</p>
     </div>
     
+    <div v-if="loading" class="flex justify-center items-center py-12">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[hsl(var(--primary))]"></div>
+      <span class="ml-3 text-[hsl(var(--muted-foreground))]">加载中...</span>
+    </div>
 
     <!-- 各代理模型配置 -->
-    <div :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-4 mb-6 border border-[hsl(var(--border))]']">
+    <div v-else :class="[isDarkMode ? 'bg-[hsl(var(--card))]' : 'bg-[hsl(var(--card))]', 'rounded-md p-4 mb-6 border border-[hsl(var(--border))]']">
       <h2 class="text-lg font-medium mb-3 text-[hsl(var(--foreground))]">代理模型配置</h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <!-- 格式代理 -->
@@ -318,6 +322,7 @@ import axios from 'axios'
 // 模型数据
 const models = ref({})
 const providers = ref([])
+const loading = ref(false)
 
 // 代理模型配置
 const agentModels = ref({
@@ -381,6 +386,7 @@ function maskApiKey(apiKey) {
 
 // 获取所有模型和当前配置
 async function fetchModels() {
+  loading.value = true
   try {
     // 获取模型列表
     const modelsResponse = await axios.get('/api/models')
@@ -406,6 +412,8 @@ async function fetchModels() {
   } catch (error) {
     console.error('获取模型数据失败:', error)
     if (showNotification) showNotification('error', '获取失败', '无法获取模型列表，请稍后重试')
+  } finally {
+    loading.value = false
   }
 }
 
