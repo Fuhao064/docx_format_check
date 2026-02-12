@@ -1,3 +1,4 @@
+import re
 from typing import Dict, List
 from preparation.para_type import ParagraphManager, ParsedParaType
 
@@ -45,35 +46,62 @@ def check_abstract(paragraph_manager: ParagraphManager) -> List[Dict]:
 def check_keywords(paragraph_manager: ParagraphManager) -> List[Dict]:
     """检查关键词格式"""
     errors = []
+    paragraphs = paragraph_manager.paragraphs
 
-    # 查找关键词段落
-    keyword_paras = []
-    for para in paragraph_manager.paragraphs:
-        para_text = para.content.strip()
-        if para_text.startswith('关键词') or para_text.startswith('Keywords'):
-            keyword_paras.append(para)
+    def _parse_keywords(text: str) -> List[str]:
+        if not text:
+            return []
+        content = text.strip()
+        content = re.sub(r'^\s*(关键词|关键字|keywords?)\s*[:：]?\s*', '', content, flags=re.IGNORECASE)
+        parts = re.split(r'[，,、;；]', content)
+        return [p.strip().strip('。.') for p in parts if p and p.strip().strip('。.')]
 
-    # 检查是否存在关键词
-    if not keyword_paras:
+    def _is_keyword_label(text: str) -> bool:
+        return bool(re.match(r'^\s*(关键词|关键字|keywords?)\s*[:：]?', text or '', flags=re.IGNORECASE))
+
+    keyword_groups: List[List[str]] = []
+    keyword_section_found = False
+
+    for idx, para in enumerate(paragraphs):
+        para_text = (para.content or '').strip()
+        para_type = para.type
+
+        is_keyword_label_para = para_type in (ParsedParaType.KEYWORDS_ZH, ParsedParaType.KEYWORDS_EN) or _is_keyword_label(para_text)
+        is_keyword_content_para = para_type in (ParsedParaType.KEYWORDS_CONTENT_ZH, ParsedParaType.KEYWORDS_CONTENT_EN)
+
+        if is_keyword_content_para:
+            keyword_section_found = True
+            parsed = _parse_keywords(para_text)
+            if parsed:
+                keyword_groups.append(parsed)
+            continue
+
+        if is_keyword_label_para:
+            keyword_section_found = True
+            parsed = _parse_keywords(para_text)
+            if parsed:
+                keyword_groups.append(parsed)
+                continue
+
+            # 兼容“关键词：”被拆段，下一段才是内容的情况
+            if idx + 1 < len(paragraphs):
+                next_para = paragraphs[idx + 1]
+                next_text = (next_para.content or '').strip()
+                next_type = next_para.type
+                if next_type in (ParsedParaType.KEYWORDS_CONTENT_ZH, ParsedParaType.KEYWORDS_CONTENT_EN) or next_text:
+                    next_parsed = _parse_keywords(next_text)
+                    if next_parsed:
+                        keyword_groups.append(next_parsed)
+
+    if not keyword_section_found:
         errors.append({
             'message': '文档中缺少关键词',
             'location': '摘要之后'
         })
         return errors
 
-    # 检查关键词内容
-    keyword_para = keyword_paras[0]
-    keyword_text = keyword_para.content.strip()
-
-    # 检查是否有足够的关键词（假设至少3个）
-    if '：' in keyword_text:
-        keywords = keyword_text.split('：')[1].split('；')
-    elif ':' in keyword_text:
-        keywords = keyword_text.split(':')[1].split(';')
-    else:
-        keywords = []
-
-    if len(keywords) < 3:
+    max_keyword_count = max((len(group) for group in keyword_groups), default=0)
+    if max_keyword_count < 3:
         errors.append({
             'message': '关键词数量不足，建议至少提供3个关键词',
             'location': '关键词部分'

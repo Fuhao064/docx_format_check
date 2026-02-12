@@ -56,6 +56,12 @@ db.version(3).stores({
       formattedFilePath: oldAppState.formattedFilePath || '',
       currentDocumentPath: oldAppState.currentDocumentPath || '',
       currentConfigPath: oldAppState.currentConfigPath || '',
+      contextId: oldAppState.contextId || '',
+      documentId: oldAppState.documentId || '',
+      formatId: oldAppState.formatId || '',
+      contextExpireAt: oldAppState.contextExpireAt || '',
+      reportId: oldAppState.reportId || '',
+      markedDocId: oldAppState.markedDocId || '',
       currentStep: oldAppState.currentStep || 0,
       processingComplete: oldAppState.processingComplete || false,
       lastUpdated: new Date()
@@ -129,6 +135,12 @@ const initializeDB = async () => {
       formattedFilePath: '',
       currentDocumentPath: '',
       currentConfigPath: '',
+      contextId: '',
+      documentId: '',
+      formatId: '',
+      contextExpireAt: '',
+      reportId: '',
+      markedDocId: '',
       currentStep: 0,
       processingComplete: false,
       lastUpdated: new Date()
@@ -164,6 +176,33 @@ db.version(5).stores({
   sync_log: 'id, type, timestamp, data'
 }).upgrade(tx => {
   console.log('升级到数据库版本5，添加工作台相关表');
+});
+
+// 升级数据库以支持 v2 context_id 机制
+db.version(6).stores({
+  appState: 'id, lastUpdated, currentTaskId',
+  tasks: 'id, title, createdAt, lastUpdated',
+  taskState: 'id, taskId, hasUploadedFile, hasUploadedFormat, uploadedFileName, formattedFilePath, currentDocumentPath, currentConfigPath, contextId, documentId, formatId, contextExpireAt, currentStep, processingComplete, lastUpdated',
+  files: 'id, taskId, name, path, type, lastUpdated',
+  messages: '++id, taskId, content, sender, timestamp',
+  formatErrors: '++id, taskId, message, location, timestamp',
+  paragraphManager: 'id, taskId, docPath, data, lastUpdated',
+  workspace_state: 'id, layout, preferences, lastOpenedFiles',
+  task_queue: 'id, taskId, status, progress, result, error',
+  file_metadata: 'id, originalName, timestampedName, size, uploadTime, status',
+  sync_log: 'id, type, timestamp, data'
+}).upgrade(async tx => {
+  const states = await tx.taskState.toArray();
+  for (const state of states) {
+    await tx.taskState.update(state.id, {
+      ...state,
+      contextId: state.contextId || '',
+      documentId: state.documentId || '',
+      formatId: state.formatId || '',
+      contextExpireAt: state.contextExpireAt || '',
+      lastUpdated: new Date()
+    });
+  }
 });
 
 // 获取应用状态
@@ -222,6 +261,12 @@ const createTask = async (title = '新任务') => {
     formattedFilePath: '',
     currentDocumentPath: '',
     currentConfigPath: '',
+    contextId: '',
+    documentId: '',
+    formatId: '',
+    contextExpireAt: '',
+    reportId: '',
+    markedDocId: '',
     currentStep: 0,
     processingComplete: false,
     lastUpdated: new Date()
@@ -302,6 +347,12 @@ const getTaskState = async (taskId) => {
       formattedFilePath: '',
       currentDocumentPath: '',
       currentConfigPath: '',
+      contextId: '',
+      documentId: '',
+      formatId: '',
+      contextExpireAt: '',
+      reportId: '',
+      markedDocId: '',
       currentStep: 0,
       processingComplete: false,
       lastUpdated: new Date()
@@ -345,6 +396,12 @@ const resetTaskState = async (taskId) => {
     formattedFilePath: '',
     currentDocumentPath: '',
     currentConfigPath: '',
+    contextId: '',
+    documentId: '',
+    formatId: '',
+    contextExpireAt: '',
+    reportId: '',
+    markedDocId: '',
     currentStep: 0,
     processingComplete: false,
     lastUpdated: new Date()

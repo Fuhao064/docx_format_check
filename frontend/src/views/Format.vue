@@ -422,12 +422,12 @@ async function uploadFormatDoc(event) {
     formatDialogLoading.value = true
 
     // 发送请求到后端
-    const response = await axios.post('/api/analyse-format-doc', formData, {
+    const response = await axios.post('/api/v2/formats', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
 
     if (response.data.success) {
-      formatResult.value = response.data.format
+      formatResult.value = response.data.config_data || {}
       showNotification('success', '解析成功', '文档格式要求已成功解析')
     } else {
       showNotification('error', '解析失败', response.data.message || '未知错误')
@@ -529,8 +529,8 @@ function importConfig(event) {
 async function loadExampleConfig() {
   loading.value = true
   try {
-    const response = await axios.get('/api/get-config-example')
-    configData.value = response.data.config
+    const response = await axios.get('/api/v2/formats/default')
+    configData.value = response.data.config_data
     if (advancedMode.value) {
       jsonConfig.value = JSON.stringify(configData.value, null, 2)
     }
@@ -564,12 +564,12 @@ async function saveConfig() {
 
   loading.value = true
   try {
-    const response = await axios.post('/api/set-config', configData.value)
+    const response = await axios.post('/api/v2/formats', { config: configData.value })
 
-    if (response.data.message === '配置保存成功') {
+    if (response.data.success) {
       showNotification('success', '保存成功', '配置已保存')
     } else {
-      showNotification('error', '保存失败', response.data.message || '未知错误')
+      showNotification('error', '保存失败', response.data.error?.message || '未知错误')
     }
   } catch (error) {
     console.error('保存配置失败:', error)
@@ -583,8 +583,8 @@ async function saveConfig() {
 onMounted(async () => {
   loading.value = true
   try {
-    const response = await axios.get('/api/get-config')
-    configData.value = response.data
+    const response = await axios.get('/api/v2/formats/default')
+    configData.value = response.data.config_data
   } catch (error) {
     console.error('加载配置失败:', error)
     showNotification('error', '加载失败', '无法加载配置，请稍后重试')

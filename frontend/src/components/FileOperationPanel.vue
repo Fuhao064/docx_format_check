@@ -145,7 +145,7 @@ async function uploadFile(file) {
   uploadProgress.value = 0
 
   try {
-    const response = await axios.post('/api/upload-files', formData, {
+    const response = await axios.post('/api/v2/documents', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total) {
@@ -157,7 +157,7 @@ async function uploadFile(file) {
     if (response.data.success) {
       uploadProgress.value = 100
 
-      const timestampedName = response.data.file.filename || file.name
+      const timestampedName = response.data.original_filename || file.name
 
       uploadHistory.value.unshift({
         originalName: file.name,
@@ -165,7 +165,7 @@ async function uploadFile(file) {
         size: file.size,
         timestamp: new Date().toISOString(),
         status: 'completed',
-        path: response.data.file.path || response.data.file_path
+        path: response.data.doc_path
       })
 
       // 保存到IndexedDB

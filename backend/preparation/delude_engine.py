@@ -100,6 +100,37 @@ def _is_references_content(content: str, prev_type: Optional[ParsedParaType]) ->
     return False
 
 
+def _language_hint(content: str) -> Optional[str]:
+    """根据字符分布粗略判断语言类型。"""
+    if not isinstance(content, str):
+        return None
+    text = content.strip()
+    if not text:
+        return None
+
+    zh_count = len(re.findall(r'[\u4e00-\u9fff]', text))
+    en_count = len(re.findall(r'[A-Za-z]', text))
+
+    if zh_count >= 2 and zh_count >= en_count * 1.5:
+        return "zh"
+    if en_count >= 6 and en_count >= zh_count * 2:
+        return "en"
+    return None
+
+
+def _normalize_title_type(para_type: ParsedParaType, content: str) -> ParsedParaType:
+    """修正中英文标题误判。"""
+    if para_type not in (ParsedParaType.TITLE_ZH, ParsedParaType.TITLE_EN):
+        return para_type
+
+    hint = _language_hint(content)
+    if hint == "en" and para_type == ParsedParaType.TITLE_ZH:
+        return ParsedParaType.TITLE_EN
+    if hint == "zh" and para_type == ParsedParaType.TITLE_EN:
+        return ParsedParaType.TITLE_ZH
+    return para_type
+
+
 def correct_para_type(doc_path: str, format_agent: FormatAgent, paragraph_manager: ParagraphManager) -> ParagraphManager:
     """
     重标记段落类型，实现智能段落类型识别
@@ -148,6 +179,12 @@ def correct_para_type(doc_path: str, format_agent: FormatAgent, paragraph_manage
             # 确保para_string是字符串
             if not isinstance(para_string, str):
                 para_string = str(para_string)
+
+            # 先做一次基于语言的标题类型校准，避免把英文标题当中文标题
+            paragraph_manager.paragraphs[i].type = _normalize_title_type(
+                paragraph_manager.paragraphs[i].type,
+                para_string,
+            )
 
             # ========== 第一阶段：特殊内容类型检测 ==========
 
@@ -219,6 +256,12 @@ def correct_para_type(doc_path: str, format_agent: FormatAgent, paragraph_manage
                         print(f"段落 {i}: LLM 预测更新类型为 {predicted_type.value}，置信度 {confidence:.2f}")
                     else:
                         print(f"段落 {i}: LLM 置信度较低 ({confidence:.2f})，保留规则结果 BODY")
+
+            # LLM 结果也做一次校准，确保 title_zh/title_en 与文本语言一致
+            paragraph_manager.paragraphs[i].type = _normalize_title_type(
+                paragraph_manager.paragraphs[i].type,
+                para_string,
+            )
 
             # 将当前段落添加到已处理列表中
             processed_paragraphs.append((para_string, paragraph_manager.paragraphs[i].type))

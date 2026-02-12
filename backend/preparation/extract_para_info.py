@@ -1,9 +1,17 @@
 import docx
 import xml.etree.ElementTree as ET
 import json, re, os, zipfile
+from typing import List, Dict, Optional, Any
 from preparation.para_type import ParsedParaType, ParagraphManager
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
+
+# 尝试导入 docx2python 用于层级结构提取
+try:
+    from docx2python import docx2python
+    DOCX2PYTHON_AVAILABLE = True
+except ImportError:
+    DOCX2PYTHON_AVAILABLE = False
 
 # 尝试导入 extract_media 模块，如果不存在，则创建一个空函数
 try:
@@ -446,6 +454,7 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
     # 处理进度计数
     total_paras = len([p for p in processed_paras if p.text.strip()])
     processed_count = 0
+    prev_para_type = None
 
     # 遍历每个段落
     for para in processed_paras:
@@ -601,11 +610,11 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
         meta_data["fonts"] = fonts
 
         # 将段落信息添加到段落管理器
-        # 尝试确定段落类型
+        # 基于样式/文本/上下文确定段落类型
         try:
-            para_type = ParsedParaType.BODY  # 默认为正文类型
+            para_type = _infer_paragraph_type(para.text, para.style.name, prev_para_type)
         except Exception as e:
-            print(f"  获取默认段落类型失败: {str(e)}")
+            print(f"  推断段落类型失败，回退BODY: {str(e)}")
             para_type = ParsedParaType.BODY
 
         # 检查是否是分节符或分页符
@@ -631,6 +640,7 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
                 content=para.text,
                 meta=meta_data
             )
+            prev_para_type = para_type
             print(f"  已将段落添加到管理器: id=para{len(manager.paragraphs)-1}")
         except Exception as e:
             print(f"  添加段落到管理器时出错: {str(e)}")
@@ -642,6 +652,7 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
                     content=para.text,
                     meta=meta_data
                 )
+                prev_para_type = ParsedParaType.OTHERS
                 print(f"  使用ParsedParaType.OTHERS添加段落成功: id=para{len(manager.paragraphs)-1}")
             except Exception as e2:
                 print(f"  使用ParsedParaType.OTHERS添加段落失败: {str(e2)}")
@@ -654,6 +665,7 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
                         content=para.text,
                         meta=meta_data
                     )
+                    prev_para_type = ParsedParaType.BODY
                     print(f"  使用ParsedParaType.BODY添加段落成功: id=para{len(manager.paragraphs)-1}")
                 except Exception as e3:
                     print(f"  使用ParsedParaType.BODY添加段落也失败: {str(e3)}, 错误类型: {type(e3)}")
@@ -1206,6 +1218,72 @@ def find_style_by_name(style_name, styles_info):
         'line_spacing': '1.0 倍行距'
     }
 
+
+def _infer_heading_type_from_style(style_name: str) -> Optional[ParsedParaType]:
+    """根据样式名识别标题层级。"""
+    if not style_name:
+        return None
+
+    style = str(style_name)
+    compact = style.lower().replace(" ", "")
+
+    if re.search(r"heading\s*1", style, re.IGNORECASE) or "heading1" in compact or "标题1" in style:
+        return ParsedParaType.HEADING1
+    if re.search(r"heading\s*2", style, re.IGNORECASE) or "heading2" in compact or "标题2" in style:
+        return ParsedParaType.HEADING2
+    if re.search(r"heading\s*3", style, re.IGNORECASE) or "heading3" in compact or "标题3" in style:
+        return ParsedParaType.HEADING3
+    return None
+
+
+def _starts_with_label(text: str) -> Optional[ParsedParaType]:
+    """根据段落开头标签识别摘要/关键词标题类型。"""
+    content = (text or "").strip()
+    if not content:
+        return None
+
+    if re.match(r"^\s*摘\s*要\s*([:：].*)?$", content):
+        return ParsedParaType.ABSTRACT_ZH
+    if re.match(r"^\s*abstract\s*([:：].*)?$", content, re.IGNORECASE):
+        return ParsedParaType.ABSTRACT_EN
+    if re.match(r"^\s*(关键词|关键字)\s*([:：].*)?$", content):
+        return ParsedParaType.KEYWORDS_ZH
+    if re.match(r"^\s*keywords?\s*([:：].*)?$", content, re.IGNORECASE):
+        return ParsedParaType.KEYWORDS_EN
+    if re.match(r"^\s*(参考文献|references?)\s*([:：].*)?$", content, re.IGNORECASE):
+        return ParsedParaType.REFERENCES
+    return None
+
+
+def _infer_paragraph_type(text: str, style_name: str, prev_para_type: Optional[ParsedParaType]) -> ParsedParaType:
+    """基于样式 + 文本模式 + 上下文推断段落类型。"""
+    content = (text or "").strip()
+    if not content:
+        return ParsedParaType.OTHERS
+
+    heading_type = _infer_heading_type_from_style(style_name)
+    if heading_type is not None:
+        return heading_type
+
+    label_type = _starts_with_label(content)
+    if label_type is not None:
+        return label_type
+
+    if prev_para_type == ParsedParaType.ABSTRACT_ZH:
+        return ParsedParaType.ABSTRACT_CONTENT_ZH
+    if prev_para_type == ParsedParaType.ABSTRACT_EN:
+        return ParsedParaType.ABSTRACT_CONTENT_EN
+    if prev_para_type == ParsedParaType.KEYWORDS_ZH:
+        return ParsedParaType.KEYWORDS_CONTENT_ZH
+    if prev_para_type == ParsedParaType.KEYWORDS_EN:
+        return ParsedParaType.KEYWORDS_CONTENT_EN
+
+    if prev_para_type in (ParsedParaType.REFERENCES, ParsedParaType.REFERENCES_CONTENT):
+        if re.match(r"^\s*(\[\d+\]|\(\d+\)|\d+[\.\)、])", content):
+            return ParsedParaType.REFERENCES_CONTENT
+
+    return ParsedParaType.BODY
+
 def split_paragraph(paragraph, split_pos):
     """在指定位置分割段落"""
     if split_pos <= 0 or split_pos >= len(paragraph.text):
@@ -1330,8 +1408,8 @@ def pre_process_paragraphs(doc):
             text = para.text.strip()
             if not text:
                 continue
-            # 匹配中英文关键词（摘要、Abstract、关键词、Keywords）
-            pattern = re.compile(r'\b(摘要|Abstract|关键词|Keywords)\b\s*[:：]', re.IGNORECASE)
+            # 匹配行首的摘要/关键词标签，避免词边界在中文下误判
+            pattern = re.compile(r'^\s*(摘要|abstract|关键词|关键字|keywords?)\s*[:：]', re.IGNORECASE)
             match = pattern.search(text)
             if not match:
                 continue

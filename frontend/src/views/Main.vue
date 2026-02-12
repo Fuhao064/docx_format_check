@@ -368,7 +368,7 @@
       </div>
     </div>
     <input type="file" ref="fileInput" @change="handleFileUpload" accept=".docx" class="hidden" />
-    <input type="file" ref="formatInput" @change="handleFormatUpload" accept=".json" class="hidden" />
+    <input type="file" ref="formatInput" @change="handleFormatUpload" accept=".json,.docx" class="hidden" />
     <DocxPreview
       v-if="showDocPreview"
       :docPath="currentDocumentPath"
@@ -401,9 +401,7 @@ import {
   deleteTask,
   switchTask,
   getTask,
-  updateTask,
-  saveParagraphManager,
-  getParagraphManager
+  updateTask
 } from '../lib/db.js'
 
 // 获取主题模式和通知函数
@@ -434,6 +432,12 @@ const userInput = ref('')
 const messages = ref([])
 const currentDocumentPath = ref('')
 const currentConfigPath = ref('')
+const documentId = ref('')
+const formatId = ref('')
+const contextId = ref('')
+const contextExpireAt = ref('')
+const reportId = ref('')
+const markedDocId = ref('')
 const currentStep = ref(0)
 const processingComplete = ref(false)
 const isLoading = ref(false) // 加载状态变量
@@ -483,6 +487,12 @@ watch(currentTask, async (newTask, oldTask) => {
       formattedFilePath.value = '';
       currentDocumentPath.value = '';
       currentConfigPath.value = '';
+      documentId.value = '';
+      formatId.value = '';
+      contextId.value = '';
+      contextExpireAt.value = '';
+      reportId.value = '';
+      markedDocId.value = '';
       userInput.value = '';
       messages.value = [];
       currentStep.value = 0;
@@ -499,6 +509,12 @@ watch(currentTask, async (newTask, oldTask) => {
       formattedFilePath.value = taskState.formattedFilePath || '';
       currentDocumentPath.value = taskState.currentDocumentPath || '';
       currentConfigPath.value = taskState.currentConfigPath || '';
+      documentId.value = taskState.documentId || '';
+      formatId.value = taskState.formatId || '';
+      contextId.value = taskState.contextId || '';
+      contextExpireAt.value = taskState.contextExpireAt || '';
+      reportId.value = taskState.reportId || '';
+      markedDocId.value = taskState.markedDocId || '';
       currentStep.value = taskState.currentStep || 0;
       processingComplete.value = taskState.processingComplete || false;
 
@@ -550,6 +566,12 @@ onMounted(async () => {
     formattedFilePath.value = taskState.formattedFilePath;
     currentDocumentPath.value = taskState.currentDocumentPath;
     currentConfigPath.value = taskState.currentConfigPath;
+    documentId.value = taskState.documentId || '';
+    formatId.value = taskState.formatId || '';
+    contextId.value = taskState.contextId || '';
+    contextExpireAt.value = taskState.contextExpireAt || '';
+    reportId.value = taskState.reportId || '';
+    markedDocId.value = taskState.markedDocId || '';
     currentStep.value = taskState.currentStep;
     processingComplete.value = taskState.processingComplete;
 
@@ -601,6 +623,12 @@ watch([
   formattedFilePath,
   currentDocumentPath,
   currentConfigPath,
+  documentId,
+  formatId,
+  contextId,
+  contextExpireAt,
+  reportId,
+  markedDocId,
   currentStep,
   processingComplete
 ], async () => {
@@ -612,6 +640,12 @@ watch([
       formattedFilePath: formattedFilePath.value,
       currentDocumentPath: currentDocumentPath.value,
       currentConfigPath: currentConfigPath.value,
+      documentId: documentId.value,
+      formatId: formatId.value,
+      contextId: contextId.value,
+      contextExpireAt: contextExpireAt.value,
+      reportId: reportId.value,
+      markedDocId: markedDocId.value,
       currentStep: currentStep.value,
       processingComplete: processingComplete.value
     });
@@ -661,6 +695,12 @@ async function resetProcess() {
     formattedFilePath.value = '';
     currentDocumentPath.value = '';
     currentConfigPath.value = '';
+    documentId.value = '';
+    formatId.value = '';
+    contextId.value = '';
+    contextExpireAt.value = '';
+    reportId.value = '';
+    markedDocId.value = '';
     userInput.value = '';
     messages.value = [];
     processingComplete.value = false;
@@ -699,16 +739,19 @@ async function handleFileUpload(event) {
 
   try {
     showNotification('info', '文件上传中', '正在上传文档，请稍候...', 0)
-    const response = await axios.post('/api/upload-files', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
+    const response = await axios.post('/api/v2/documents', formData)
 
     if (response.data.success) {
       uploadedFile.value = file
       hasUploadedFile.value = true
       processingSteps.value[0].status = 'completed'
       currentStep.value = 1
-      currentDocumentPath.value = response.data.file_path || response.data.file.path
+      currentDocumentPath.value = response.data.doc_path
+      documentId.value = response.data.document_id
+      contextId.value = ''
+      contextExpireAt.value = ''
+      reportId.value = ''
+      markedDocId.value = ''
 
       // 保存文件信息到数据库
       try {
@@ -727,6 +770,11 @@ async function handleFileUpload(event) {
         hasUploadedFile: true,
         uploadedFileName: file.name,
         currentDocumentPath: currentDocumentPath.value,
+        documentId: documentId.value,
+        contextId: '',
+        contextExpireAt: '',
+        reportId: '',
+        markedDocId: '',
         currentStep: 1
       });
 
@@ -748,16 +796,19 @@ async function handleFormatUpload(event) {
   if (!file) return
 
   const formData = new FormData()
-  formData.append('format_file', file)
+  formData.append('file', file)
 
   try {
     showNotification('info', '格式要求上传中', '正在上传格式要求，请稍候...', 0)
-    const response = await axios.post('/api/upload-format', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    })
+    const response = await axios.post('/api/v2/formats', formData)
     if (response.data.success) {
       hasUploadedFormat.value = true
-      currentConfigPath.value = response.data.file_path || response.data.config_path
+      currentConfigPath.value = response.data.config_path
+      formatId.value = response.data.format_id
+      contextId.value = ''
+      contextExpireAt.value = ''
+      reportId.value = ''
+      markedDocId.value = ''
       processingSteps.value[1].status = 'completed'
       currentStep.value = 2
 
@@ -777,6 +828,11 @@ async function handleFormatUpload(event) {
       await updateCurrentTaskState({
         hasUploadedFormat: true,
         currentConfigPath: currentConfigPath.value,
+        formatId: formatId.value,
+        contextId: '',
+        contextExpireAt: '',
+        reportId: '',
+        markedDocId: '',
         currentStep: 2
       });
 
@@ -798,6 +854,9 @@ async function handleFormatUpload(event) {
 // 处理文档格式检查
 async function processDocument() {
   try {
+    if (!documentId.value || !formatId.value) {
+      throw new Error('缺少 document_id 或 format_id，请先上传文档和格式')
+    }
     showNotification('info', '文档处理中', '正在检查文档格式，请稍候...', 0);
     processingSteps.value[2].status = 'in_progress';
 
@@ -806,9 +865,9 @@ async function processDocument() {
       currentStep: 3
     });
 
-    const response = await axios.post('/api/check-format', {
-      doc_path: currentDocumentPath.value,
-      config_path: currentConfigPath.value
+    const response = await axios.post('/api/v2/contexts/prepare', {
+      document_id: documentId.value,
+      format_id: formatId.value
     });
 
     if (response.data.success) {
@@ -822,21 +881,20 @@ async function processDocument() {
       // 保存格式错误到数据库，使用单独的函数调用而不是依赖watch
       await saveFormatErrors(formatErrors.value);
 
-      // 如果响应中包含para_manager，将其保存到前端数据库
-      if (response.data.para_manager) {
-        console.log('保存para_manager到前端数据库');
-        try {
-          await saveParagraphManager(currentDocumentPath.value, response.data.para_manager);
-          console.log('para_manager保存成功');
-        } catch (dbError) {
-          console.error('保存para_manager失败:', dbError);
-        }
-      } else {
-        console.log('响应中不包含para_manager');
-      }
+      contextId.value = response.data.context_id || '';
+      contextExpireAt.value = response.data.context_expire_at || '';
+      reportId.value = '';
+      markedDocId.value = '';
 
       processingSteps.value[2].status = 'completed';
       currentStep.value = 3;
+      await updateCurrentTaskState({
+        contextId: contextId.value,
+        contextExpireAt: contextExpireAt.value,
+        reportId: '',
+        markedDocId: '',
+        currentStep: 3
+      });
 
       generateReport();
     } else {
@@ -866,8 +924,10 @@ async function generateReport() {
     console.log('生成报告错误列表:', formatErrors.value)
     console.log('生成报告错误数量:', formatErrors.value.length)
 
-    const response = await axios.post('/api/generate-report', {
-      doc_path: currentDocumentPath.value,
+    if (!contextId.value) {
+      throw new Error('上下文不存在，请先执行预处理');
+    }
+    const response = await axios.post(`/api/v2/contexts/${contextId.value}/reports`, {
       errors: formatErrors.value,
       original_filename: uploadedFileName.value
     });
@@ -876,10 +936,14 @@ async function generateReport() {
       processingSteps.value[3].status = 'completed';
       processingComplete.value = true;
       currentStep.value = 5;
+      reportId.value = response.data.report_id || '';
+      markedDocId.value = response.data.marked_doc_id || '';
 
       // 更新应用状态
       await updateCurrentTaskState({
         processingComplete: true,
+        reportId: reportId.value,
+        markedDocId: markedDocId.value,
         currentStep: 5
       });
 
@@ -923,12 +987,27 @@ async function generateReport() {
 async function useDefaultFormat() {
   try {
     showNotification('info', '使用默认格式', '正在应用默认格式...', 0)
-    const response = await axios.get('/api/use-default-format')
+    const response = await axios.get('/api/v2/formats/default')
     if (response.data.success) {
       hasUploadedFormat.value = true
       currentConfigPath.value = response.data.config_path
+      formatId.value = response.data.format_id
+      contextId.value = ''
+      contextExpireAt.value = ''
+      reportId.value = ''
+      markedDocId.value = ''
       processingSteps.value[1].status = 'completed'
       currentStep.value = 2
+      await updateCurrentTaskState({
+        hasUploadedFormat: true,
+        currentConfigPath: currentConfigPath.value,
+        formatId: formatId.value,
+        contextId: '',
+        contextExpireAt: '',
+        reportId: '',
+        markedDocId: '',
+        currentStep: 2
+      });
       showNotification('success', '使用默认格式', '已应用默认格式进行处理', 3000)
       processDocument()
     } else {
@@ -950,20 +1029,11 @@ async function downloadReport() {
     console.log('报告错误列表:', formatErrors.value)
     console.log('报告错误数量:', formatErrors.value.length)
 
-    // 先使用POST请求生成报告
-    const generateResponse = await axios.post('/api/download-report', {
-      doc_path: currentDocumentPath.value,
-      errors: formatErrors.value,
-      original_filename: uploadedFileName.value
-    })
-
-    if (generateResponse.data.success) {
-      // 然后使用GET请求下载生成的报告
-      const downloadResponse = await axios.get('/api/get-report', {
-        params: {
-          doc_path: generateResponse.data.report_path,
-          original_filename: uploadedFileName.value
-        },
+    if (!reportId.value) {
+      await generateReport()
+    }
+    if (reportId.value) {
+      const downloadResponse = await axios.get(`/api/v2/reports/${reportId.value}`, {
         responseType: 'blob'
       })
 
@@ -976,7 +1046,7 @@ async function downloadReport() {
       link.remove()
       showNotification('success', '下载完成', '报告已成功下载', 3000)
     } else {
-      throw new Error(generateResponse.data.message || '生成报告失败')
+      throw new Error('生成报告失败')
     }
   } catch (error) {
     console.error('下载报告时出错:', error)
@@ -993,30 +1063,12 @@ async function downloadMarkedDocument() {
     console.log('错误列表:', formatErrors.value)
     console.log('错误数量:', formatErrors.value.length)
 
-    // 从前端数据库获取para_manager
-    let para_manager = null;
-    try {
-      para_manager = await getParagraphManager(currentDocumentPath.value);
-      console.log('从前端数据库获取para_manager:', para_manager ? '成功' : '失败');
-    } catch (dbError) {
-      console.error('获取para_manager失败:', dbError);
+    if (!markedDocId.value) {
+      await generateReport()
     }
 
-    // 先使用POST请求生成标记文档
-    const generateResponse = await axios.post('/api/download-marked-document', {
-      doc_path: currentDocumentPath.value,
-      errors: formatErrors.value,
-      original_filename: uploadedFileName.value,
-      para_manager: para_manager
-    })
-
-    if (generateResponse.data.success) {
-      // 然后使用GET请求下载生成的文档
-      const downloadResponse = await axios.get('/api/get-marked-document', {
-        params: {
-          doc_path: generateResponse.data.marked_doc_path,
-          original_filename: uploadedFileName.value
-        },
+    if (markedDocId.value) {
+      const downloadResponse = await axios.get(`/api/v2/marked-documents/${markedDocId.value}`, {
         responseType: 'blob'
       })
 
@@ -1029,7 +1081,7 @@ async function downloadMarkedDocument() {
       link.remove()
       showNotification('success', '下载完成', '标记错误的文档已成功下载', 3000)
     } else {
-      throw new Error(generateResponse.data.message || '生成标记文档失败')
+      throw new Error('生成标记文档失败')
     }
   } catch (error) {
     console.error('下载标记文档时出错:', error)
@@ -1068,14 +1120,16 @@ async function sendMessage() {
     // 显示加载状态
     isLoading.value = true
 
-    const response = await axios.post('/api/send-message', {
-      message: userMessage,
-      doc_path: currentDocumentPath.value
+    if (!contextId.value) {
+      throw new Error('上下文不存在，请先完成文档预处理');
+    }
+    const response = await axios.post(`/api/v2/contexts/${contextId.value}/chat`, {
+      message: userMessage
     })
 
     if (response.data.success) {
       const systemResponse = {
-        content: response.data.message,
+        content: response.data.reply || response.data.message,
         sender: 'system',
         timestamp: new Date()
       }
@@ -1126,17 +1180,8 @@ async function applyFormat() {
     console.log('应用格式错误数量:', formatErrors.value.length)
 
     // 检查必要参数
-    if (!currentDocumentPath.value || !currentConfigPath.value) {
-      throw new Error('缺少必要参数，请先上传文档和配置文件')
-    }
-
-    // 从前端数据库获取para_manager
-    let para_manager = null;
-    try {
-      para_manager = await getParagraphManager(currentDocumentPath.value);
-      console.log('从前端数据库获取para_manager:', para_manager ? '成功' : '失败');
-    } catch (dbError) {
-      console.error('获取para_manager失败:', dbError);
+    if (!contextId.value) {
+      throw new Error('上下文不存在，请先完成预处理')
     }
 
     // 配置请求，增加超时设置，较长的超时时间适用于处理大文档
@@ -1164,12 +1209,9 @@ async function applyFormat() {
 
     try {
       // 直接使用 POST 请求处理文件下载
-      const response = await axios.post('/api/apply-format', {
-        doc_path: currentDocumentPath.value,
-        config_path: currentConfigPath.value,
+      const response = await axios.post(`/api/v2/contexts/${contextId.value}/format-apply`, {
         errors: formatErrors.value,
-        original_filename: uploadedFileName.value,
-        para_manager: para_manager
+        original_filename: uploadedFileName.value
       }, requestConfig);
 
       // 清除超时定时器
@@ -1277,6 +1319,13 @@ function handleEnterKey(event) {
     event.preventDefault()
     sendMessage()
   }
+}
+
+function autoResize(event) {
+  const textarea = event.target
+  if (!textarea) return
+  textarea.style.height = 'auto'
+  textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`
 }
 
 // Markdown渲染函数
