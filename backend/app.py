@@ -38,6 +38,7 @@ UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 CACHES_FOLDER = os.path.join(BASE_DIR, "caches")
 DEFAULT_CONFIG_PATH = os.path.join(BASE_DIR, "utils", "config.json")
 GLOBAL_CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
+AGENT_MODEL_CONFIG_PATH = os.path.join(BASE_DIR, "agent_models.json")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(CACHES_FOLDER, exist_ok=True)
 
@@ -52,7 +53,7 @@ DEFAULT_AGENT_MODELS = {
     "advice": os.getenv("ADVICE_MODEL", "alibaba_deepseek-v3.2"),
     "communicate": os.getenv("COMMUNICATE_MODEL", "alibaba_deepseek-v3.2"),
 }
-agent_model_config: Dict[str, str] = dict(DEFAULT_AGENT_MODELS)
+agent_model_config: Dict[str, str] = {}
 
 
 def _build_agent(agent_type: str, model_name: str):
@@ -67,6 +68,59 @@ def _build_agent(agent_type: str, model_name: str):
     raise ValueError(f"Unsupported agent_type: {agent_type}")
 
 
+def _save_agent_model_config() -> None:
+    with open(AGENT_MODEL_CONFIG_PATH, "w", encoding="utf-8") as f:
+        json.dump(agent_model_config, f, ensure_ascii=False, indent=2)
+
+
+def _load_agent_model_config() -> Dict[str, str]:
+    resolved = dict(DEFAULT_AGENT_MODELS)
+    if not os.path.exists(AGENT_MODEL_CONFIG_PATH):
+        return resolved
+
+    try:
+        with open(AGENT_MODEL_CONFIG_PATH, "r", encoding="utf-8") as f:
+            persisted = json.load(f)
+        if isinstance(persisted, dict):
+            for agent_type in DEFAULT_AGENT_MODELS.keys():
+                value = persisted.get(agent_type)
+                if isinstance(value, str) and value.strip():
+                    resolved[agent_type] = value.strip()
+    except Exception as exc:
+        print(json.dumps({
+            "event": "agent_model_config.load_error",
+            "payload": {"error": str(exc), "path": AGENT_MODEL_CONFIG_PATH},
+        }, ensure_ascii=False))
+        return dict(DEFAULT_AGENT_MODELS)
+
+    # Validate against currently available models and auto-fallback.
+    try:
+        manager = LLMs()
+        available = set(manager.models_config.keys())
+        if available:
+            changed = False
+            for agent_type, selected in list(resolved.items()):
+                if selected in available:
+                    continue
+                fallback = DEFAULT_AGENT_MODELS.get(agent_type, "")
+                if fallback in available:
+                    resolved[agent_type] = fallback
+                else:
+                    resolved[agent_type] = next(iter(available))
+                changed = True
+            if changed:
+                with open(AGENT_MODEL_CONFIG_PATH, "w", encoding="utf-8") as f:
+                    json.dump(resolved, f, ensure_ascii=False, indent=2)
+    except Exception as exc:
+        print(json.dumps({
+            "event": "agent_model_config.validate_error",
+            "payload": {"error": str(exc)},
+        }, ensure_ascii=False))
+
+    return resolved
+
+
+agent_model_config = _load_agent_model_config()
 agents = {k: _build_agent(k, v) for k, v in agent_model_config.items()}
 
 format_checker = FormatChecker()
@@ -95,6 +149,8 @@ print(json.dumps({
         "cleanup_interval_minutes": CLEANUP_INTERVAL_MINUTES,
         "openai_api_base_url": os.getenv("OPENAI_API_BASE_URL", ""),
         "browser_port": os.getenv("browser_port", ""),
+        "agent_model_config_path": AGENT_MODEL_CONFIG_PATH,
+        "agent_models": agent_model_config,
     },
 }, ensure_ascii=False))
 
@@ -755,6 +811,7 @@ def legacy_set_agent_model():
             return error_response("INVALID_INPUT", f"Model not found: {model_name}", 404)
         agents[agent_type] = _build_agent(agent_type, model_name)
         agent_model_config[agent_type] = model_name
+        _save_agent_model_config()
         return success_response(message="Agent model updated", agent_type=agent_type, model_name=model_name)
     except Exception as exc:
         return error_response("INTERNAL_ERROR", str(exc), 500)
@@ -814,6 +871,7 @@ def legacy_delete_model(model_name: str):
                     agent_model_config[agent_type] = fallback
                 else:
                     agent_model_config[agent_type] = ""
+        _save_agent_model_config()
         return success_response(message="Model deleted", model_name=model_name)
     except ValueError as exc:
         return error_response("FILE_NOT_FOUND", str(exc), 404)

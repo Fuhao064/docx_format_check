@@ -17,5 +17,6 @@ tests/*
 */tests
 tests
 backend/agents/keys.json.backup
+.claude
 .claude/settings.local.json
 CLAUDE.md
