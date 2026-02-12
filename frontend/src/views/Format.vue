@@ -121,8 +121,7 @@
       <!-- 基本模式：表单编辑器 -->
       <div v-if="!advancedMode && configData">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- 纸张设置 -->
-          <div :class="[isDarkMode ? 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]' : 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]', 'rounded-lg p-4']">
+          <div :class="[isDarkMode ? 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]' : 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]', 'rounded-xl p-4 shadow-sm transition-shadow hover:shadow-md']">
             <h3 class="text-md font-medium mb-3 pb-2 text-[hsl(var(--foreground))]" :class="[ 'border-b border-[hsl(var(--border))]']">纸张设置</h3>
 
             <div class="space-y-3">
@@ -205,116 +204,202 @@
             </div>
           </div>
 
-          <!-- 中文标题 -->
+          <div v-if="configData.structure" :class="[isDarkMode ? 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]' : 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]', 'rounded-xl p-4 shadow-sm transition-shadow hover:shadow-md md:col-span-2']">
+            <h3 class="text-md font-medium mb-3 pb-2 text-[hsl(var(--foreground))]" :class="[ 'border-b border-[hsl(var(--border))]']">结构显示</h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              <label v-for="item in structureItems" :key="item.key" class="flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]">
+                <input
+                  type="checkbox"
+                  :checked="isStructureEnabled(item.key)"
+                  @change="updateStructure(item.key, $event.target.checked)"
+                  :class="[
+                    'bg-[hsl(var(--input))] border border-[hsl(var(--border))] text-[hsl(var(--primary))]',
+                    'w-4 h-4 rounded focus:ring-2 focus:ring-[hsl(var(--ring))]',
+                    'checked:bg-[hsl(var(--primary))] checked:border-[hsl(var(--primary))]'
+                  ]"
+                />
+                <span>{{ item.label }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div v-if="configData.required_paragraphs" :class="[isDarkMode ? 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]' : 'bg-[hsl(var(--card))] border border-[hsl(var(--border))]', 'rounded-xl p-4 shadow-sm transition-shadow hover:shadow-md md:col-span-2']">
+            <h3 class="text-md font-medium mb-3 pb-2 text-[hsl(var(--foreground))]" :class="[ 'border-b border-[hsl(var(--border))]']">必备段落</h3>
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              <label v-for="item in requiredParagraphItems" :key="item.key" class="flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]">
+                <input
+                  v-model="configData.required_paragraphs[item.key]"
+                  type="checkbox"
+                  :class="[
+                    'bg-[hsl(var(--input))] border border-[hsl(var(--border))] text-[hsl(var(--primary))]',
+                    'w-4 h-4 rounded focus:ring-2 focus:ring-[hsl(var(--ring))]',
+                    'checked:bg-[hsl(var(--primary))] checked:border-[hsl(var(--primary))]'
+                  ]"
+                />
+                <span>{{ item.label }}</span>
+              </label>
+            </div>
+            <div v-if="configData.required_paragraphs.reclaim" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label class="flex items-center gap-2 text-sm text-[hsl(var(--muted-foreground))]">
+                <input
+                  v-model="configData.required_paragraphs.reclaim.isHere"
+                  type="checkbox"
+                  :class="[
+                    'bg-[hsl(var(--input))] border border-[hsl(var(--border))] text-[hsl(var(--primary))]',
+                    'w-4 h-4 rounded focus:ring-2 focus:ring-[hsl(var(--ring))]',
+                    'checked:bg-[hsl(var(--primary))] checked:border-[hsl(var(--primary))]'
+                  ]"
+                />
+                <span>致谢</span>
+              </label>
+              <div>
+                <label class="text-[hsl(var(--muted-foreground))] block text-sm mb-1">致谢内容</label>
+                <input
+                  v-model="configData.required_paragraphs.reclaim.content"
+                  type="text"
+                  :class="[
+                    'bg-[hsl(var(--input))] text-[hsl(var(--foreground))]',
+                    'w-full rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]'
+                  ]"
+                />
+              </div>
+            </div>
+          </div>
+
           <FormatSection
             :isDarkMode="isDarkMode"
             title="中文标题"
             :config="configData.title_zh"
             @update:config="val => configData.title_zh = val"
+            v-if="canShowSection('title_zh')"
           />
 
-          <!-- 中文摘要 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="中文摘要"
             :config="configData.abstract_zh"
             @update:config="val => configData.abstract_zh = val"
+            v-if="canShowSection('abstract_zh')"
           />
 
-          <!-- 中文摘要内容 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="中文摘要内容"
             :config="configData.abstract_content_zh"
             @update:config="val => configData.abstract_content_zh = val"
+            v-if="canShowSection('abstract_content_zh')"
           />
 
-          <!-- 中文关键词 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="中文关键词"
             :config="configData.keywords_zh"
             @update:config="val => configData.keywords_zh = val"
+            v-if="canShowSection('keywords_zh')"
           />
 
-          <!-- 中文关键词内容 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="中文关键词内容"
             :config="configData.keywords_content_zh"
             @update:config="val => configData.keywords_content_zh = val"
+            v-if="canShowSection('keywords_content_zh')"
           />
 
-          <!-- 英文标题 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="英文标题"
             :config="configData.title_en"
             @update:config="val => configData.title_en = val"
+            v-if="canShowSection('title_en')"
           />
 
-          <!-- 英文摘要 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="英文摘要"
             :config="configData.abstract_en"
             @update:config="val => configData.abstract_en = val"
+            v-if="canShowSection('abstract_en')"
           />
 
-          <!-- 英文摘要内容 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="英文摘要内容"
             :config="configData.abstract_content_en"
             @update:config="val => configData.abstract_content_en = val"
+            v-if="canShowSection('abstract_content_en')"
           />
 
-          <!-- 英文关键词 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="英文关键词"
             :config="configData.keywords_en"
             @update:config="val => configData.keywords_en = val"
+            v-if="canShowSection('keywords_en')"
           />
 
-          <!-- 英文关键词内容 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="英文关键词内容"
             :config="configData.keywords_content_en"
             @update:config="val => configData.keywords_content_en = val"
+            v-if="canShowSection('keywords_content_en')"
           />
 
-          <!-- 一级标题 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="一级标题"
             :config="configData.heading1"
             @update:config="val => configData.heading1 = val"
+            v-if="canShowSection('heading1')"
           />
 
-          <!-- 二级标题 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="二级标题"
             :config="configData.heading2"
             @update:config="val => configData.heading2 = val"
+            v-if="canShowSection('heading2')"
           />
 
-          <!-- 三级标题 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="三级标题"
             :config="configData.heading3"
             @update:config="val => configData.heading3 = val"
+            v-if="canShowSection('heading3')"
           />
 
-          <!-- 正文 -->
           <FormatSection
             :isDarkMode="isDarkMode"
             title="正文"
             :config="configData.body"
             @update:config="val => configData.body = val"
+            v-if="canShowSection('body')"
+          />
+
+          <FormatSection
+            v-if="configData.references && canShowSection('references')"
+            :isDarkMode="isDarkMode"
+            title="参考文献"
+            :config="configData.references"
+            @update:config="val => configData.references = val"
+          />
+
+          <FormatSection
+            v-if="configData.figures"
+            :isDarkMode="isDarkMode"
+            title="图表"
+            :config="configData.figures"
+            @update:config="val => configData.figures = val"
+          />
+
+          <FormatSection
+            v-if="configData.tables"
+            :isDarkMode="isDarkMode"
+            title="表格"
+            :config="configData.tables"
+            @update:config="val => configData.tables = val"
           />
         </div>
       </div>
@@ -389,6 +474,60 @@ const jsonError = ref(null)
 const showFormatDialog = ref(false)
 const formatDialogLoading = ref(false)
 const formatResult = ref(null)
+
+const structureItems = [
+  { key: 'title_zh', label: '中文标题' },
+  { key: 'title_en', label: '英文标题' },
+  { key: 'abstract_zh', label: '中文摘要' },
+  { key: 'abstract_content_zh', label: '中文摘要内容' },
+  { key: 'abstract_en', label: '英文摘要' },
+  { key: 'abstract_content_en', label: '英文摘要内容' },
+  { key: 'keywords_zh', label: '中文关键词' },
+  { key: 'keywords_content_zh', label: '中文关键词内容' },
+  { key: 'keywords_en', label: '英文关键词' },
+  { key: 'keywords_content_en', label: '英文关键词内容' },
+  { key: 'heading1', label: '一级标题' },
+  { key: 'heading2', label: '二级标题' },
+  { key: 'heading3', label: '三级标题' },
+  { key: 'body', label: '正文' },
+  { key: 'references', label: '参考文献' }
+]
+
+const requiredParagraphItems = [
+  { key: 'abstract_zh', label: '中文摘要' },
+  { key: 'abstract_en', label: '英文摘要' },
+  { key: 'keywords_zh', label: '中文关键词' },
+  { key: 'keywords_en', label: '英文关键词' },
+  { key: 'references', label: '参考文献' },
+  { key: 'conclusion', label: '结论' }
+]
+
+const normalizeFlag = (value) => {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') return value.trim().toLowerCase() === 'true'
+  return Boolean(value)
+}
+
+const isStructureEnabled = (key) => {
+  const structure = configData.value?.structure
+  if (!structure) return true
+  if (!(key in structure)) return true
+  return normalizeFlag(structure[key])
+}
+
+const canShowSection = (key) => {
+  return isStructureEnabled(key)
+}
+
+const updateStructure = (key, enabled) => {
+  const structure = configData.value?.structure
+  if (!structure) return
+  if (typeof structure[key] === 'boolean') {
+    structure[key] = enabled
+    return
+  }
+  structure[key] = enabled ? 'true' : 'false'
+}
 
 // 打开格式分析对话框
 function analyseFormatByDoc() {
