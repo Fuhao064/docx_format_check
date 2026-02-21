@@ -1,313 +1,153 @@
-import re, docx
+import re
 from typing import Dict, List
+
+from preparation.para_type import ParsedParaType
 from utils.utils import extract_number
+from word_com import extract_document_snapshot
+
+
+def _pick_table_format(required_format: Dict) -> Dict:
+    return required_format.get("table_format") or required_format.get("tables") or {}
+
+
+def _pick_figure_format(required_format: Dict) -> Dict:
+    return required_format.get("figures") or {}
+
+
+def _check_caption_format(caption_info: Dict, required_format: Dict, caption_type: str) -> List[Dict]:
+    errors: List[Dict] = []
+    if not required_format:
+        return errors
+
+    font = caption_info.get("font", {}) or {}
+    required_fonts = required_format.get("fonts", {}) or {}
+
+    required_zh = required_fonts.get("zh_family")
+    if required_zh:
+        actual_zh = str(font.get("zh_family") or "")
+        if required_zh not in actual_zh:
+            errors.append(
+                {
+                    "message": f"{caption_type}标题中文字体不符合要求，应为{required_zh}",
+                    "location": "标题字体",
+                }
+            )
+
+    required_size = required_fonts.get("size")
+    actual_size = font.get("size")
+    if required_size and actual_size:
+        expected_pt = extract_number(required_size)
+        if expected_pt is not None and abs(float(actual_size) - expected_pt) > 0.5:
+            errors.append(
+                {
+                    "message": f"{caption_type}标题字体大小不符合要求，应为{required_size}",
+                    "location": "标题字号",
+                }
+            )
+
+    required_alignment = str((required_format.get("paragraph_format") or {}).get("alignment", "")).lower()
+    actual_alignment = str(caption_info.get("alignment", "")).lower()
+    if required_alignment and required_alignment != actual_alignment:
+        errors.append(
+            {
+                "message": f"{caption_type}标题对齐方式不符合要求，应为{required_alignment}",
+                "location": "标题对齐",
+            }
+        )
+    return errors
+
+
+def _check_number_format(text: str, kind: str) -> List[str]:
+    if kind == "table":
+        pattern = r"(表|table)\s*(\d+)[-.](\d+)"
+        label = "表格"
+    else:
+        pattern = r"(图|figure)\s*(\d+)[-.](\d+)"
+        label = "图片"
+    match = re.search(pattern, text, re.IGNORECASE)
+    if not match:
+        return [f"{label}编号格式不正确，应为'{label[0]}x-y'或'{label.title()} x-y'格式"]
+    chapter = int(match.group(2))
+    serial = int(match.group(3))
+    if chapter <= 0 or serial <= 0:
+        return [f"{label}编号中章节号和序号应为正整数"]
+    return []
+
 
 def check_table_format(doc_path: str, required_format: Dict) -> List[Dict]:
-    """检查表格格式"""
-    errors = []
-
+    errors: List[Dict] = []
     try:
-        doc = docx.Document(doc_path)
-
-        # 获取表格格式要求
-        table_format = required_format.get('table_format', {})
+        snapshot = extract_document_snapshot(doc_path)
+        tables = snapshot.get("tables", [])
+        table_format = _pick_table_format(required_format)
         if not table_format:
             return errors
 
-        # 遍历文档中的表格
-        table_count = 0
-        for table in doc.tables:
-            table_count += 1
+        for t_idx, table in enumerate(tables, start=1):
+            if not table or not table[0]:
+                errors.append({"message": "表格为空", "location": f"表{t_idx}"})
+                continue
+            empty_cells = []
+            col_count = len(table[0])
+            for r_idx, row in enumerate(table, start=1):
+                if len(row) != col_count:
+                    errors.append({"message": "表格行列不一致", "location": f"表{t_idx}"})
+                    break
+                for c_idx, value in enumerate(row, start=1):
+                    if not str(value or "").strip():
+                        empty_cells.append(f"R{r_idx}C{c_idx}")
+            if empty_cells:
+                errors.append(
+                    {
+                        "message": "表格存在空单元格",
+                        "location": f"表{t_idx}: {', '.join(empty_cells[:5])}",
+                    }
+                )
 
-            # 检查表格内容格式
-            content_errors = _check_table_content_format(table)
-            for error in content_errors:
-                if isinstance(error, dict):
-                    error['location'] = f"表{table_count}: {error.get('location', '')}"
-                    errors.append(error)
-                else:
-                    errors.append({
-                        'message': error,
-                        'location': f"表{table_count}"
-                    })
-
-        # 遍历文档中的段落，查找表格标题
-        for i, para in enumerate(doc.paragraphs):
-            text = para.text.strip()
-
-            # 检查是否为表格标题
-            if text.startswith('表') or text.lower().startswith('table'):
-                # 检查标题格式
-                caption_errors = _check_caption_format(para, table_format, 'table')
-
-                # 匹配表格编号
-                match = re.search(r'表\s*(\d+[-.]?\d*)', text)
-                table_num = match.group(1) if match else f"{i+1}"
-
-                for error in caption_errors:
-                    if isinstance(error, dict):
-                        error['location'] = f"表{table_num}标题: {error.get('location', '')}"
-                        errors.append(error)
-                    else:
-                        errors.append({
-                            'message': error,
-                            'location': f"表{table_num}标题"
-                        })
-
-                # 检查表格编号格式
-                number_errors = _check_table_number_format(text)
-                for error in number_errors:
-                    if isinstance(error, dict):
-                        error['location'] = f"表{table_num}编号: {error.get('location', '')}"
-                        errors.append(error)
-                    else:
-                        errors.append({
-                            'message': error,
-                            'location': f"表{table_num}编号"
-                        })
-
-    except Exception as e:
-        errors.append({
-            'message': f"检查表格格式时出错: {str(e)}",
-            'location': '全文表格'
-        })
-
+        for para in snapshot.get("paragraphs", []):
+            text = str(para.get("text") or "").strip()
+            if not re.match(r"^(表|table)\s*\d+", text, re.IGNORECASE):
+                continue
+            caption_errors = _check_caption_format(para, table_format.get("caption", table_format), "表格")
+            for item in caption_errors:
+                item["location"] = f"{text} 标题"
+                errors.append(item)
+            for item in _check_number_format(text, "table"):
+                errors.append({"message": item, "location": f"{text} 编号"})
+    except Exception as exc:
+        errors.append({"message": f"检查表格格式时出错: {exc}", "location": "全文表格"})
     return errors
 
-def _check_caption_format(caption_para, required_format: Dict, caption_type: str) -> List[Dict]:
-    """
-    检查标题格式
-    """
-    errors = []
-
-    # 检查字体
-    if hasattr(caption_para, 'runs') and caption_para.runs:
-        run = caption_para.runs[0]
-
-        # 检查字体名称
-        font_name = run.font.name
-        required_zh_font = required_format.get('fonts', {}).get('zh_family')
-        required_en_font = required_format.get('fonts', {}).get('en_family')
-
-        if required_zh_font and not any(font in font_name for font in [required_zh_font, '黑体']):
-            errors.append({
-                'message': f"{caption_type}标题中文字体不符合要求，应为{required_zh_font}",
-                'location': '标题字体'
-            })
-
-        # 检查字体大小
-        font_size = run.font.size
-        required_size = required_format.get('fonts', {}).get('size')
-        if required_size and font_size:
-            required_pt = extract_number(required_size)
-            actual_pt = font_size.pt
-            if abs(actual_pt - required_pt) > 0.5:
-                errors.append({
-                    'message': f"{caption_type}标题字体大小不符合要求，应为{required_size}",
-                    'location': '标题字体大小'
-                })
-
-    # 检查对齐方式
-    alignment = caption_para.alignment
-    required_alignment = required_format.get('paragraph_format', {}).get('alignment')
-    if required_alignment and required_alignment.lower() == 'center' and alignment != 1:  # 1表示居中
-        errors.append({
-            'message': f"{caption_type}标题未居中显示",
-            'location': '标题对齐'
-        })
-
-    # 检查是否同时包含中英文标题
-    if not (re.search(r'[\u4e00-\u9fa5]', caption_para.text) and
-            re.search(r'[a-zA-Z]', caption_para.text)):
-        errors.append({
-            'message': f"{caption_type}标题应同时包含中英文",
-            'location': '标题语言'
-        })
-
-    return errors
-
-def _check_table_content_format(table) -> List[Dict]:
-    """检查表格内容格式"""
-    errors = []
-
-    try:
-        row_count = len(table.rows)
-        col_count = len(table.columns)
-
-        # 检查表格是否为空
-        if row_count == 0 or col_count == 0:
-            errors.append({
-                'message': '表格为空',
-                'location': '表格内容'
-            })
-            return errors
-
-        # 检查表格单元格是否为空
-        empty_cells = []
-        for i, row in enumerate(table.rows):
-            for j, cell in enumerate(row.cells):
-                if not cell.text.strip():
-                    empty_cells.append(f"行{i+1}列{j+1}")
-
-        if empty_cells:
-            if len(empty_cells) <= 3:
-                cell_str = '、'.join(empty_cells)
-            else:
-                cell_str = f"{empty_cells[0]}、{empty_cells[1]}等{len(empty_cells)}处"
-
-            errors.append({
-                'message': f'表格存在空单元格',
-                'location': f"表格内容: {cell_str}"
-            })
-
-        # 检查表格行列一致性
-        inconsistent_rows = []
-        first_row_cell_count = len(table.rows[0].cells)
-
-        for i, row in enumerate(table.rows):
-            if len(row.cells) != first_row_cell_count:
-                inconsistent_rows.append(i+1)
-
-        if inconsistent_rows:
-            if len(inconsistent_rows) <= 3:
-                rows_str = '、'.join(map(str, inconsistent_rows))
-            else:
-                rows_str = f"{inconsistent_rows[0]}、{inconsistent_rows[1]}等{len(inconsistent_rows)}行"
-
-            errors.append({
-                'message': '表格行列不一致',
-                'location': f"表格内容: 第{rows_str}"
-            })
-
-    except Exception as e:
-        errors.append({
-            'message': f"检查表格内容时出错: {str(e)}",
-            'location': '表格内容'
-        })
-
-    return errors
-
-def _check_table_number_format(caption_text: str) -> List[Dict]:
-    """
-    检查表格编号是否按章节顺序
-    """
-    errors = []
-
-    # 匹配表格编号格式：表x-y 或 Table x-y
-    match = re.search(r'表\s*(\d+)[-－](\d+)|Table\s*(\d+)[-－](\d+)', caption_text, re.IGNORECASE)
-    if not match:
-        errors.append({
-            'message': f"表格编号格式不正确，应为'表x-y'或'Table x-y'格式",
-            'location': '表格编号'
-        })
-        return errors
-
-    # 提取章节号和表格序号
-    if match.group(1) and match.group(2):  # 中文格式
-        chapter_num = int(match.group(1))
-        table_num = int(match.group(2))
-    else:  # 英文格式
-        chapter_num = int(match.group(3))
-        table_num = int(match.group(4))
-
-    # 检查章节号和表格序号是否合理
-    if chapter_num <= 0 or table_num <= 0:
-        errors.append({
-            'message': f"表格编号中章节号和表格序号应为正整数",
-            'location': '表格编号'
-        })
-
-    return errors
 
 def check_figure_format(doc_path: str, required_format: Dict, paragraph_manager=None) -> List[Dict]:
-    """
-    检查图片格式是否符合要求
+    errors: List[Dict] = []
+    try:
+        snapshot = extract_document_snapshot(doc_path)
+        figure_format = _pick_figure_format(required_format)
 
-    Args:
-        doc_path: 文档路径
-        required_format: 格式要求字典
-        paragraph_manager: 段落管理器实例，用于检查是否存在图片段落
-    """
-    errors = []
-    doc = docx.Document(doc_path)
+        figure_captions = [
+            para
+            for para in snapshot.get("paragraphs", [])
+            if re.match(r"^(图|figure)\s*\d+", str(para.get("text") or "").strip(), re.IGNORECASE)
+        ]
 
-    # 获取图片部分的要求格式
-    figure_required_format = required_format.get('figures', {})
+        has_figure_in_manager = False
+        if paragraph_manager is not None:
+            figure_paras = paragraph_manager.get_by_type(ParsedParaType.FIGURES)
+            has_figure_in_manager = len(figure_paras) > 0
 
-    # 检查图片标题和内容
-    figure_count = 0
-    has_figure_in_manager = False
+        if not figure_captions and not has_figure_in_manager:
+            return [{"message": "文档中未找到图片", "location": "图片格式"}]
 
-    # 如果提供了段落管理器，检查其中是否存在图片类型的段落
-    if paragraph_manager:
-        from preparation.para_type import ParsedParaType
-        figure_paras = paragraph_manager.get_by_type(ParsedParaType.FIGURES)
-        has_figure_in_manager = len(figure_paras) > 0
-        if has_figure_in_manager:
-            print(f"在段落管理器中找到 {len(figure_paras)} 个图片段落")
-
-    # 遍历段落查找图片标题
-    for i, para in enumerate(doc.paragraphs):
-        # 查找图片标题段落
-        if re.search(r'图\s*\d+[-－]\d+|Figure\s*\d+[-－]\d+', para.text, re.IGNORECASE):
-            figure_count += 1
-
-            # 检查图片标题格式
-            caption_errors = _check_caption_format(para, figure_required_format.get('caption', {}), "图片")
-            errors.extend(caption_errors)
-
-            # 检查图片编号是否按章节顺序
-            number_errors = _check_figure_number_format(para.text)
-            errors.extend(number_errors)
-
-            # 检查图片标题位置（应在图片下方）
-            position = figure_required_format.get('caption', {}).get('position')
-            if position == 'below':
-                # 简单检查：如果上一段是空的，可能表示图片位置
-                if i > 0 and not doc.paragraphs[i-1].text.strip():
-                    pass  # 符合要求
-                else:
-                    errors.append(f"图片标题'{para.text}'应位于图片下方")
-
-    # 检查是否有图片 - 只有当文档中没有找到图片标题且段落管理器中也没有图片时才报错
-    if figure_count == 0 and not has_figure_in_manager:
-        errors.append("文档中未找到图片")
-
-    # 将错误列表转换为标准格式
-    formatted_errors = []
-    for err in errors:
-        if isinstance(err, dict):
-            formatted_errors.append(err)
-        else:
-            formatted_errors.append({
-                'message': err,
-                'location': '图片格式'
-            })
-
-    return formatted_errors
-
-def _check_figure_number_format(caption_text: str) -> List[str]:
-    """
-    检查图片编号是否按章节顺序
-    """
-    errors = []
-
-    # 匹配图片编号格式：图x-y 或 Figure x-y
-    match = re.search(r'图\s*(\d+)[-－](\d+)|Figure\s*(\d+)[-－](\d+)', caption_text, re.IGNORECASE)
-    if not match:
-        errors.append(f"图片编号格式不正确，应为'图x-y'或'Figure x-y'格式")
-        return errors
-
-    # 提取章节号和图片序号
-    if match.group(1) and match.group(2):  # 中文格式
-        chapter_num = int(match.group(1))
-        figure_num = int(match.group(2))
-    else:  # 英文格式
-        chapter_num = int(match.group(3))
-        figure_num = int(match.group(4))
-
-    # 检查章节号和图片序号是否合理
-    if chapter_num <= 0 or figure_num <= 0:
-        errors.append(f"图片编号中章节号和图片序号应为正整数")
-
+        for caption in figure_captions:
+            caption_text = str(caption.get("text") or "").strip()
+            caption_errors = _check_caption_format(caption, figure_format.get("caption", {}), "图片")
+            for item in caption_errors:
+                item["location"] = f"{caption_text} 标题"
+                errors.append(item)
+            for item in _check_number_format(caption_text, "figure"):
+                errors.append({"message": item, "location": f"{caption_text} 编号"})
+    except Exception as exc:
+        errors.append({"message": f"检查图片格式时出错: {exc}", "location": "图片格式"})
     return errors
+

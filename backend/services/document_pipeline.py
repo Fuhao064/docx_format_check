@@ -1,16 +1,15 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from docx import Document
-
 from checkers.format_checker import FormatChecker
 from editors.document_marker import mark_document_errors
 from editors.format_editor import generate_formatted_doc, load_config
 from preparation import docx_parser
+from word_com import build_document
 
 
 class DocumentPipelineService:
@@ -71,13 +70,13 @@ class DocumentPipelineService:
 
     @staticmethod
     def _build_report_docx(report_path: str, doc_path: str, errors: List[Dict[str, Any]]) -> None:
-        report = Document()
-        report.add_heading("Document Format Analysis Report", level=1)
-        report.add_paragraph(f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        report.add_paragraph(f"Source document: {os.path.basename(doc_path)}")
-        report.add_paragraph(f"Total issues: {len(errors)}")
-        report.add_paragraph("")
-
+        lines = [
+            "Document Format Analysis Report",
+            f"Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"Source document: {os.path.basename(doc_path)}",
+            f"Total issues: {len(errors)}",
+            "",
+        ]
         if errors:
             for idx, error in enumerate(errors, start=1):
                 message = str(error.get("message", "Unknown issue"))
@@ -85,11 +84,10 @@ class DocumentPipelineService:
                 line = f"{idx}. {message}"
                 if location:
                     line += f" (location: {location})"
-                report.add_paragraph(line)
+                lines.append(line)
         else:
-            report.add_paragraph("No format issues were found.")
-
-        report.save(report_path)
+            lines.append("No format issues were found.")
+        build_document(report_path, lines)
 
     @staticmethod
     def _extract_extractor_backend(para_manager: Any) -> Optional[str]:
@@ -104,3 +102,4 @@ class DocumentPipelineService:
         name = os.path.splitext(os.path.basename(filename))[0]
         safe = "".join(ch for ch in name if ch.isalnum() or ch in "-_")
         return safe or "document"
+

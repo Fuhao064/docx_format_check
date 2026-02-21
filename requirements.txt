@@ -1,9 +1,9 @@
 flask==3.0.0
 flask-cors==4.0.0
 flask-socketio==5.3.6
-python-docx==0.8.11
-pandas==2.0.1
-openpyxl==3.1.2
-python-multipart==0.0.6
-pydantic==1.10.8
-python-dotenv==1.0.0
+pywin32>=305; sys_platform == "win32"
+pandas
+openpyxl
+python-multipart
+pydantic
+python-dotenv
