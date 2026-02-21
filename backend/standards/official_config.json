@@ -1,0 +1,260 @@
+{
+    "standard": "GB/T 9704-2012",
+    "standard_name": "党政机关公文格式",
+    "description": "中华人民共和国国家标准 GB/T 9704-2012 党政机关公文格式",
+    "structure": {
+        "version": "2012",
+        "page_header": true,
+        "page_footer": true,
+        "page_number": true
+    },
+    "paper": {
+        "size": "A4",
+        "orientation": "portrait",
+        "margins": {
+            "top": "3.7cm",
+            "bottom": "3.5cm",
+            "left": "2.8cm",
+            "right": "2.6cm"
+        }
+    },
+    "header": {
+        "fonts": {
+            "zh_family": "仿宋_GB2312",
+            "en_family": "仿宋_GB2312",
+            "size": "12pt",
+            "bold": false,
+            "italic": false,
+            "color": "#000000"
+        },
+        "paragraph_format": {
+            "line_spacing": "1",
+            "alignment": "center",
+            "indentation": {
+                "first_line": "0cm",
+                "left": "0cm",
+                "right": "0cm",
+                "space_before": "0cm",
+                "space_after": "0cm"
+            }
+        },
+        "from_top_edge": "3.5cm"
+    },
+    "footer": {
+        "page_number": {
+            "fonts": {
+                "zh_family": "仿宋_GB2312",
+                "en_family": "仿宋_GB2312",
+                "size": "12pt"
+            },
+            "position": "center",
+            "from_bottom_edge": "3.0cm",
+            "number_format": "arabic"
+        }
+    },
+    "doc_number": {
+        "name": "发文字号",
+        "fonts": {
+            "zh_family": "仿宋_GB2312",
+            "en_family": "仿宋_GB2312",
+            "size": "12pt",
+            "bold": false,
+            "italic": false,
+            "color": "#000000"
+        },
+        "paragraph_format": {
+            "line_spacing": "1",
+            "alignment": "center",
+            "indentation": {
+                "first_line": "0cm",
+                "left": "0cm",
+                "right": "0cm",
+                "space_before": "0cm",
+                "space_after": "0cm"
+            }
+        }
+    },
+    "issuing_authority": {
+        "name": "发文机关标志",
+        "fonts": {
+            "zh_family": "方正小标宋简体",
+            "en_family": "方正小标宋简体",
+            "size": "18pt",
+            "bold": false,
+            "color": "#000000"
+        },
+        "paragraph_format": {
+            "line_spacing": "1",
+            "alignment": "center"
+        }
+    },
+    "title": {
+        "name": "公文标题",
+        "fonts": {
+            "zh_family": "方正小标宋简体",
+            "en_family": "方正小标宋简体",
+            "size": "22pt",
+            "bold": false,
+            "italic": false,
+            "color": "#000000"
+        },
+        "paragraph_format": {
+            "line_spacing": "1.5",
+            "alignment": "center",
+            "indentation": {
+                "first_line": "0cm",
+                "left": "0cm",
+                "right": "0cm",
+                "space_before": "0cm",
+                "space_after": "0cm"
+            }
+        },
+        "space_after_title": "2.0cm"
+    },
+    "main_body": {
+        "name": "正文",
+        "fonts": {
+            "zh_family": "仿宋_GB2312",
+            "en_family": "仿宋_GB2312",
+            "size": "16pt",
+            "bold": false,
+            "italic": false,
+            "color": "#000000"
+        },
+        "paragraph_format": {
+            "line_spacing": "29pt",
+            "alignment": "left",
+            "indentation": {
+                "first_line": "2.0char",
+                "left": "0cm",
+                "right": "0cm",
+                "space_before": "0cm",
+                "space_after": "0cm"
+            }
+        }
+    },
+    "structure_level_1": {
+        "name": "一级标题",
+        "fonts": {
+            "zh_family": "黑体",
+            "en_family": "黑体",
+            "size": "16pt",
+            "bold": false,
+            "italic": false,
+            "color": "#000000"
+        },
+        "paragraph_format": {
+            "line_spacing": "29pt",
+            "alignment": "left",
+            "indentation": {
+                "first_line": "2.0char",
+                "left": "0cm",
+                "right": "0cm",
+                "space_before": "0cm",
+                "space_after": "0cm"
+            }
+        },
+        "numbering": "一、二、三、"
+    },
+    "structure_level_2": {
+        "name": "二级标题",
+        "fonts": {
+            "zh_family": "楷体_GB2312",
+            "en_family": "楷体_GB2312",
+            "size": "16pt",
+            "bold": false,
+            "italic": false,
+            "color": "#000000"
+        },
+        "paragraph_format": {
+            "line_spacing": "29pt",
+            "alignment": "left",
+            "indentation": {
+                "first_line": "2.0char",
+                "left": "0cm",
+                "right": "0cm",
+                "space_before": "0cm",
+                "space_after": "0cm"
+            }
+        },
+        "numbering": "（一）（二）（三）"
+    },
+    "structure_level_3": {
+        "name": "三级标题",
+        "fonts": {
+            "zh_family": "仿宋_GB2312",
+            "en_family": "仿宋_GB2312",
+            "size": "16pt",
+            "bold": true,
+            "italic": false,
+            "color": "#000000"
+        },
+        "paragraph_format": {
+            "line_spacing": "29pt",
+            "alignment": "left",
+            "indentation": {
+                "first_line": "2.0char",
+                "left": "0cm",
+                "right": "0cm",
+                "space_before": "0cm",
+                "space_after": "0cm"
+            }
+        },
+        "numbering": "1. 2. 3."
+    },
+    "signature_block": {
+        "name": "落款",
+        "fonts": {
+            "zh_family": "仿宋_GB2312",
+            "en_family": "仿宋_GB2312",
+            "size": "16pt"
+        },
+        "paragraph_format": {
+            "line_spacing": "29pt",
+            "alignment": "right"
+        },
+        "space_before_signature": "3.0cm"
+    },
+    "date": {
+        "name": "成文日期",
+        "fonts": {
+            "zh_family": "仿宋_GB2312",
+            "en_family": "仿宋_GB2312",
+            "size": "16pt"
+        },
+        "paragraph_format": {
+            "alignment": "right"
+        },
+        "format": "chinese_year_month_day"
+    },
+    "seal": {
+        "name": "印章位置",
+        "center_on_date": true,
+        "distance_from_date": "0mm",
+        "cover_date_center": true
+    },
+    "attachments": {
+        "name": "附件",
+        "fonts": {
+            "zh_family": "仿宋_GB2312",
+            "en_family": "仿宋_GB2312",
+            "size": "16pt"
+        }
+    },
+    "cc": {
+        "name": "抄送",
+        "fonts": {
+            "zh_family": "仿宋_GB2312",
+            "en_family": "仿宋_GB2312",
+            "size": "16pt"
+        }
+    },
+    "issuing_department": {
+        "name": "印发机关",
+        "fonts": {
+            "zh_family": "仿宋_GB2312",
+            "en_family": "仿宋_GB2312",
+            "size": "16pt"
+        }
+    }
+}

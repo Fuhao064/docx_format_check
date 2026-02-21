@@ -1,7 +1,6 @@
 flask==3.0.0
 flask-cors==4.0.0
 flask-socketio==5.3.6
-pywin32>=305; sys_platform == "win32"
 pandas
 openpyxl
 python-multipart
