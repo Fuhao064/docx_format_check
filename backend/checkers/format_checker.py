@@ -3,6 +3,7 @@ import os
 import json
 from datetime import datetime
 from preparation.para_type import ParagraphManager, ParaInfo
+from preparation.extractors import get_extractor_for_file
 from preparation.extract_para_info import extract_para_format_info
 from preparation.docx_parser import extract_section_info
 from editors.format_editor import load_config, ALIGNMENT_MAP
@@ -16,7 +17,7 @@ from .check_tables_figures import check_table_format, check_figure_format
 from .checker import check_abstract, check_keywords, check_required_paragraphs
 
 class FormatChecker:
-    def analyze_format_issues(self, doc_path: str, config_path: str, format_agent=None) -> Tuple[List[Dict], ParagraphManager]:
+    def analyze_format_issues(self, doc_path: str, config_path: str, format_agent=None, preferred_extractor: Optional[str] = None) -> Tuple[List[Dict], ParagraphManager]:
         """
         分析文档格式问题
 
@@ -24,6 +25,7 @@ class FormatChecker:
             doc_path: 文档路径
             config_path: 配置文件路径
             format_agent: 格式代理实例（可选，用于LLM辅助分析）
+            preferred_extractor: 优先使用的提取器名称
 
         Returns:
             Tuple[List[Dict], ParagraphManager]: 错误列表和段落管理器
@@ -35,13 +37,13 @@ class FormatChecker:
 
             # 2. 检查页面格式
             print(f"正在检查页面格式: {doc_path}")
-            doc_info = extract_section_info(doc_path)
+            doc_info = self._extract_section_info_with_extractor(doc_path, preferred_extractor)
             errors.extend(check_paper_format(doc_info, config))
 
             # 3. 提取文档段落信息
             print(f"正在提取段落信息: {doc_path}")
             para_manager = ParagraphManager()
-            para_manager = extract_para_format_info(doc_path, para_manager)
+            para_manager = self._extract_para_info_with_extractor(doc_path, para_manager, preferred_extractor)
 
             # 4. 如果提供了format_agent，进行智能段落类型重分配
             if format_agent:
@@ -205,3 +207,21 @@ class FormatChecker:
             return abs(s1 - s2) < 0.1
         except:
             return str(size1) == str(size2)
+
+    @staticmethod
+    def _extract_para_info_with_extractor(doc_path: str, manager: ParagraphManager, preferred_extractor: Optional[str] = None) -> ParagraphManager:
+        """使用提取器工厂提取段落信息"""
+        extractor = get_extractor_for_file(doc_path, preferred=preferred_extractor)
+        if extractor:
+            return extractor.extract(doc_path, manager)
+        # 回退到旧方法
+        return extract_para_format_info(doc_path, manager)
+
+    @staticmethod
+    def _extract_section_info_with_extractor(doc_path: str, preferred_extractor: Optional[str] = None) -> Dict[str, Any]:
+        """使用提取器工厂提取节信息"""
+        extractor = get_extractor_for_file(doc_path, preferred=preferred_extractor)
+        if extractor:
+            return extractor.extract_section_info(doc_path)
+        # 回退到旧方法
+        return extract_section_info(doc_path)

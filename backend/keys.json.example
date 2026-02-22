@@ -1,0 +1,39 @@
+{
+  "providers": {
+    "alibaba": {
+      "type": "openai",
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "api_key": "YOUR-API-KEY",
+      "models": {
+        "qwen-flash": "qwen-flash",
+        "deepseek-v3.2": "deepseek-v3.2"
+      }
+    },
+    "llamacpp": {
+      "type": "llamacpp",
+      "model_path": "./local_models/qwen2.5-1.5b-instruct-q4_0.gguf",
+      "n_ctx": 4096,
+      "n_threads": 4,
+      "n_gpu_layers": 0,
+      "verbose": false,
+      "models": {
+        "qwen2.5-1.5b": "qwen2.5-1.5b-instruct"
+      }
+    },
+    "ollama": {
+      "type": "ollama",
+      "base_url": "http://localhost:11434/v1",
+      "models": {
+        "qwen2.5": "qwen2.5:1.5b"
+      }
+    },
+    "onnx": {
+      "type": "onnx",
+      "model_path": "./local_models/qwen2.5-1.5b-instruct-onnx/",
+      "providers": ["CPUExecutionProvider"],
+      "models": {
+        "qwen2.5-onnx": "qwen2.5-1.5b-instruct-onnx"
+      }
+    }
+  }
+}

@@ -3,11 +3,19 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Optional
 
+from .base import DocumentExtractor, register_extractor
 from preparation.para_type import ParagraphManager, ParsedParaType
-from preparation.extractors import get_extractor_for_file
+
+# 尝试导入 Word COM 依赖
+try:
+    from word_com import extract_document_snapshot, ensure_word_com_available
+    _WORD_COM_AVAILABLE = True
+except ImportError:
+    _WORD_COM_AVAILABLE = False
 
 
 def _detect_paragraph_type(text: str, outline_level: int, previous: Optional[ParsedParaType]) -> ParsedParaType:
+    """检测段落类型（从 extract_para_info.py 复用）"""
     content = (text or "").strip()
     lower = content.lower()
     if not content:
@@ -51,6 +59,7 @@ def _detect_paragraph_type(text: str, outline_level: int, previous: Optional[Par
 
 
 def _build_paragraph_meta(info: Dict[str, Any]) -> Dict[str, Any]:
+    """构建段落元数据（从 extract_para_info.py 复用）"""
     font = info.get("font", {}) or {}
     font_size = font.get("size")
     if isinstance(font_size, (int, float)) and font_size > 0:
@@ -83,57 +92,66 @@ def _build_paragraph_meta(info: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def extract_para_format_info(doc_path: str, manager: ParagraphManager) -> ParagraphManager:
-    """
-    提取文档段落格式信息（向后兼容版本）
+@register_extractor
+class WordComExtractor(DocumentExtractor):
+    """基于 Word COM 的文档提取器"""
 
-    优先使用提取器工厂，如果不可用则回退到原始 Word COM 实现。
-    """
-    # 首先尝试使用新的提取器工厂
-    extractor = get_extractor_for_file(doc_path, preferred="word_com")
-    if extractor and extractor.is_available():
-        return extractor.extract(doc_path, manager)
+    name = "word_com"
+    supported_extensions = [".docx", ".doc"]
 
-    # 回退到原始实现
-    from word_com import extract_document_snapshot
+    def extract(self, doc_path: str, manager: ParagraphManager) -> ParagraphManager:
+        if not _WORD_COM_AVAILABLE:
+            raise RuntimeError("Word COM is not available")
 
-    snapshot = extract_document_snapshot(doc_path)
-    previous_type: Optional[ParsedParaType] = None
+        snapshot = extract_document_snapshot(doc_path)
+        previous_type: Optional[ParsedParaType] = None
 
-    for para in snapshot.get("paragraphs", []):
-        text = (para.get("text") or "").strip()
-        if not text:
-            continue
-        para_type = _detect_paragraph_type(
-            text=text,
-            outline_level=int(para.get("outline_level", 10)),
-            previous=previous_type,
-        )
-        manager.add_para(para_type=para_type, content=text, meta=_build_paragraph_meta(para))
-        previous_type = para_type
+        for para in snapshot.get("paragraphs", []):
+            text = (para.get("text") or "").strip()
+            if not text:
+                continue
+            para_type = _detect_paragraph_type(
+                text=text,
+                outline_level=int(para.get("outline_level", 10)),
+                previous=previous_type,
+            )
+            manager.add_para(para_type=para_type, content=text, meta=_build_paragraph_meta(para))
+            previous_type = para_type
 
-    tables = snapshot.get("tables", [])
-    manager.tables = [
-        {
-            "position": idx,
-            "table_number": idx + 1,
-            "data": rows,
-            "style": "Word COM",
-            "merged_cells": [],
-            "caption": f"表格 {idx + 1}",
-        }
-        for idx, rows in enumerate(tables)
-    ]
-    return manager
+        tables = snapshot.get("tables", [])
+        manager.tables = [
+            {
+                "position": idx,
+                "table_number": idx + 1,
+                "data": rows,
+                "style": "Word COM",
+                "merged_cells": [],
+                "caption": f"表格 {idx + 1}",
+            }
+            for idx, rows in enumerate(tables)
+        ]
+        return manager
 
+    def extract_text(self, doc_path: str) -> str:
+        if not _WORD_COM_AVAILABLE:
+            raise RuntimeError("Word COM is not available")
 
-def extract_para_format_info_from_paragraph_fromat(para: Any) -> Dict[str, Any]:
-    return {}
+        snapshot = extract_document_snapshot(doc_path)
+        paragraphs = snapshot.get("paragraphs", [])
+        return "\n".join((p.get("text") or "").strip() for p in paragraphs if (p.get("text") or "").strip())
 
+    def extract_section_info(self, doc_path: str) -> Dict[str, Any]:
+        if not _WORD_COM_AVAILABLE:
+            raise RuntimeError("Word COM is not available")
 
-def extract_default_font_size_from_styles(docx_path: str) -> Dict[str, Any]:
-    return {"paragraph": None, "character": None, "table": None, "numbering": None}
+        snapshot = extract_document_snapshot(doc_path)
+        return snapshot.get("section", {})
 
-
-def extract_font_from_theme(docx_path: str) -> Dict[str, Any]:
-    return {}
+    def is_available(self) -> bool:
+        if not _WORD_COM_AVAILABLE:
+            return False
+        try:
+            ensure_word_com_available()
+            return True
+        except Exception:
+            return False

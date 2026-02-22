@@ -320,7 +320,7 @@
                 </svg>
               </button>
 
-<div v-if="processingComplete" class="flex gap-2">
+<div v-if="processingComplete" class="flex gap-2 flex-wrap">
   <button @click="downloadReport"
     class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-medium bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary-foreground))] transition-all duration-[--transition-speed]">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stroke-[1.5]">
@@ -352,6 +352,28 @@
     </svg>
     应用格式
   </button>
+  <button @click="exportLatex"
+    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-medium bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary-foreground))] transition-all duration-[--transition-speed]">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stroke-[1.5]">
+      <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    导出 LaTeX
+  </button>
+  <button @click="autoFixDocument"
+    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-medium bg-transparent border border-[hsl(var(--primary))] text-[hsl(var(--primary))] hover:bg-[hsl(var(--primary)/0.1)] transition-all duration-[--transition-speed]">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stroke-[1.5]">
+      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    自动修复
+  </button>
+  <button @click="toggleDocumentDiff"
+    class="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-medium bg-transparent border border-[hsl(var(--border))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--secondary))] hover:border-[hsl(var(--secondary))] hover:text-[hsl(var(--secondary-foreground))] transition-all duration-[--transition-speed]">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="stroke-[1.5]">
+      <path d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+    文档对比
+  </button>
 </div>
             </div>
 
@@ -367,14 +389,70 @@
         </div>
       </div>
     </div>
-    <input type="file" ref="fileInput" @change="handleFileUpload" accept=".docx" class="hidden" />
+    <input type="file" ref="fileInput" @change="handleFileUpload" accept=".docx,.pdf" class="hidden" />
     <input type="file" ref="formatInput" @change="handleFormatUpload" accept=".json,.docx" class="hidden" />
     <DocxPreview
-      v-if="showDocPreview"
+      v-if="showDocPreview && isWordFile(uploadedFileName)"
       :docPath="currentDocumentPath"
       :originalFileName="uploadedFileName"
       @close="showDocPreview = false"
     />
+    <PdfPreview
+      v-if="showDocPreview && isPdfFile(uploadedFileName)"
+      :pdfPath="currentDocumentPath"
+      :originalFileName="uploadedFileName"
+      @close="showDocPreview = false"
+    />
+
+    <!-- 修复报告弹窗 -->
+    <div v-if="showFixReport" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div class="bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
+        <div class="flex items-center justify-between p-4 border-b border-[hsl(var(--border))]">
+          <h3 class="text-lg font-semibold">修复报告</h3>
+          <button @click="showFixReport = false"
+                  class="p-2 rounded-full hover:bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto max-h-[60vh]">
+          <FixReport
+            :report="fixReport"
+            :repairId="repairId"
+            @download-start="onFixReportDownloadStart"
+            @download-complete="onFixReportDownloadComplete"
+            @download-error="onFixReportDownloadError"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- 文档对比弹窗 -->
+    <div v-if="showDocumentDiff" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div class="bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-2xl shadow-xl max-w-4xl w-full max-h-[85vh] overflow-hidden">
+        <div class="flex items-center justify-between p-4 border-b border-[hsl(var(--border))]">
+          <h3 class="text-lg font-semibold">文档对比</h3>
+          <button @click="showDocumentDiff = false"
+                  class="p-2 rounded-full hover:bg-[hsl(var(--secondary))] text-[hsl(var(--muted-foreground))]">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="p-4 overflow-y-auto max-h-[70vh]">
+          <DocumentDiff
+            v-if="comparisonData"
+            :statistics="comparisonData.statistics"
+            :changes="comparisonData.changes"
+          />
+          <div v-else class="text-center py-8 text-[hsl(var(--muted-foreground))]">
+            <p class="mb-4">文档对比功能需要上传两个文档进行对比</p>
+            <p class="text-sm">提示: 目前仅支持对比同一文档的不同版本</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -383,6 +461,9 @@ import { ref, computed, onMounted, inject, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
 import DocxPreview from '../components/DocxPreview.vue'
+import PdfPreview from '../components/PdfPreview.vue'
+import DocumentDiff from '../components/DocumentDiff.vue'
+import FixReport from '../components/FixReport.vue'
 import { marked } from 'marked'
 import {
   initializeDB,
@@ -441,6 +522,14 @@ const markedDocId = ref('')
 const currentStep = ref(0)
 const processingComplete = ref(false)
 const isLoading = ref(false) // 加载状态变量
+// 新功能状态
+const latexExportId = ref('')
+const repairId = ref('')
+const fixReport = ref(null)
+const showFixReport = ref(false)
+const comparisonData = ref(null)
+const showDocumentDiff = ref(false)
+const diffId = ref('')
 const processingSteps = ref([
   { id: 1, title: '上传文档', description: '上传需要检查格式的文档', status: 'pending' },
   { id: 2, title: '上传格式要求', description: '上传格式要求文档或使用默认格式', status: 'pending' },
@@ -1332,6 +1421,108 @@ function autoResize(event) {
 function renderMarkdown(content) {
   if (!content) return '';
   return marked(content);
+}
+
+// 导出 LaTeX
+async function exportLatex() {
+  if (!contextId.value) {
+    showNotification('warning', '缺少上下文', '请先完成文档处理', 3000)
+    return
+  }
+
+  try {
+    showNotification('info', '导出中', '正在生成 LaTeX 文件，请稍候...', 0)
+
+    const response = await axios.post(`/api/v2/contexts/${contextId.value}/latex-export`, {
+      original_filename: uploadedFileName.value
+    })
+
+    if (response.data.success) {
+      latexExportId.value = response.data.export_id
+
+      // 下载 LaTeX 文件
+      const downloadResponse = await axios.get(`/api/v2/latex-exports/${latexExportId.value}`, {
+        responseType: 'blob'
+      })
+
+      const url = window.URL.createObjectURL(new Blob([downloadResponse.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `${uploadedFileName.value.split('.')[0]}.tex`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+
+      showNotification('success', '导出完成', 'LaTeX 文件已成功导出并下载', 3000)
+    } else {
+      throw new Error(response.data.message || 'LaTeX 导出失败')
+    }
+  } catch (error) {
+    console.error('导出 LaTeX 时出错:', error)
+    showNotification('error', '导出失败', `导出 LaTeX 时出错: ${error.message || error}`, 5000)
+  }
+}
+
+// 自动修复文档
+async function autoFixDocument() {
+  if (!contextId.value) {
+    showNotification('warning', '缺少上下文', '请先完成文档处理', 3000)
+    return
+  }
+
+  try {
+    showNotification('info', '自动修复中', '正在自动修复文档格式问题，请稍候...', 0)
+
+    const response = await axios.post(`/api/v2/contexts/${contextId.value}/auto-fix`, {
+      errors: formatErrors.value,
+      original_filename: uploadedFileName.value
+    })
+
+    if (response.data.success) {
+      repairId.value = response.data.repair_id
+      fixReport.value = response.data.fix_report
+      showFixReport.value = true
+      showNotification('success', '修复完成', '文档自动修复已完成', 3000)
+    } else {
+      throw new Error(response.data.message || '自动修复失败')
+    }
+  } catch (error) {
+    console.error('自动修复时出错:', error)
+    showNotification('error', '修复失败', `自动修复时出错: ${error.message || error}`, 5000)
+  }
+}
+
+// 修复报告下载事件处理
+function onFixReportDownloadStart() {
+  showNotification('info', '下载中', '正在准备下载修复后的文档...', 0)
+}
+
+function onFixReportDownloadComplete() {
+  showNotification('success', '下载完成', '修复后的文档已成功下载', 3000)
+}
+
+function onFixReportDownloadError(error) {
+  console.error('下载修复文档时出错:', error)
+  showNotification('error', '下载失败', `下载修复文档时出错: ${error.message || error}`, 5000)
+}
+
+// 切换文档对比显示
+function toggleDocumentDiff() {
+  showDocumentDiff.value = !showDocumentDiff.value
+  if (showDocumentDiff.value) {
+    // 目前文档对比功能需要两个文档，这里我们显示提示
+    comparisonData.value = null
+  }
+}
+
+// 文件类型检测
+function isWordFile(filename) {
+  return filename && filename.toLowerCase().endsWith('.docx')
+}
+
+function isPdfFile(filename) {
+  return filename && filename.toLowerCase().endsWith('.pdf')
 }
 </script>
 

@@ -6,3 +6,15 @@ openpyxl
 python-multipart
 pydantic
 python-dotenv
+pylatex
+openai>=1.0.0
+PyMuPDF>=1.23.0
+python-docx>=1.1.0
+
+# 本地推理可选依赖
+# llama-cpp-python>=0.2.0
+# optimum[onnxruntime]>=1.15.0
+# transformers>=4.35.0
+# torch>=2.0.0
+# onnx>=1.15.0
+# onnxruntime>=1.16.0

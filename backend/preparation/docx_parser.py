@@ -2,10 +2,21 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from word_com import extract_document_snapshot
+from preparation.extractors import get_extractor_for_file
 
 
 def extract_doc_content(doc_path: str) -> str:
+    """
+    提取文档内容（向后兼容版本）
+
+    优先使用提取器工厂，如果不可用则回退到原始 Word COM 实现。
+    """
+    extractor = get_extractor_for_file(doc_path)
+    if extractor and extractor.is_available():
+        return extractor.extract_text(doc_path)
+
+    # 回退到原始实现
+    from word_com import extract_document_snapshot
     snapshot = extract_document_snapshot(doc_path)
     lines = []
     for para in snapshot.get("paragraphs", []):
@@ -22,6 +33,17 @@ def extract_doc_content(doc_path: str) -> str:
 
 
 def extract_section_info(doc_path: str) -> Dict[str, Any]:
+    """
+    提取文档节信息（向后兼容版本）
+
+    优先使用提取器工厂，如果不可用则回退到原始 Word COM 实现。
+    """
+    extractor = get_extractor_for_file(doc_path)
+    if extractor and extractor.is_available():
+        return extractor.extract_section_info(doc_path)
+
+    # 回退到原始实现
+    from word_com import extract_document_snapshot
     snapshot = extract_document_snapshot(doc_path)
     section = snapshot.get("section", {}) or {}
     info = dict(section)
@@ -40,4 +62,3 @@ def analysis_paper_size(width_cm: Any, height_cm: Any) -> str:
     if abs(w - 29.7) <= 0.3 and abs(h - 42.0) <= 0.3:
         return "A3"
     return "Unknown"
-

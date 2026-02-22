@@ -13,6 +13,13 @@ except Exception:  # pragma: no cover - optional legacy module
     apply_format_requirements = None
     batch_fix_errors = None
 
+from .repair_history import (
+    RepairHistoryManager,
+    RepairRecord,
+    RepairAction,
+    create_repair_action,
+)
+
 __all__ = [
     "format_document",
     "generate_formatted_doc",
@@ -23,5 +30,9 @@ __all__ = [
     "FormatFixer",
     "batch_fix_errors",
     "apply_format_requirements",
+    "RepairHistoryManager",
+    "RepairRecord",
+    "RepairAction",
+    "create_repair_action",
 ]
 

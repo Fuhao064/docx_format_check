@@ -39,12 +39,31 @@ export const contextService = {
   }),
   getDocumentContent: (contextId) => apiClient.get(`/v2/contexts/${contextId}/document-content`, {
     responseType: 'arraybuffer'
+  }),
+  // LaTeX 导出
+  exportLatex: (contextId, payload = {}) => apiClient.post(`/v2/contexts/${contextId}/latex-export`, payload),
+  // 自动修复
+  autoFix: (contextId, payload = {}) => apiClient.post(`/v2/contexts/${contextId}/auto-fix`, payload),
+  getFixReport: (contextId) => apiClient.get(`/v2/contexts/${contextId}/fix-report`),
+  getRepairHistory: (contextId) => apiClient.get(`/v2/contexts/${contextId}/repair-history`),
+  // 文档对比
+  compare: (contextId, otherContextId) => apiClient.post(`/v2/contexts/${contextId}/compare`, {
+    other_context_id: otherContextId
   })
 }
 
 export const downloadService = {
   report: (reportId) => apiClient.get(`/v2/reports/${reportId}`, { responseType: 'blob' }),
-  markedDocument: (markedDocId) => apiClient.get(`/v2/marked-documents/${markedDocId}`, { responseType: 'blob' })
+  markedDocument: (markedDocId) => apiClient.get(`/v2/marked-documents/${markedDocId}`, { responseType: 'blob' }),
+  latex: (exportId) => apiClient.get(`/v2/latex-exports/${exportId}`, { responseType: 'blob' }),
+  fixedDocument: (repairId) => apiClient.get(`/v2/repairs/${repairId}/document`, { responseType: 'blob' })
+}
+
+export const comparisonService = {
+  getComparison: (diffId) => apiClient.get(`/v2/comparisons/${diffId}`),
+  getComparisonHtml: (diffId) => apiClient.get(`/v2/comparisons/${diffId}/html`, {
+    responseType: 'text'
+  })
 }
 
 export const llmService = {
@@ -65,6 +84,7 @@ export default {
   fileService,
   contextService,
   downloadService,
+  comparisonService,
   llmService,
   configService
 }

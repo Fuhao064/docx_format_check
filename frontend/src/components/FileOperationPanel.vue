@@ -25,7 +25,7 @@
           点击上传或拖拽文件到此处
         </p>
         <p class="text-sm text-[hsl(var(--muted-foreground))]">
-          支持 .docx 格式文档
+          支持 .docx, .pdf 格式文档
         </p>
       </div>
 
@@ -68,8 +68,22 @@
                  hover:bg-[hsl(var(--secondary))] transition-colors"
         >
           <div class="flex items-center gap-3">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            <!-- Word 文档图标 -->
+            <svg v-if="isWordFile(file.originalName)" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2" class="text-[hsl(var(--primary))]">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <!-- PDF 文档图标 -->
+            <svg v-else-if="isPdfFile(file.originalName)" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" class="text-[hsl(var(--destructive))]">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <text x="7" y="16" font-size="6" font-weight="bold" fill="currentColor">PDF</text>
+            </svg>
+            <!-- 默认图标 -->
+            <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" class="text-[hsl(var(--muted-foreground))]">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
               <polyline points="14 2 14 8 20 8"></polyline>
             </svg>
@@ -113,7 +127,7 @@ onMounted(async () => {
 function triggerFileUpload() {
   const input = document.createElement('input')
   input.type = 'file'
-  input.accept = '.docx'
+  input.accept = '.docx,.pdf'
   input.onchange = handleFileSelect
   input.click()
 }
@@ -130,8 +144,8 @@ async function handleDrop(event) {
   const file = event.dataTransfer.files[0]
   if (!file) return
 
-  if (!file.name.endsWith('.docx')) {
-    showNotification('error', '文件格式错误', '只支持 .docx 格式文档', 3000)
+  if (!file.name.endsWith('.docx') && !file.name.endsWith('.pdf')) {
+    showNotification('error', '文件格式错误', '只支持 .docx, .pdf 格式文档', 3000)
     return
   }
 
@@ -214,6 +228,14 @@ function getStatusText(status) {
     'error': '失败'
   }
   return statusMap[status] || status
+}
+
+function isWordFile(filename) {
+  return filename && filename.toLowerCase().endsWith('.docx')
+}
+
+function isPdfFile(filename) {
+  return filename && filename.toLowerCase().endsWith('.pdf')
 }
 
 async function saveToIndexedDB(fileInfo) {

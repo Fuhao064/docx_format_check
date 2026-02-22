@@ -5,8 +5,13 @@ from docx.enum.section import WD_ORIENT
 import json
 import os
 import re
+import shutil
 from typing import Dict, List, Optional, Union, Tuple, Any
+from uuid import uuid4
+from datetime import datetime
+
 from preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
+from editors.repair_history import RepairHistoryManager, RepairAction, create_repair_action
 
 # 全局映射字典
 ALIGNMENT_MAP = {
@@ -31,15 +36,40 @@ LINE_SPACING_MAP = {
 class FormatFixer:
     """格式修复器，用于根据检查出的错误自动修复文档格式问题"""
 
-    def __init__(self, doc_path: str = None):
+    # 修复严重程度分级
+    SEVERITY_CRITICAL = "critical"
+    SEVERITY_HIGH = "high"
+    SEVERITY_MEDIUM = "medium"
+    SEVERITY_LOW = "low"
+
+    # 错误类型到严重程度的映射
+    ERROR_SEVERITY_MAP = {
+        "字号": SEVERITY_HIGH,
+        "行间距": SEVERITY_HIGH,
+        "对齐方式": SEVERITY_MEDIUM,
+        "加粗": SEVERITY_MEDIUM,
+        "斜体": SEVERITY_LOW,
+        "首行缩进": SEVERITY_MEDIUM,
+        "字体": SEVERITY_HIGH,
+    }
+
+    def __init__(self, doc_path: str = None, history_dir: str = None):
         """
         初始化格式修复器
 
         Args:
             doc_path: 文档路径，如果提供则加载该文档
+            history_dir: 修复历史记录目录
         """
         self.doc = None
         self.doc_path = doc_path
+        self.repair_id: Optional[str] = None
+        self.history_manager: Optional[RepairHistoryManager] = None
+        self.repair_actions: List[RepairAction] = []
+
+        if history_dir:
+            self.history_manager = RepairHistoryManager(history_dir)
+
         if doc_path:
             self.load_document(doc_path)
 
@@ -507,3 +537,292 @@ def apply_format_requirements(doc_path: str, requirements: Dict, para_manager: P
     """
     fixer = FormatFixer(doc_path)
     return fixer.fix_by_requirements(requirements, para_manager, output_path)
+
+
+class EnhancedFormatFixer(FormatFixer):
+    """增强的格式修复器，支持智能修复策略和历史记录"""
+
+    def __init__(self, doc_path: str = None, history_dir: str = None):
+        """
+        初始化增强格式修复器
+
+        Args:
+            doc_path: 文档路径
+            history_dir: 修复历史记录目录
+        """
+        super().__init__(doc_path, history_dir)
+        self.selected_error_types: Optional[List[str]] = None
+        self.min_severity: str = FormatFixer.SEVERITY_LOW
+
+    def set_filters(self, error_types: Optional[List[str]] = None, min_severity: str = SEVERITY_LOW) -> None:
+        """
+        设置修复过滤器
+
+        Args:
+            error_types: 只修复指定类型的错误
+            min_severity: 最低修复严重程度
+        """
+        self.selected_error_types = error_types
+        self.min_severity = min_severity
+
+    def auto_fix(
+        self,
+        errors: List[Dict],
+        para_manager: ParagraphManager,
+        context_id: Optional[str] = None,
+        output_path: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        执行自动修复
+
+        Args:
+            errors: 错误列表
+            para_manager: 段落管理器
+            context_id: 上下文 ID
+            output_path: 输出路径
+
+        Returns:
+            Dict[str, Any]: 修复结果报告
+        """
+        if not self.doc:
+            raise ValueError("未加载文档，请先调用load_document方法")
+
+        # 创建修复会话
+        if self.history_manager and self.doc_path:
+            self.repair_id = self.history_manager.create_repair_session(self.doc_path, context_id)
+
+        # 过滤错误
+        filtered_errors = self._filter_errors(errors)
+
+        # 按段落分组错误
+        errors_by_para = self._group_errors_by_paragraph(filtered_errors)
+
+        # 修复错误
+        fixed_count = 0
+        for i, para_info in enumerate(para_manager.paragraphs):
+            para_content = para_info.content
+            para_errors = self._find_para_errors(para_content, errors_by_para)
+
+            if not para_errors:
+                continue
+
+            doc_para = self._find_matching_paragraph(para_content)
+            if not doc_para:
+                continue
+
+            # 修复段落错误并记录动作
+            for error in para_errors:
+                if self._fix_single_error(doc_para, error, para_info, i):
+                    fixed_count += 1
+
+        # 保存修复后的文档
+        if output_path is None:
+            output_path = f"fixed_{os.path.basename(self.doc_path)}"
+
+        self.doc.save(output_path)
+
+        # 完成修复会话
+        success = True
+        error_message = None
+        if self.history_manager and self.repair_id:
+            self.history_manager.complete_repair(self.repair_id, output_path, success, error_message)
+
+        # 生成修复报告
+        report = self._generate_fix_report(filtered_errors, fixed_count, output_path)
+        return report
+
+    def _filter_errors(self, errors: List[Dict]) -> List[Dict]:
+        """
+        根据过滤器过滤错误
+
+        Args:
+            errors: 原始错误列表
+
+        Returns:
+            List[Dict]: 过滤后的错误列表
+        """
+        filtered = []
+        for error in errors:
+            error_message = error.get('message', '')
+            error_type = self._extract_error_type(error_message)
+
+            # 检查错误类型过滤器
+            if self.selected_error_types and error_type not in self.selected_error_types:
+                continue
+
+            # 检查严重程度过滤器
+            severity = self.ERROR_SEVERITY_MAP.get(error_type, self.SEVERITY_LOW)
+            if not self._meets_severity_threshold(severity):
+                continue
+
+            filtered.append(error)
+        return filtered
+
+    def _extract_error_type(self, error_message: str) -> str:
+        """
+        从错误消息中提取错误类型
+
+        Args:
+            error_message: 错误消息
+
+        Returns:
+            str: 错误类型
+        """
+        pattern = r"'([^']+)'\s+不匹配"
+        match = re.search(pattern, error_message)
+        if match:
+            return match.group(1)
+        return ""
+
+    def _meets_severity_threshold(self, severity: str) -> bool:
+        """
+        检查严重程度是否达到阈值
+
+        Args:
+            severity: 错误严重程度
+
+        Returns:
+            bool: 是否达到阈值
+        """
+        severity_order = [
+            self.SEVERITY_LOW,
+            self.SEVERITY_MEDIUM,
+            self.SEVERITY_HIGH,
+            self.SEVERITY_CRITICAL,
+        ]
+        try:
+            return severity_order.index(severity) >= severity_order.index(self.min_severity)
+        except ValueError:
+            return True
+
+    def _fix_single_error(
+        self,
+        paragraph: Any,
+        error: Dict,
+        para_info: ParaInfo,
+        para_index: int,
+    ) -> bool:
+        """
+        修复单个错误
+
+        Args:
+            paragraph: 段落对象
+            error: 错误信息
+            para_info: 段落信息
+            para_index: 段落索引
+
+        Returns:
+            bool: 是否成功修复
+        """
+        error_message = error.get('message', '')
+        error_type, required_value, actual_value = self._parse_error_message(error_message)
+
+        if not error_type or not required_value:
+            return False
+
+        fix_method = self.error_type_map.get(error_type)
+        if not fix_method:
+            return False
+
+        # 执行修复
+        try:
+            fix_method(paragraph, required_value, para_info)
+
+            # 记录修复动作
+            action = create_repair_action(
+                paragraph_index=para_index,
+                paragraph_content=para_info.content[:100] if para_info.content else "",
+                error_type=error_type,
+                field=error_type,
+                old_value=actual_value or "",
+                new_value=required_value,
+            )
+            self.repair_actions.append(action)
+
+            if self.history_manager and self.repair_id:
+                self.history_manager.add_action(self.repair_id, action)
+
+            return True
+        except Exception:
+            return False
+
+    def _generate_fix_report(
+        self,
+        all_errors: List[Dict],
+        fixed_count: int,
+        output_path: str,
+    ) -> Dict[str, Any]:
+        """
+        生成修复报告
+
+        Args:
+            all_errors: 所有错误
+            fixed_count: 修复数量
+            output_path: 输出路径
+
+        Returns:
+            Dict[str, Any]: 修复报告
+        """
+        # 按错误类型统计
+        stats: Dict[str, Dict[str, int]] = {}
+        for error in all_errors:
+            error_message = error.get('message', '')
+            error_type = self._extract_error_type(error_message)
+            if error_type not in stats:
+                stats[error_type] = {"total": 0, "fixed": 0}
+            stats[error_type]["total"] += 1
+
+        # 统计已修复的
+        for action in self.repair_actions:
+            if action.error_type in stats:
+                stats[action.error_type]["fixed"] += 1
+
+        return {
+            "repair_id": self.repair_id,
+            "total_issues": len(all_errors),
+            "fixed_issues": fixed_count,
+            "output_path": output_path,
+            "statistics": stats,
+            "actions": [
+                {
+                    "paragraph_index": a.paragraph_index,
+                    "error_type": a.error_type,
+                    "field": a.field,
+                    "old_value": a.old_value,
+                    "new_value": a.new_value,
+                }
+                for a in self.repair_actions
+            ],
+        }
+
+
+def auto_fix_document(
+    doc_path: str,
+    errors: List[Dict],
+    para_manager: ParagraphManager,
+    history_dir: Optional[str] = None,
+    context_id: Optional[str] = None,
+    output_path: Optional[str] = None,
+    error_types: Optional[List[str]] = None,
+    min_severity: str = "low",
+) -> Dict[str, Any]:
+    """
+    便捷函数：自动修复文档
+
+    Args:
+        doc_path: 文档路径
+        errors: 错误列表
+        para_manager: 段落管理器
+        history_dir: 历史记录目录
+        context_id: 上下文 ID
+        output_path: 输出路径
+        error_types: 指定修复的错误类型
+        min_severity: 最低严重程度
+
+    Returns:
+        Dict[str, Any]: 修复报告
+    """
+    fixer = EnhancedFormatFixer(doc_path, history_dir)
+    fixer.set_filters(error_types, min_severity)
+    return fixer.auto_fix(errors, para_manager, context_id, output_path)
+
