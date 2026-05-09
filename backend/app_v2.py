@@ -11,17 +11,13 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 if CURRENT_DIR not in sys.path:
     sys.path.insert(0, CURRENT_DIR)
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from contextlib import asynccontextmanager
 from pydantic import BaseModel
 
 from core.config import settings
 from core.events import lifespan
-from models.document import Document, DocumentContext, DocumentType
-from models.paragraph import ParagraphManager
-from models.format import FormatConfig
+from models.document import DocumentType
 
 # 创建 FastAPI 应用
 app = FastAPI(
