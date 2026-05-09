@@ -149,8 +149,9 @@ class MinerUExtractor(DocumentExtractor):
             "paragraph": ParagraphType.BODY,
         }
 
+        lower_type = content_type.lower()
         for key, para_type in type_mapping.items():
-            if key in content_type.lower():
+            if re.search(r'\b' + re.escape(key) + r'\b', lower_type):
                 return para_type
 
         # 从文本推断类型
