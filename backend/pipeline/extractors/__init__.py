@@ -84,3 +84,9 @@ def list_available_extractors() -> List[str]:
 
 # 导入并注册所有提取器
 from .pymupdf_extractor import PyMuPDFExtractor
+
+# Register MinerU extractor (fallback for PDF)
+try:
+    from .mineru_extractor import MinerUExtractor
+except ImportError:
+    pass

@@ -15,6 +15,9 @@ openai>=1.0.0
 PyMuPDF>=1.23.0
 python-docx>=1.1.0
 
+# MinerU PDF support
+magic-pdf[full]>=0.7.0
+
 # 本地推理可选依赖
 # llama-cpp-python>=0.2.0
 # optimum[onnxruntime]>=1.15.0
