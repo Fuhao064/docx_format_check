@@ -8,14 +8,14 @@ def build_backend():
     backend_dir = os.path.join(project_root, 'backend')
 
     args = [
-        'app_v2.py',
+        os.path.join(backend_dir, 'app_v2.py'),
         '--name=scriptor-backend',
         '--onedir',
         '--console',
         f'--distpath={os.path.join(project_root, "frontend", "resources", "backend")}',
         f'--workpath={os.path.join(project_root, "build", "backend")}',
         f'--specpath={os.path.join(project_root, "build")}',
-        f'--add-data={os.path.join(backend_dir, "config.json")};.',
+        f'--add-data={os.path.join(backend_dir, "config.json")}{os.pathsep}.',
         '--hidden-import=uvicorn',
         '--hidden-import=uvicorn.logging',
         '--hidden-import=uvicorn.loops',
