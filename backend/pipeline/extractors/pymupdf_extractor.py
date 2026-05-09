@@ -308,35 +308,34 @@ class PyMuPDFExtractor(DocumentExtractor):
         if not _PYMUPDF_AVAILABLE:
             raise RuntimeError("PyMuPDF (fitz) is not available")
 
-        doc = fitz.open(doc_path)
-        previous_type: Optional[ParagraphType] = None
+        with fitz.open(doc_path) as doc:
+            previous_type: Optional[ParagraphType] = None
 
-        # 收集所有字体大小以估计正文大小
-        all_font_sizes: List[float] = []
-        all_blocks: List[Tuple[int, TextBlock]] = []
+            # 收集所有字体大小以估计正文大小
+            all_font_sizes: List[float] = []
+            all_blocks: List[Tuple[int, TextBlock]] = []
 
-        # 第一遍：收集信息
-        for page_num, page in enumerate(doc):
-            blocks = _extract_text_blocks(page)
-            for block in blocks:
-                all_font_sizes.append(block.font_size)
-                all_blocks.append((page_num + 1, block))
+            # 第一遍：收集信息
+            for page_num, page in enumerate(doc):
+                blocks = _extract_text_blocks(page)
+                for block in blocks:
+                    all_font_sizes.append(block.font_size)
+                    all_blocks.append((page_num + 1, block))
 
-        # 第二遍：处理段落
-        for page_num, block in all_blocks:
-            text = block.text.strip()
-            if not text:
-                continue
-            outline_level = _estimate_outline_level(block, all_font_sizes)
-            para_type = _detect_paragraph_type(
-                text=text,
-                outline_level=outline_level,
-                previous=previous_type,
-            )
-            manager.add_para(para_type=para_type, content=text, meta=_build_paragraph_meta(block, page_num))
-            previous_type = para_type
+            # 第二遍：处理段落
+            for page_num, block in all_blocks:
+                text = block.text.strip()
+                if not text:
+                    continue
+                outline_level = _estimate_outline_level(block, all_font_sizes)
+                para_type = _detect_paragraph_type(
+                    text=text,
+                    outline_level=outline_level,
+                    previous=previous_type,
+                )
+                manager.add_para(para_type=para_type, content=text, meta=_build_paragraph_meta(block, page_num))
+                previous_type = para_type
 
-        doc.close()
         return manager
 
     def extract_text(self, doc_path: str) -> str:
@@ -354,13 +353,12 @@ class PyMuPDFExtractor(DocumentExtractor):
         if not _PYMUPDF_AVAILABLE:
             raise RuntimeError("PyMuPDF (fitz) is not available")
 
-        doc = fitz.open(doc_path)
-        lines: List[str] = []
-        for page in doc:
-            text = page.get_text()
-            if text.strip():
-                lines.append(text.strip())
-        doc.close()
+        with fitz.open(doc_path) as doc:
+            lines: List[str] = []
+            for page in doc:
+                text = page.get_text()
+                if text.strip():
+                    lines.append(text.strip())
         return "\n".join(lines)
 
     def extract_section_info(self, doc_path: str) -> Dict[str, Any]:
@@ -380,22 +378,21 @@ class PyMuPDFExtractor(DocumentExtractor):
         if not _PYMUPDF_AVAILABLE:
             raise RuntimeError("PyMuPDF (fitz) is not available")
 
-        doc = fitz.open(doc_path)
-        page = doc[0] if doc else None
+        with fitz.open(doc_path) as doc:
+            page = doc[0] if doc else None
 
-        info: Dict[str, Any] = {}
-        if page:
-            rect = page.rect
-            # PDF 单位是点（1 inch = 72 points）
-            width_pt = rect.width
-            height_pt = rect.height
-            info["page_width"] = round(width_pt / 72 * 2.54, 2) if width_pt else 21.0
-            info["page_height"] = round(height_pt / 72 * 2.54, 2) if height_pt else 29.7
-            info["margin_left"] = 2.54
-            info["margin_right"] = 2.54
-            info["margin_top"] = 2.54
-            info["margin_bottom"] = 2.54
-            info["size"] = _analysis_paper_size(info.get("page_width"), info.get("page_height"))
+            info: Dict[str, Any] = {}
+            if page:
+                rect = page.rect
+                # PDF 单位是点（1 inch = 72 points）
+                width_pt = rect.width
+                height_pt = rect.height
+                info["page_width"] = round(width_pt / 72 * 2.54, 2) if width_pt else 21.0
+                info["page_height"] = round(height_pt / 72 * 2.54, 2) if height_pt else 29.7
+                info["margin_left"] = 2.54
+                info["margin_right"] = 2.54
+                info["margin_top"] = 2.54
+                info["margin_bottom"] = 2.54
+                info["size"] = _analysis_paper_size(info.get("page_width"), info.get("page_height"))
 
-        doc.close()
         return info
