@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor
 
@@ -52,7 +51,7 @@ class DocumentPipeline:
 
             # 3. 提取段落信息
             para_manager = ParagraphManager()
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             para_manager = await loop.run_in_executor(
                 self.executor,
                 extractor.extract,
@@ -166,7 +165,7 @@ class DocumentPipeline:
         Returns:
             配置字典
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             self.executor,
             self._sync_load_config,
