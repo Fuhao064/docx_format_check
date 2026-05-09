@@ -15,7 +15,8 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      sandbox: true
     },
     title: 'Scriptor - 智能文档格式检查器'
   });
@@ -26,6 +27,10 @@ function createWindow() {
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
 }
 
 function startPythonBackend() {
@@ -54,10 +59,19 @@ function startPythonBackend() {
   pythonProcess.on('close', (code) => {
     console.log(`Python exited with code ${code}`);
   });
+
+  pythonProcess.on('error', (err) => {
+    console.error('Failed to start Python backend:', err);
+    dialog.showErrorBox(
+      'Backend Error',
+      `Failed to start the Python backend: ${err.message}`
+    );
+  });
 }
 
 // IPC 处理
 ipcMain.handle('select-file', async (event, options) => {
+  if (!mainWindow) return undefined;
   const result = await dialog.showOpenDialog(mainWindow, {
     properties: ['openFile'],
     filters: options?.filters || [
@@ -68,6 +82,7 @@ ipcMain.handle('select-file', async (event, options) => {
 });
 
 ipcMain.handle('save-file', async (event, options) => {
+  if (!mainWindow) return undefined;
   const result = await dialog.showSaveDialog(mainWindow, {
     filters: options?.filters || [
       { name: 'Documents', extensions: ['docx'] }
@@ -89,10 +104,10 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (pythonProcess) {
-    pythonProcess.kill();
-  }
   if (process.platform !== 'darwin') {
+    if (pythonProcess) {
+      pythonProcess.kill();
+    }
     app.quit();
   }
 });
