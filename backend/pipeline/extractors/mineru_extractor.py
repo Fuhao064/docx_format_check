@@ -100,10 +100,12 @@ class MinerUExtractor(DocumentExtractor):
         """
         try:
             return UNIPipe(pdf_bytes, [], False)
-        except Exception:
+        except Exception as e:
+            logger.debug("UNIPipe failed, trying OCRPipe: %s", e)
             try:
                 return OCRPipe(pdf_bytes, [], False)
-            except Exception:
+            except Exception as e2:
+                logger.debug("OCRPipe failed, falling back to TXTPipe: %s", e2)
                 return TXTPipe(pdf_bytes, [], False)
 
     def _convert_to_manager(self, result: Dict, manager: ParagraphManager):
@@ -141,7 +143,7 @@ class MinerUExtractor(DocumentExtractor):
             段落类型枚举值
         """
         type_mapping = {
-            "title": ParagraphType.HEADING1,
+            "title": ParagraphType.TITLE,
             "heading": ParagraphType.HEADING1,
             "text": ParagraphType.BODY,
             "paragraph": ParagraphType.BODY,
@@ -152,13 +154,13 @@ class MinerUExtractor(DocumentExtractor):
                 return para_type
 
         # 从文本推断类型
-        if re.match(r"^摘要", text):
+        if re.match(r"^摘要\s*[:：]?\s*$", text):
             return ParagraphType.ABSTRACT_ZH
-        if re.match(r"^abstract", text.lower()):
+        if re.match(r"^abstract\b", text.lower()):
             return ParagraphType.ABSTRACT_EN
-        if re.match(r"^关键词", text):
+        if re.match(r"^关键词\s*[:：]?", text):
             return ParagraphType.KEYWORDS_ZH
-        if re.match(r"^keywords", text.lower()):
+        if re.match(r"^keywords?\b", text.lower()):
             return ParagraphType.KEYWORDS_EN
 
         return ParagraphType.BODY
@@ -201,9 +203,7 @@ class MinerUExtractor(DocumentExtractor):
             return fallback.extract_text(doc_path)
 
     def extract_section_info(self, doc_path: str) -> Dict[str, Any]:
-        """提取节信息（页面大小、边距等）
-
-        直接回退到 PyMuPDF 提取，因为 MinerU 不直接提供此类信息。
+        """提取页面信息（委托给 PyMuPDF）
 
         Args:
             doc_path: PDF 文件路径
@@ -211,11 +211,9 @@ class MinerUExtractor(DocumentExtractor):
         Returns:
             节信息字典
         """
-        if not _MINERU_AVAILABLE:
-            raise RuntimeError("MinerU is not available")
-
-        # 回退到 PyMuPDF
         from .pymupdf_extractor import PyMuPDFExtractor
 
         fallback = PyMuPDFExtractor()
+        if not fallback.is_available():
+            raise RuntimeError("Neither MinerU nor PyMuPDF is available")
         return fallback.extract_section_info(doc_path)
