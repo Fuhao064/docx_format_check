@@ -1,7 +1,7 @@
 // frontend/src/api/client_v2.js
 import axios from 'axios';
 
-const API_BASE = 'http://localhost:8080/api/v2';
+const API_BASE = '/api/v2';
 
 const client = axios.create({
   baseURL: API_BASE,
