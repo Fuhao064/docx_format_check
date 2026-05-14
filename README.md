@@ -1,6 +1,7 @@
 # Scriptor - Intelligent Document Format Checker and Corrector
 
 **花了很久鼓捣中文和段落格式获取，中国人不坑中国人，对python-docx的处理不了的中文升级了一小部分。**
+**update 5/14/2026:word-com才是对的**
 
 <div align="center">
   <img src="frontend/src/assets/favicon.png" alt="Scriptor Logo" width="120" height="120">
