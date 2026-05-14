@@ -115,12 +115,55 @@ class FormatAgent:
         if next_para_content:
             context_info.append(f"next_content={next_para_content[:80]}")
 
+        # 提取格式特征
+        format_features = []
+        if para_meta:
+            pf = para_meta.get('paragraph_format', {})
+            fonts = para_meta.get('fonts', {})
+
+            # 对齐方式
+            alignment = pf.get('alignment', '')
+            if alignment:
+                format_features.append(f"alignment={alignment}")
+
+            # 字体大小
+            sizes = fonts.get('size', set())
+            if sizes:
+                avg_size = sum(s for s in sizes if isinstance(s, (int, float))) / len(sizes) if sizes else 0
+                if avg_size >= 16:
+                    format_features.append(f"font_size=large({avg_size}pt)")
+                elif avg_size >= 12:
+                    format_features.append(f"font_size=medium({avg_size}pt)")
+                else:
+                    format_features.append(f"font_size=small({avg_size}pt)")
+
+            # 是否加粗
+            bold = fonts.get('bold', set())
+            if True in bold:
+                format_features.append("bold=True")
+
+            # 首行缩进
+            first_line_indent = pf.get('first_line_indent', 0)
+            if first_line_indent and first_line_indent > 0:
+                format_features.append(f"first_line_indent={first_line_indent}")
+
         user_content = (
-            "Classify paragraph type. Return one enum value only.\n"
+            "Classify paragraph type based on content and formatting.\n\n"
+            "Classification rules:\n"
+            "- title_zh/title_en: Document title, usually centered, bold, larger font (>=16pt)\n"
+            "- abstract_zh/abstract_en: Abstract label (e.g., '摘要：' or 'Abstract:')\n"
+            "- abstract_content_zh/abstract_content_en: Content after abstract label\n"
+            "- keywords_zh/keywords_en: Keywords label (e.g., '关键词：' or 'Keywords:')\n"
+            "- keywords_content_zh/keywords_content_en: Content after keywords label\n"
+            "- heading1: Main section heading (e.g., '一、...', '二、...')\n"
+            "- heading2: Subsection heading (e.g., '1、...', '2、...')\n"
+            "- references: References label (e.g., '参考文献：')\n"
+            "- references_content: Reference entries (e.g., '[1] ...')\n"
+            "- body: Regular paragraph text\n\n"
             f"Paragraph: {para_string}\n"
-            f"Meta: {para_meta}\n"
-            f"Context: {'; '.join(context_info)}\n"
-            f"Candidates: {[t.value for t in ParsedParaType]}"
+            f"Format features: {', '.join(format_features) if format_features else 'none'}\n"
+            f"Context: {'; '.join(context_info) if context_info else 'none'}\n"
+            f"Return ONLY one enum value from: {[t.value for t in ParsedParaType]}"
         )
 
         try:
@@ -129,7 +172,7 @@ class FormatAgent:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You classify document paragraphs. Return only the enum value.",
+                        "content": "You are a document paragraph classifier. Analyze the paragraph content and formatting to determine its type. Return only the enum value.",
                     },
                     {"role": "user", "content": user_content},
                 ],

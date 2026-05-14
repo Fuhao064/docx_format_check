@@ -125,7 +125,7 @@ def detect_paragraph_type(text: str, outline_level: int, previous: Optional[Pars
         return ParsedParaType.KEYWORDS_ZH
     if re.match(r"^keywords?\b", lower):
         return ParsedParaType.KEYWORDS_EN
-    if re.match(r"^(参考文献|references)\s*$", content, re.IGNORECASE):
+    if re.match(r"^(参考文献|references)\s*[:：]?\s*$", content, re.IGNORECASE):
         return ParsedParaType.REFERENCES
     if re.match(r"^(图|figure)\s*\d+", content, re.IGNORECASE):
         return ParsedParaType.FIGURES

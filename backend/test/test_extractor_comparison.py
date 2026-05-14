@@ -18,13 +18,15 @@ sys.path.insert(0, str(backend_dir))
 
 from preparation.para_type import ParagraphManager, ParsedParaType
 
-# Try to import DeludeEngine, if fail create a simple substitute
+# Try to import required modules
 try:
-    from agents.delude_engine import DeludeEngine
-except ImportError:
-    class DeludeEngine:
-        def correct_para_type(self, data):
-            return data
+    from agents.setting import LLMs
+    from agents.format_agent import FormatAgent
+    from preparation.delude_engine import correct_para_type
+    DELUDE_ENGINE_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Could not import delude engine: {e}")
+    DELUDE_ENGINE_AVAILABLE = False
 
 
 def normalize_for_comparison(value):
@@ -162,25 +164,39 @@ def compare_single_paragraph(actual, expected):
     return result
 
 
-def extract_with_word_com(doc_path: str) -> List[Dict]:
+def extract_with_word_com(doc_path: str, use_delude: bool = True) -> List[Dict]:
     """Extract using Word COM method"""
     from preparation.extract_para_info import extract_para_format_info
     manager = ParagraphManager()
     extract_para_format_info(str(doc_path), manager)
+
+    if use_delude and DELUDE_ENGINE_AVAILABLE:
+        try:
+            # 使用 longcat 的 LongCat-Flash-Thinking-2601 模型
+            format_agent = FormatAgent("longcat_LongCat-Flash-Thinking-2601")
+            manager = correct_para_type(str(doc_path), format_agent, manager)
+        except Exception as e:
+            print(f"  Warning: Delude engine failed: {e}")
+
     data = manager.to_dict()
-    delude_engine = DeludeEngine()
-    data = delude_engine.correct_para_type(data)
     return data
 
 
-def extract_with_python_docx(doc_path: str) -> List[Dict]:
+def extract_with_python_docx(doc_path: str, use_delude: bool = True) -> List[Dict]:
     """Extract using python-docx method"""
-    from preparation.extract_para_info_enhanced import extract_para_format_info
+    from preparation.extract_para_info import extract_para_format_info
     manager = ParagraphManager()
     extract_para_format_info(str(doc_path), manager)
+
+    if use_delude and DELUDE_ENGINE_AVAILABLE:
+        try:
+            # 使用 longcat 的 LongCat-Flash-Thinking-2601 模型
+            format_agent = FormatAgent("longcat_LongCat-Flash-Thinking-2601")
+            manager = correct_para_type(str(doc_path), format_agent, manager)
+        except Exception as e:
+            print(f"  Warning: Delude engine failed: {e}")
+
     data = manager.to_dict()
-    delude_engine = DeludeEngine()
-    data = delude_engine.correct_para_type(data)
     return data
 
 
@@ -238,16 +254,17 @@ def main():
     print(f"Expected paragraphs: {len(expected_paragraphs)}")
     print()
 
-    # Try to use actual_output.json first (it has 25 paragraphs)
-    print("Using saved actual_output.json for Word COM method...")
+    # Extract using Word COM method
+    print("Extracting with Word COM method...")
     word_com_data = []
-    if actual_output_path.exists():
-        with open(actual_output_path, 'r', encoding='utf-8') as f:
-            word_com_data = json.load(f)
-        print(f"  [OK] Loaded {len(word_com_data)} paragraphs from actual_output.json")
-    else:
-        print("  [FAIL] actual_output.json not found")
+    try:
+        word_com_data = extract_with_word_com(doc_path)
+        print(f"  [OK] Extraction complete, paragraphs: {len(word_com_data)}")
+    except Exception as e:
+        print(f"  [FAIL] Extraction failed: {e}")
+        word_com_data = []
 
+    # Extract using python-docx method
     print("Extracting with python-docx method...")
     python_docx_data = []
     try:
@@ -281,28 +298,29 @@ def main():
     python_docx_comparison = []
     python_docx_accuracy = None
 
-    # For python-docx, since it only has 21 paragraphs, let's compare by content matching
-    if len(python_docx_data) > 0:
-        # Create a map from content to expected paragraph
-        content_map = {p.get('content', ''): p for p in expected_paragraphs}
-
-        matched_paragraphs = []
-        for actual in python_docx_data:
-            content = actual.get('content', '')
-            if content in content_map:
-                matched_paragraphs.append((actual, content_map[content]))
-
-        if matched_paragraphs:
-            print(f"Matched {len(matched_paragraphs)} paragraphs by content")
-            for actual, expected in matched_paragraphs:
-                comp = compare_single_paragraph(actual, expected)
-                python_docx_comparison.append(comp)
-            python_docx_accuracy = calculate_accuracy(python_docx_comparison)
-            print_accuracy_summary(python_docx_accuracy, "python-docx")
-        else:
-            print("Could not match any paragraphs by content")
+    if len(python_docx_data) == len(expected_paragraphs):
+        for actual, expected in zip(python_docx_data, expected_paragraphs):
+            comp = compare_single_paragraph(actual, expected)
+            python_docx_comparison.append(comp)
+        python_docx_accuracy = calculate_accuracy(python_docx_comparison)
+        print_accuracy_summary(python_docx_accuracy, "python-docx")
     else:
-        print(f"No data from python-docx method")
+        print(f"Paragraph count mismatch: expected {len(expected_paragraphs)}, actual {len(python_docx_data)}")
+        # Try content matching if counts differ
+        if len(python_docx_data) > 0:
+            content_map = {p.get('content', ''): p for p in expected_paragraphs}
+            matched_paragraphs = []
+            for actual in python_docx_data:
+                content = actual.get('content', '')
+                if content in content_map:
+                    matched_paragraphs.append((actual, content_map[content]))
+            if matched_paragraphs:
+                print(f"Matched {len(matched_paragraphs)} paragraphs by content")
+                for actual, expected in matched_paragraphs:
+                    comp = compare_single_paragraph(actual, expected)
+                    python_docx_comparison.append(comp)
+                python_docx_accuracy = calculate_accuracy(python_docx_comparison)
+                print_accuracy_summary(python_docx_accuracy, "python-docx (content-matched)")
 
     print()
 

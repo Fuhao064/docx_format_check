@@ -6,12 +6,12 @@
     "paragraph_count": 25,
     "accuracy": {
       "total_paragraphs": 25,
-      "type_accuracy": 0.84,
-      "content_accuracy": 1.0,
+      "type_accuracy": 0.72,
+      "content_accuracy": 0.84,
       "format_accuracy": 1.0,
       "font_accuracy": 1.0,
-      "type_correct": 21,
-      "content_correct": 25,
+      "type_correct": 18,
+      "content_correct": 21,
       "format_matched": 175,
       "format_total": 175,
       "font_matched": 150,
@@ -20,23 +20,27 @@
     "details": [
       {
         "id": "para0",
-        "type_match": true,
+        "type_match": false,
         "content_match": true,
         "format_matched": 7,
         "format_total": 7,
         "font_matched": 6,
         "font_total": 6,
-        "errors": []
+        "errors": [
+          "type mismatch: expected title_zh, actual body"
+        ]
       },
       {
         "id": "para1",
-        "type_match": true,
+        "type_match": false,
         "content_match": true,
         "format_matched": 7,
         "format_total": 7,
         "font_matched": 6,
         "font_total": 6,
-        "errors": []
+        "errors": [
+          "type mismatch: expected title_en, actual body"
+        ]
       },
       {
         "id": "para2",
@@ -50,18 +54,6 @@
       },
       {
         "id": "para3",
-        "type_match": false,
-        "content_match": true,
-        "format_matched": 7,
-        "format_total": 7,
-        "font_matched": 6,
-        "font_total": 6,
-        "errors": [
-          "type mismatch: expected abstract_content_zh, actual body"
-        ]
-      },
-      {
-        "id": "para4",
         "type_match": true,
         "content_match": true,
         "format_matched": 7,
@@ -71,15 +63,27 @@
         "errors": []
       },
       {
-        "id": "para5",
-        "type_match": false,
-        "content_match": true,
+        "id": "para4",
+        "type_match": true,
+        "content_match": false,
         "format_matched": 7,
         "format_total": 7,
         "font_matched": 6,
         "font_total": 6,
         "errors": [
-          "type mismatch: expected abstract_content_en, actual body"
+          "content mismatch"
+        ]
+      },
+      {
+        "id": "para5",
+        "type_match": true,
+        "content_match": false,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": [
+          "content mismatch"
         ]
       },
       {
@@ -94,28 +98,40 @@
       },
       {
         "id": "para7",
-        "type_match": false,
+        "type_match": true,
         "content_match": true,
         "format_matched": 7,
         "format_total": 7,
         "font_matched": 6,
         "font_total": 6,
-        "errors": [
-          "type mismatch: expected keywords_content_zh, actual body"
-        ]
+        "errors": []
       },
       {
         "id": "para8",
         "type_match": true,
-        "content_match": true,
+        "content_match": false,
         "format_matched": 7,
         "format_total": 7,
         "font_matched": 6,
         "font_total": 6,
-        "errors": []
+        "errors": [
+          "content mismatch"
+        ]
       },
       {
         "id": "para9",
+        "type_match": true,
+        "content_match": false,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": [
+          "content mismatch"
+        ]
+      },
+      {
+        "id": "para10",
         "type_match": false,
         "content_match": true,
         "format_matched": 7,
@@ -123,18 +139,8 @@
         "font_matched": 6,
         "font_total": 6,
         "errors": [
-          "type mismatch: expected keywords_content_en, actual body"
+          "type mismatch: expected heading1, actual body"
         ]
-      },
-      {
-        "id": "para10",
-        "type_match": true,
-        "content_match": true,
-        "format_matched": 7,
-        "format_total": 7,
-        "font_matched": 6,
-        "font_total": 6,
-        "errors": []
       },
       {
         "id": "para11",
@@ -148,13 +154,15 @@
       },
       {
         "id": "para12",
-        "type_match": true,
+        "type_match": false,
         "content_match": true,
         "format_matched": 7,
         "format_total": 7,
         "font_matched": 6,
         "font_total": 6,
-        "errors": []
+        "errors": [
+          "type mismatch: expected heading2, actual body"
+        ]
       },
       {
         "id": "para13",
@@ -168,13 +176,15 @@
       },
       {
         "id": "para14",
-        "type_match": true,
+        "type_match": false,
         "content_match": true,
         "format_matched": 7,
         "format_total": 7,
         "font_matched": 6,
         "font_total": 6,
-        "errors": []
+        "errors": [
+          "type mismatch: expected heading2, actual body"
+        ]
       },
       {
         "id": "para15",
@@ -188,13 +198,15 @@
       },
       {
         "id": "para16",
-        "type_match": true,
+        "type_match": false,
         "content_match": true,
         "format_matched": 7,
         "format_total": 7,
         "font_matched": 6,
         "font_total": 6,
-        "errors": []
+        "errors": [
+          "type mismatch: expected heading2, actual body"
+        ]
       },
       {
         "id": "para17",
@@ -208,13 +220,15 @@
       },
       {
         "id": "para18",
-        "type_match": true,
+        "type_match": false,
         "content_match": true,
         "format_matched": 7,
         "format_total": 7,
         "font_matched": 6,
         "font_total": 6,
-        "errors": []
+        "errors": [
+          "type mismatch: expected heading2, actual body"
+        ]
       },
       {
         "id": "para19",
@@ -279,28 +293,28 @@
     ]
   },
   "python_docx": {
-    "paragraph_count": 21,
+    "paragraph_count": 25,
     "accuracy": {
-      "total_paragraphs": 15,
-      "type_accuracy": 0.4666666666666667,
-      "content_accuracy": 1.0,
-      "format_accuracy": 0.5904761904761905,
-      "font_accuracy": 0.45555555555555555,
-      "type_correct": 7,
-      "content_correct": 15,
-      "format_matched": 62,
-      "format_total": 105,
-      "font_matched": 41,
-      "font_total": 90
+      "total_paragraphs": 25,
+      "type_accuracy": 0.76,
+      "content_accuracy": 0.84,
+      "format_accuracy": 1.0,
+      "font_accuracy": 1.0,
+      "type_correct": 19,
+      "content_correct": 21,
+      "format_matched": 175,
+      "format_total": 175,
+      "font_matched": 150,
+      "font_total": 150
     },
     "details": [
       {
         "id": "para0",
         "type_match": false,
         "content_match": true,
-        "format_matched": 5,
+        "format_matched": 7,
         "format_total": 7,
-        "font_matched": 4,
+        "font_matched": 6,
         "font_total": 6,
         "errors": [
           "type mismatch: expected title_zh, actual body"
@@ -310,77 +324,121 @@
         "id": "para1",
         "type_match": false,
         "content_match": true,
-        "format_matched": 5,
+        "format_matched": 7,
         "format_total": 7,
-        "font_matched": 4,
+        "font_matched": 6,
         "font_total": 6,
         "errors": [
           "type mismatch: expected title_en, actual body"
         ]
       },
       {
+        "id": "para2",
+        "type_match": true,
+        "content_match": true,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": []
+      },
+      {
+        "id": "para3",
+        "type_match": true,
+        "content_match": true,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": []
+      },
+      {
+        "id": "para4",
+        "type_match": true,
+        "content_match": false,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": [
+          "content mismatch"
+        ]
+      },
+      {
+        "id": "para5",
+        "type_match": true,
+        "content_match": false,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": [
+          "content mismatch"
+        ]
+      },
+      {
         "id": "para6",
+        "type_match": true,
+        "content_match": true,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": []
+      },
+      {
+        "id": "para7",
+        "type_match": true,
+        "content_match": true,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": []
+      },
+      {
+        "id": "para8",
+        "type_match": true,
+        "content_match": false,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": [
+          "content mismatch"
+        ]
+      },
+      {
+        "id": "para9",
+        "type_match": true,
+        "content_match": false,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": [
+          "content mismatch"
+        ]
+      },
+      {
+        "id": "para10",
         "type_match": false,
         "content_match": true,
-        "format_matched": 4,
+        "format_matched": 7,
         "format_total": 7,
-        "font_matched": 4,
+        "font_matched": 6,
         "font_total": 6,
         "errors": [
           "type mismatch: expected heading1, actual body"
         ]
       },
       {
-        "id": "para7",
-        "type_match": true,
-        "content_match": true,
-        "format_matched": 4,
-        "format_total": 7,
-        "font_matched": 2,
-        "font_total": 6,
-        "errors": []
-      },
-      {
-        "id": "para8",
-        "type_match": false,
-        "content_match": true,
-        "format_matched": 4,
-        "format_total": 7,
-        "font_matched": 3,
-        "font_total": 6,
-        "errors": [
-          "type mismatch: expected heading2, actual body"
-        ]
-      },
-      {
-        "id": "para9",
-        "type_match": true,
-        "content_match": true,
-        "format_matched": 4,
-        "format_total": 7,
-        "font_matched": 2,
-        "font_total": 6,
-        "errors": []
-      },
-      {
-        "id": "para10",
-        "type_match": false,
-        "content_match": true,
-        "format_matched": 4,
-        "format_total": 7,
-        "font_matched": 3,
-        "font_total": 6,
-        "errors": [
-          "type mismatch: expected heading2, actual body"
-        ]
-      },
-      {
         "id": "para11",
         "type_match": true,
         "content_match": true,
-        "format_matched": 4,
+        "format_matched": 7,
         "format_total": 7,
-        "font_matched": 2,
+        "font_matched": 6,
         "font_total": 6,
         "errors": []
       },
@@ -388,9 +446,9 @@
         "id": "para12",
         "type_match": false,
         "content_match": true,
-        "format_matched": 4,
+        "format_matched": 7,
         "format_total": 7,
-        "font_matched": 3,
+        "font_matched": 6,
         "font_total": 6,
         "errors": [
           "type mismatch: expected heading2, actual body"
@@ -400,9 +458,9 @@
         "id": "para13",
         "type_match": true,
         "content_match": true,
-        "format_matched": 4,
+        "format_matched": 7,
         "format_total": 7,
-        "font_matched": 2,
+        "font_matched": 6,
         "font_total": 6,
         "errors": []
       },
@@ -410,9 +468,9 @@
         "id": "para14",
         "type_match": false,
         "content_match": true,
-        "format_matched": 4,
+        "format_matched": 7,
         "format_total": 7,
-        "font_matched": 3,
+        "font_matched": 6,
         "font_total": 6,
         "errors": [
           "type mismatch: expected heading2, actual body"
@@ -422,9 +480,9 @@
         "id": "para15",
         "type_match": true,
         "content_match": true,
-        "format_matched": 4,
+        "format_matched": 7,
         "format_total": 7,
-        "font_matched": 2,
+        "font_matched": 6,
         "font_total": 6,
         "errors": []
       },
@@ -432,31 +490,91 @@
         "id": "para16",
         "type_match": true,
         "content_match": true,
-        "format_matched": 4,
+        "format_matched": 7,
         "format_total": 7,
-        "font_matched": 2,
+        "font_matched": 6,
         "font_total": 6,
         "errors": []
       },
       {
         "id": "para17",
+        "type_match": true,
+        "content_match": true,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": []
+      },
+      {
+        "id": "para18",
         "type_match": false,
         "content_match": true,
-        "format_matched": 4,
+        "format_matched": 7,
         "format_total": 7,
-        "font_matched": 3,
+        "font_matched": 6,
         "font_total": 6,
         "errors": [
-          "type mismatch: expected references, actual body"
+          "type mismatch: expected heading2, actual body"
         ]
+      },
+      {
+        "id": "para19",
+        "type_match": true,
+        "content_match": true,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": []
       },
       {
         "id": "para20",
         "type_match": true,
         "content_match": true,
-        "format_matched": 4,
+        "format_matched": 7,
         "format_total": 7,
-        "font_matched": 2,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": []
+      },
+      {
+        "id": "para21",
+        "type_match": true,
+        "content_match": true,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": []
+      },
+      {
+        "id": "para22",
+        "type_match": true,
+        "content_match": true,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": []
+      },
+      {
+        "id": "para23",
+        "type_match": true,
+        "content_match": true,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
+        "font_total": 6,
+        "errors": []
+      },
+      {
+        "id": "para24",
+        "type_match": true,
+        "content_match": true,
+        "format_matched": 7,
+        "format_total": 7,
+        "font_matched": 6,
         "font_total": 6,
         "errors": []
       }

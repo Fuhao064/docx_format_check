@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 import json, re, os, zipfile
 import logging
 from preparation.para_type import ParsedParaType, ParagraphManager
+from preparation.extractors.base import detect_paragraph_type
 from docx.shared import RGBColor
 from docx.oxml.ns import qn
 
@@ -443,16 +444,16 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
     logger.info("图片和表格信息将存储在管理器中，不会作为独立段落添加")
 
     # 预处理段落，将摘要等信息提取出来
-    # 注意：现在 pre_process_paragraphs 返回段落列表（保持原行为）
+    # 注意：pre_process_paragraphs 返回元组列表 (para, para_type)
     processed_paras = pre_process_paragraphs(doc)
     logger.info(f"预处理后的段落数量：{len(processed_paras)}")
 
     # 处理进度计数
-    total_paras = len([p for p in processed_paras if p.text.strip()])
+    total_paras = len([p for p, _ in processed_paras if p.text.strip()])
     processed_count = 0
 
     # 遍历每个段落
-    for para in processed_paras:
+    for para, pre_type in processed_paras:
         # 如果段落文本为空，则跳过
         if not para.text.strip():
             continue
@@ -603,11 +604,20 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
         meta_data["fonts"] = fonts
 
         # 将段落信息添加到段落管理器
-        # 尝试确定段落类型 - 使用简单规则分类
+        # 尝试确定段落类型 - 使用规则分类
         try:
-            para_type = simple_classify_para_type(para.text)
+            # 获取大纲级别
+            outline_level = 10  # 默认值
+            if hasattr(para, '_p') and para._p is not None:
+                xml_str = para._p.xml if hasattr(para._p, 'xml') else ""
+                if 'outlineLvl' in xml_str:
+                    import re
+                    match = re.search(r'w:outlineLvl w:val="(\d+)"', xml_str)
+                    if match:
+                        outline_level = int(match.group(1))
+            para_type = detect_paragraph_type(para.text, outline_level, pre_type)
         except Exception as e:
-            logger.error(f"  简单分类失败: {str(e)}，使用BODY类型")
+            logger.error(f"  分类失败: {str(e)}，使用BODY类型")
             para_type = ParsedParaType.BODY
 
         # 检查是否是分节符或分页符
@@ -633,6 +643,8 @@ def extract_para_format_info(doc_path, manager: ParagraphManager):
                 meta=meta_data
             )
             logger.debug(f"  已将段落添加到管理器: id=para{len(manager.paragraphs)-1}")
+            # 更新 pre_type 用于下一个段落的分类
+            pre_type = para_type
         except Exception as e:
             logger.error(f"  添加段落到管理器时出错: {str(e)}")
 
@@ -1270,68 +1282,112 @@ def pre_process_paragraphs(doc):
     返回段落列表，每个段落是一个元组 (para, para_type)
     """
     result = []
+    previous_type = None
 
     for para in doc.paragraphs:
         text = para.text.strip()
         if not text:
             continue
 
-        # 检查段落是否包含多个标签（摘要、Abstract、关键词、Keywords）
-        labels_found = []
-        pos = 0
+        # 检查段落是否包含标签（摘要、Abstract、关键词、Keywords、参考文献、References）
+        labels = ['摘要', 'Abstract', '关键词', 'Keywords', '参考文献', 'References']
+        found_label = None
+        found_pos = -1
 
-        # 查找所有标签位置
-        for label in ['摘要', 'Abstract', '关键词', 'Keywords']:
-            label_pos = text.find(label, pos)
-            if label_pos != -1:
-                labels_found.append((label_pos, label))
-                pos = label_pos + len(label)
+        for label in labels:
+            pos = text.find(label)
+            if pos != -1:
+                found_label = label
+                found_pos = pos
+                break
 
         # 如果没有找到标签，保持原段落
-        if not labels_found:
-            result.append((para, None))
-            continue
-
-        # 按位置排序
-        labels_found.sort(key=lambda x: x[0])
-
-        # 如果只有一个标签，保持原段落
-        if len(labels_found) == 1:
-            result.append((para, None))
-            continue
-
-        # 如果有多个标签，需要分割
-        # 从最后一个标签之后的内容开始，分割为独立段落
-        # 例如：段落包含 "摘要：...Abstract:..."
-
-        # 获取最后一个标签的结束位置
-        last_label_pos, last_label = labels_found[-1]
-        # 查找标签后的冒号或空格
-        label_end_pattern = re.compile(r'[:：]\s*', re.IGNORECASE)
-        label_end_match = label_end_pattern.search(text, last_label_pos + len(last_label))
-
-        if label_end_match:
-            split_pos = label_end_match.end()
-
-            # 如果分割位置在段落末尾，则保持原段落
-            if split_pos >= len(text):
+        if not found_label:
+            # 检查是否是参考文献内容（以 [ 开头）
+            if previous_type == ParsedParaType.REFERENCES and re.match(r'^\[\d+\]', text):
+                result.append((para, ParsedParaType.REFERENCES_CONTENT))
+                previous_type = ParsedParaType.REFERENCES_CONTENT
+            else:
                 result.append((para, None))
-                continue
+            continue
 
-            # 分割段落：第一部分是原段落（包含多个标签），第二部分是分割后的新段落
-            try:
-                new_para = split_paragraph(para, split_pos)
-                if new_para:
-                    # 将原段落和分割后的新段落都添加到结果
+        # 检查标签后是否有冒号
+        label_end = found_pos + len(found_label)
+        if label_end < len(text) and text[label_end] in '：:':
+            # 标签后有冒号，检查冒号后是否有内容
+            content_start = label_end + 1
+            while content_start < len(text) and text[content_start] in ' \t':
+                content_start += 1
+
+            if content_start < len(text):
+                # 冒号后有内容，需要分割
+                split_pos = content_start
+                try:
+                    new_para = split_paragraph(para, split_pos)
+                    if new_para:
+                        # 确定标签类型
+                        if found_label in ['摘要']:
+                            label_type = ParsedParaType.ABSTRACT_ZH
+                            content_type = ParsedParaType.ABSTRACT_CONTENT_ZH
+                        elif found_label in ['Abstract']:
+                            label_type = ParsedParaType.ABSTRACT_EN
+                            content_type = ParsedParaType.ABSTRACT_CONTENT_EN
+                        elif found_label in ['关键词']:
+                            label_type = ParsedParaType.KEYWORDS_ZH
+                            content_type = ParsedParaType.KEYWORDS_CONTENT_ZH
+                        elif found_label in ['Keywords']:
+                            label_type = ParsedParaType.KEYWORDS_EN
+                            content_type = ParsedParaType.KEYWORDS_CONTENT_EN
+                        elif found_label in ['参考文献', 'References']:
+                            label_type = ParsedParaType.REFERENCES
+                            content_type = ParsedParaType.REFERENCES_CONTENT
+                        else:
+                            label_type = None
+                            content_type = None
+
+                        # 将原段落（标签部分）和分割后的新段落（内容部分）都添加到结果
+                        result.append((para, label_type))
+                        result.append((new_para, content_type))
+                        previous_type = content_type
+                    else:
+                        result.append((para, None))
+                except Exception as e:
+                    logger.error(f"分割段落时出错: {str(e)}")
                     result.append((para, None))
-                    result.append((new_para, None))
+            else:
+                # 冒号后没有内容，保持原段落
+                # 确定标签类型
+                if found_label in ['摘要']:
+                    label_type = ParsedParaType.ABSTRACT_ZH
+                elif found_label in ['Abstract']:
+                    label_type = ParsedParaType.ABSTRACT_EN
+                elif found_label in ['关键词']:
+                    label_type = ParsedParaType.KEYWORDS_ZH
+                elif found_label in ['Keywords']:
+                    label_type = ParsedParaType.KEYWORDS_EN
+                elif found_label in ['参考文献', 'References']:
+                    label_type = ParsedParaType.REFERENCES
                 else:
-                    result.append((para, None))
-            except Exception as e:
-                logger.error(f"分割段落时出错: {str(e)}")
-                result.append((para, None))
+                    label_type = None
+                result.append((para, label_type))
+                previous_type = label_type
         else:
-            result.append((para, None))
+            # 标签后没有冒号，保持原段落
+            # 确定标签类型
+            if found_label in ['摘要']:
+                label_type = ParsedParaType.ABSTRACT_ZH
+            elif found_label in ['Abstract']:
+                label_type = ParsedParaType.ABSTRACT_EN
+            elif found_label in ['关键词']:
+                label_type = ParsedParaType.KEYWORDS_ZH
+            elif found_label in ['Keywords']:
+                label_type = ParsedParaType.KEYWORDS_EN
+            elif found_label in ['参考文献', 'References']:
+                label_type = ParsedParaType.REFERENCES
+            else:
+                label_type = None
+            result.append((para, label_type))
+            previous_type = label_type
 
     return result
 
