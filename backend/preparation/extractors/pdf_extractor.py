@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-from .base import DocumentExtractor, register_extractor
+from .base import DocumentExtractor, register_extractor, detect_paragraph_type, analysis_paper_size
 from preparation.para_type import ParagraphManager, ParsedParaType
 
 # 尝试导入 PyMuPDF 依赖
@@ -12,50 +12,6 @@ try:
     _PYMUPDF_AVAILABLE = True
 except ImportError:
     _PYMUPDF_AVAILABLE = False
-
-
-def _detect_paragraph_type(text: str, outline_level: int, previous: Optional[ParsedParaType]) -> ParsedParaType:
-    """检测段落类型"""
-    content = (text or "").strip()
-    lower = content.lower()
-    if not content:
-        return ParsedParaType.OTHERS
-
-    if re.match(r"^摘要\s*[:：]?\s*$", content):
-        return ParsedParaType.ABSTRACT_ZH
-    if re.match(r"^abstract\b", lower):
-        return ParsedParaType.ABSTRACT_EN
-    if re.match(r"^关键词\s*[:：]?", content):
-        return ParsedParaType.KEYWORDS_ZH
-    if re.match(r"^keywords?\b", lower):
-        return ParsedParaType.KEYWORDS_EN
-    if re.match(r"^(参考文献|references)\s*$", content, re.IGNORECASE):
-        return ParsedParaType.REFERENCES
-    if re.match(r"^(图|figure)\s*\d+", content, re.IGNORECASE):
-        return ParsedParaType.FIGURES
-    if re.match(r"^(表|table)\s*\d+", content, re.IGNORECASE):
-        return ParsedParaType.TABLES
-
-    if previous == ParsedParaType.ABSTRACT_ZH:
-        return ParsedParaType.ABSTRACT_CONTENT_ZH
-    if previous == ParsedParaType.ABSTRACT_EN:
-        return ParsedParaType.ABSTRACT_CONTENT_EN
-    if previous == ParsedParaType.KEYWORDS_ZH:
-        return ParsedParaType.KEYWORDS_CONTENT_ZH
-    if previous == ParsedParaType.KEYWORDS_EN:
-        return ParsedParaType.KEYWORDS_CONTENT_EN
-    if previous in (ParsedParaType.REFERENCES, ParsedParaType.REFERENCES_CONTENT):
-        if re.match(r"^(\[\d+\]|\(\d+\)|\d+\.)", content):
-            return ParsedParaType.REFERENCES_CONTENT
-
-    if outline_level == 1:
-        return ParsedParaType.HEADING1
-    if outline_level == 2:
-        return ParsedParaType.HEADING2
-    if outline_level == 3:
-        return ParsedParaType.HEADING3
-
-    return ParsedParaType.BODY
 
 
 def _normalize_text(text: str) -> str:
@@ -259,7 +215,7 @@ class PDFExtractor(DocumentExtractor):
             if not text:
                 continue
             outline_level = _estimate_outline_level(block, all_font_sizes)
-            para_type = _detect_paragraph_type(
+            para_type = detect_paragraph_type(
                 text=text,
                 outline_level=outline_level,
                 previous=previous_type,
@@ -296,26 +252,13 @@ class PDFExtractor(DocumentExtractor):
             height_pt = rect.height
             info["page_width"] = _points_to_cm(width_pt / 72 * 2.54) if width_pt else 21.0
             info["page_height"] = _points_to_cm(height_pt / 72 * 2.54) if height_pt else 29.7
-            info["left_margin"] = 2.54
-            info["right_margin"] = 2.54
-            info["top_margin"] = 2.54
-            info["bottom_margin"] = 2.54
-            info["size"] = self._analysis_paper_size(info.get("page_width"), info.get("page_height"))
+            info["margin_left"] = 2.54
+            info["margin_right"] = 2.54
+            info["margin_top"] = 2.54
+            info["margin_bottom"] = 2.54
+            info["size"] = analysis_paper_size(info.get("page_width"), info.get("page_height"))
 
         return info
-
-    @staticmethod
-    def _analysis_paper_size(width_cm: Any, height_cm: Any) -> str:
-        try:
-            w = float(width_cm)
-            h = float(height_cm)
-        except Exception:
-            return "Unknown"
-        if abs(w - 21.0) <= 0.3 and abs(h - 29.7) <= 0.3:
-            return "A4"
-        if abs(w - 29.7) <= 0.3 and abs(h - 42.0) <= 0.3:
-            return "A3"
-        return "Unknown"
 
     def is_available(self) -> bool:
         return _PYMUPDF_AVAILABLE

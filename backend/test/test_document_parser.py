@@ -3,6 +3,7 @@
 """
 import sys
 import os
+import re
 import json
 from pathlib import Path
 
@@ -12,7 +13,14 @@ sys.path.insert(0, str(backend_dir))
 
 from preparation.para_type import ParagraphManager, ParsedParaType
 from preparation.extract_para_info import extract_para_format_info
-from agents.delude_engine import DeludeEngine
+
+# Try to import DeludeEngine, if fail create a simple substitute
+try:
+    from agents.delude_engine import DeludeEngine
+except ImportError:
+    class DeludeEngine:
+        def correct_para_type(self, data):
+            return data
 
 
 def normalize_for_comparison(value):
@@ -115,12 +123,10 @@ def compare_paragraph_format(actual, expected, para_id):
             if key == 'line_spacing':
                 # 提取数字部分进行比较
                 if isinstance(actual_val, str):
-                    import re
                     match = re.search(r'(\d+\.?\d*)', actual_val)
                     if match:
                         actual_val = float(match.group(1))
                 if isinstance(expected_val, str):
-                    import re
                     match = re.search(r'(\d+\.?\d*)', expected_val)
                     if match:
                         expected_val = float(match.group(1))

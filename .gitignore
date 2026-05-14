@@ -1,28 +1,61 @@
-frontend/node_modules
-backend/__pycache__
-backend/uploads/
-backend/agents/__pycache__
-keys.json
+# Python
 __pycache__/
 */__pycache__/
 */*/__pycache__/
 *.py[cod]
 *$py.class
-backend/__pycache__/** 
-*/caches
-caches
-*/*/results
-*/*/test_docx_unzip
-tests/*
-*/tests
-tests
-backend/agents/keys.json.backup
-.claude
-.claude/settings.local.json
-CLAUDE.md
-dist/**
-build/
 *.egg-info/
 .eggs/
 *.whl
 *.tar.gz
+dist/
+build/
+
+# Node.js
+node_modules/
+frontend/node_modules/
+bun.lock
+package-lock.json
+yarn.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Project specific
+keys.json
+backend/__pycache__/
+backend/uploads/
+backend/agents/__pycache__
+backend/agents/keys.json.backup
+backend/caches/
+backend/repair_history/
+*/caches
+*/*/results
+*/*/test_docx_unzip
+
+# Tests
+tests/
+*/tests
+test_frontend_flow.py
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db
+caches
+# Claude
+.claude/
+.claude/settings.local.json
+CLAUDE.md

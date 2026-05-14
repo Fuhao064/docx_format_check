@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import os
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Type, TYPE_CHECKING
 
-from preparation.para_type import ParagraphManager
+from preparation.para_type import ParagraphManager, ParsedParaType
 
 # 注册表存储
 _extractors_registry: Dict[str, Type["DocumentExtractor"]] = {}
@@ -97,3 +98,80 @@ class DocumentExtractor(ABC):
         """
         ext = os.path.splitext(file_path)[1].lower()
         return ext in self.supported_extensions
+
+
+def detect_paragraph_type(text: str, outline_level: int, previous: Optional[ParsedParaType]) -> ParsedParaType:
+    """
+    检测段落类型
+
+    Args:
+        text: 段落文本
+        outline_level: 大纲级别
+        previous: 上一个段落的类型
+
+    Returns:
+        段落类型
+    """
+    content = (text or "").strip()
+    lower = content.lower()
+    if not content:
+        return ParsedParaType.OTHERS
+
+    if re.match(r"^摘要\s*[:：]?\s*$", content):
+        return ParsedParaType.ABSTRACT_ZH
+    if re.match(r"^abstract\b", lower):
+        return ParsedParaType.ABSTRACT_EN
+    if re.match(r"^关键词\s*[:：]?", content):
+        return ParsedParaType.KEYWORDS_ZH
+    if re.match(r"^keywords?\b", lower):
+        return ParsedParaType.KEYWORDS_EN
+    if re.match(r"^(参考文献|references)\s*$", content, re.IGNORECASE):
+        return ParsedParaType.REFERENCES
+    if re.match(r"^(图|figure)\s*\d+", content, re.IGNORECASE):
+        return ParsedParaType.FIGURES
+    if re.match(r"^(表|table)\s*\d+", content, re.IGNORECASE):
+        return ParsedParaType.TABLES
+
+    if previous == ParsedParaType.ABSTRACT_ZH:
+        return ParsedParaType.ABSTRACT_CONTENT_ZH
+    if previous == ParsedParaType.ABSTRACT_EN:
+        return ParsedParaType.ABSTRACT_CONTENT_EN
+    if previous == ParsedParaType.KEYWORDS_ZH:
+        return ParsedParaType.KEYWORDS_CONTENT_ZH
+    if previous == ParsedParaType.KEYWORDS_EN:
+        return ParsedParaType.KEYWORDS_CONTENT_EN
+    if previous in (ParsedParaType.REFERENCES, ParsedParaType.REFERENCES_CONTENT):
+        if re.match(r"^(\[\d+\]|\(\d+\)|\d+\.)", content):
+            return ParsedParaType.REFERENCES_CONTENT
+
+    if outline_level == 1:
+        return ParsedParaType.HEADING1
+    if outline_level == 2:
+        return ParsedParaType.HEADING2
+    if outline_level == 3:
+        return ParsedParaType.HEADING3
+
+    return ParsedParaType.BODY
+
+
+def analysis_paper_size(width_cm: Any, height_cm: Any) -> str:
+    """
+    分析纸张大小
+
+    Args:
+        width_cm: 宽度（厘米）
+        height_cm: 高度（厘米）
+
+    Returns:
+        纸张大小字符串（A4、A3 或 Unknown）
+    """
+    try:
+        w = float(width_cm)
+        h = float(height_cm)
+    except Exception:
+        return "Unknown"
+    if abs(w - 21.0) <= 0.3 and abs(h - 29.7) <= 0.3:
+        return "A4"
+    if abs(w - 29.7) <= 0.3 and abs(h - 42.0) <= 0.3:
+        return "A3"
+    return "Unknown"

@@ -53,7 +53,7 @@ class FormatFixer:
         "字体": SEVERITY_HIGH,
     }
 
-    def __init__(self, doc_path: str = None, history_dir: str = None):
+    def __init__(self, doc_path: Optional[str] = None, history_dir: Optional[str] = None):
         """
         初始化格式修复器
 
@@ -542,7 +542,7 @@ def apply_format_requirements(doc_path: str, requirements: Dict, para_manager: P
 class EnhancedFormatFixer(FormatFixer):
     """增强的格式修复器，支持智能修复策略和历史记录"""
 
-    def __init__(self, doc_path: str = None, history_dir: str = None):
+    def __init__(self, doc_path: Optional[str] = None, history_dir: Optional[str] = None):
         """
         初始化增强格式修复器
 
@@ -554,7 +554,7 @@ class EnhancedFormatFixer(FormatFixer):
         self.selected_error_types: Optional[List[str]] = None
         self.min_severity: str = FormatFixer.SEVERITY_LOW
 
-    def set_filters(self, error_types: Optional[List[str]] = None, min_severity: str = SEVERITY_LOW) -> None:
+    def set_filters(self, error_types: Optional[List[str]] = None, min_severity: str = FormatFixer.SEVERITY_LOW) -> None:
         """
         设置修复过滤器
 

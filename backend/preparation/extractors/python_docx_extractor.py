@@ -3,60 +3,17 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Optional
 
-from .base import DocumentExtractor, register_extractor
+from .base import DocumentExtractor, register_extractor, detect_paragraph_type, analysis_paper_size
 from preparation.para_type import ParagraphManager, ParsedParaType
 
 # 尝试导入 python-docx 依赖
 try:
     from docx import Document
     from docx.shared import Length
+    from docx.enum.text import WD_LINE_SPACING, WD_ALIGN_PARAGRAPH
     _PYTHON_DOCX_AVAILABLE = True
 except ImportError:
     _PYTHON_DOCX_AVAILABLE = False
-
-
-def _detect_paragraph_type(text: str, outline_level: int, previous: Optional[ParsedParaType]) -> ParsedParaType:
-    """检测段落类型"""
-    content = (text or "").strip()
-    lower = content.lower()
-    if not content:
-        return ParsedParaType.OTHERS
-
-    if re.match(r"^摘要\s*[:：]?\s*$", content):
-        return ParsedParaType.ABSTRACT_ZH
-    if re.match(r"^abstract\b", lower):
-        return ParsedParaType.ABSTRACT_EN
-    if re.match(r"^关键词\s*[:：]?", content):
-        return ParsedParaType.KEYWORDS_ZH
-    if re.match(r"^keywords?\b", lower):
-        return ParsedParaType.KEYWORDS_EN
-    if re.match(r"^(参考文献|references)\s*$", content, re.IGNORECASE):
-        return ParsedParaType.REFERENCES
-    if re.match(r"^(图|figure)\s*\d+", content, re.IGNORECASE):
-        return ParsedParaType.FIGURES
-    if re.match(r"^(表|table)\s*\d+", content, re.IGNORECASE):
-        return ParsedParaType.TABLES
-
-    if previous == ParsedParaType.ABSTRACT_ZH:
-        return ParsedParaType.ABSTRACT_CONTENT_ZH
-    if previous == ParsedParaType.ABSTRACT_EN:
-        return ParsedParaType.ABSTRACT_CONTENT_EN
-    if previous == ParsedParaType.KEYWORDS_ZH:
-        return ParsedParaType.KEYWORDS_CONTENT_ZH
-    if previous == ParsedParaType.KEYWORDS_EN:
-        return ParsedParaType.KEYWORDS_CONTENT_EN
-    if previous in (ParsedParaType.REFERENCES, ParsedParaType.REFERENCES_CONTENT):
-        if re.match(r"^(\[\d+\]|\(\d+\)|\d+\.)", content):
-            return ParsedParaType.REFERENCES_CONTENT
-
-    if outline_level == 1:
-        return ParsedParaType.HEADING1
-    if outline_level == 2:
-        return ParsedParaType.HEADING2
-    if outline_level == 3:
-        return ParsedParaType.HEADING3
-
-    return ParsedParaType.BODY
 
 
 def _points_to_cm(points: Any) -> float:
@@ -117,22 +74,38 @@ def _build_paragraph_meta(para: Any) -> Dict[str, Any]:
     alignment = "left"
     if para.alignment:
         align_val = para.alignment
-        if hasattr(align_val, "value"):
-            align_val = align_val.value
-        if align_val == 1:
+        if align_val == WD_ALIGN_PARAGRAPH.CENTER:
             alignment = "center"
-        elif align_val == 2:
+        elif align_val == WD_ALIGN_PARAGRAPH.RIGHT:
             alignment = "right"
-        elif align_val == 3:
+        elif align_val == WD_ALIGN_PARAGRAPH.JUSTIFY:
             alignment = "justify"
 
     line_spacing = "1.0"
-    if para.paragraph_format and para.paragraph_format.line_spacing:
+    if para.paragraph_format:
+        rule = para.paragraph_format.line_spacing_rule
         ls = para.paragraph_format.line_spacing
-        if isinstance(ls, (int, float)):
-            line_spacing = str(ls)
-        elif hasattr(ls, "value"):
-            line_spacing = str(ls.value)
+
+        if rule == WD_LINE_SPACING.SINGLE:
+            line_spacing = "1.0"
+        elif rule == WD_LINE_SPACING.ONE_POINT_FIVE:
+            line_spacing = "1.5"
+        elif rule == WD_LINE_SPACING.DOUBLE:
+            line_spacing = "2.0"
+        elif rule == WD_LINE_SPACING.EXACTLY:
+            spacing_pt = ls.pt if hasattr(ls, "pt") else ls
+            line_spacing = f"Fixed value {round(float(spacing_pt), 1)}pt" if spacing_pt else "Fixed value 0.0pt"
+        elif rule == WD_LINE_SPACING.MULTIPLE:
+            if isinstance(ls, (int, float)):
+                line_spacing = str(round(float(ls), 2))
+            else:
+                line_spacing = "1.0"
+        else:
+            if isinstance(ls, (int, float)):
+                line_spacing = str(round(float(ls), 2))
+            elif hasattr(ls, "value"):
+                line_spacing = str(round(float(ls.value), 2))
+
 
     first_line_indent = 0.0
     left_indent = 0.0
@@ -204,7 +177,9 @@ class PythonDocxExtractor(DocumentExtractor):
         if not _PYTHON_DOCX_AVAILABLE:
             raise RuntimeError("python-docx is not available")
 
-        doc = Document(doc_path)
+        # Fallback for undefined Document due to optional import
+        from docx import Document as DocxDocument
+        doc = DocxDocument(doc_path)
         previous_type: Optional[ParsedParaType] = None
 
         for para in doc.paragraphs:
@@ -212,7 +187,7 @@ class PythonDocxExtractor(DocumentExtractor):
             if not text:
                 continue
             outline_level = _get_outline_level(para)
-            para_type = _detect_paragraph_type(
+            para_type = detect_paragraph_type(
                 text=text,
                 outline_level=outline_level,
                 previous=previous_type,
@@ -243,7 +218,8 @@ class PythonDocxExtractor(DocumentExtractor):
         if not _PYTHON_DOCX_AVAILABLE:
             raise RuntimeError("python-docx is not available")
 
-        doc = Document(doc_path)
+        from docx import Document as DocxDocument
+        doc = DocxDocument(doc_path)
         lines = []
         for para in doc.paragraphs:
             text = (para.text or "").strip()
@@ -261,33 +237,21 @@ class PythonDocxExtractor(DocumentExtractor):
         if not _PYTHON_DOCX_AVAILABLE:
             raise RuntimeError("python-docx is not available")
 
-        doc = Document(doc_path)
+        from docx import Document as DocxDocument
+        doc = DocxDocument(doc_path)
         section = doc.sections[0] if doc.sections else None
 
         info: Dict[str, Any] = {}
         if section:
             info["page_width"] = _twips_to_cm(section.page_width) if section.page_width else 21.0
             info["page_height"] = _twips_to_cm(section.page_height) if section.page_height else 29.7
-            info["left_margin"] = _twips_to_cm(section.left_margin) if section.left_margin else 2.54
-            info["right_margin"] = _twips_to_cm(section.right_margin) if section.right_margin else 2.54
-            info["top_margin"] = _twips_to_cm(section.top_margin) if section.top_margin else 2.54
-            info["bottom_margin"] = _twips_to_cm(section.bottom_margin) if section.bottom_margin else 2.54
-            info["size"] = self._analysis_paper_size(info.get("page_width"), info.get("page_height"))
+            info["margin_left"] = _twips_to_cm(section.left_margin) if section.left_margin else 2.54
+            info["margin_right"] = _twips_to_cm(section.right_margin) if section.right_margin else 2.54
+            info["margin_top"] = _twips_to_cm(section.top_margin) if section.top_margin else 2.54
+            info["margin_bottom"] = _twips_to_cm(section.bottom_margin) if section.bottom_margin else 2.54
+            info["size"] = analysis_paper_size(info.get("page_width"), info.get("page_height"))
 
         return info
-
-    @staticmethod
-    def _analysis_paper_size(width_cm: Any, height_cm: Any) -> str:
-        try:
-            w = float(width_cm)
-            h = float(height_cm)
-        except Exception:
-            return "Unknown"
-        if abs(w - 21.0) <= 0.3 and abs(h - 29.7) <= 0.3:
-            return "A4"
-        if abs(w - 29.7) <= 0.3 and abs(h - 42.0) <= 0.3:
-            return "A3"
-        return "Unknown"
 
     def is_available(self) -> bool:
         return _PYTHON_DOCX_AVAILABLE

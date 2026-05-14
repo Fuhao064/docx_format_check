@@ -3,59 +3,16 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Optional
 
-from .base import DocumentExtractor, register_extractor
+from .base import DocumentExtractor, register_extractor, detect_paragraph_type, analysis_paper_size
 from preparation.para_type import ParagraphManager, ParsedParaType
 
 # 尝试导入 Word COM 依赖
 try:
     from word_com import extract_document_snapshot, ensure_word_com_available
+    import word_com.com_utils as _com_utils
     _WORD_COM_AVAILABLE = True
 except ImportError:
     _WORD_COM_AVAILABLE = False
-
-
-def _detect_paragraph_type(text: str, outline_level: int, previous: Optional[ParsedParaType]) -> ParsedParaType:
-    """检测段落类型（从 extract_para_info.py 复用）"""
-    content = (text or "").strip()
-    lower = content.lower()
-    if not content:
-        return ParsedParaType.OTHERS
-
-    if re.match(r"^摘要\s*[:：]?\s*$", content):
-        return ParsedParaType.ABSTRACT_ZH
-    if re.match(r"^abstract\b", lower):
-        return ParsedParaType.ABSTRACT_EN
-    if re.match(r"^关键词\s*[:：]?", content):
-        return ParsedParaType.KEYWORDS_ZH
-    if re.match(r"^keywords?\b", lower):
-        return ParsedParaType.KEYWORDS_EN
-    if re.match(r"^(参考文献|references)\s*$", content, re.IGNORECASE):
-        return ParsedParaType.REFERENCES
-    if re.match(r"^(图|figure)\s*\d+", content, re.IGNORECASE):
-        return ParsedParaType.FIGURES
-    if re.match(r"^(表|table)\s*\d+", content, re.IGNORECASE):
-        return ParsedParaType.TABLES
-
-    if previous == ParsedParaType.ABSTRACT_ZH:
-        return ParsedParaType.ABSTRACT_CONTENT_ZH
-    if previous == ParsedParaType.ABSTRACT_EN:
-        return ParsedParaType.ABSTRACT_CONTENT_EN
-    if previous == ParsedParaType.KEYWORDS_ZH:
-        return ParsedParaType.KEYWORDS_CONTENT_ZH
-    if previous == ParsedParaType.KEYWORDS_EN:
-        return ParsedParaType.KEYWORDS_CONTENT_EN
-    if previous in (ParsedParaType.REFERENCES, ParsedParaType.REFERENCES_CONTENT):
-        if re.match(r"^(\[\d+\]|\(\d+\)|\d+\.)", content):
-            return ParsedParaType.REFERENCES_CONTENT
-
-    if outline_level == 1:
-        return ParsedParaType.HEADING1
-    if outline_level == 2:
-        return ParsedParaType.HEADING2
-    if outline_level == 3:
-        return ParsedParaType.HEADING3
-
-    return ParsedParaType.BODY
 
 
 def _build_paragraph_meta(info: Dict[str, Any]) -> Dict[str, Any]:
@@ -103,14 +60,16 @@ class WordComExtractor(DocumentExtractor):
         if not _WORD_COM_AVAILABLE:
             raise RuntimeError("Word COM is not available")
 
-        snapshot = extract_document_snapshot(doc_path)
+        # type checker workaround
+        # com_utils already imported at module level
+        snapshot = _com_utils.extract_document_snapshot(doc_path)
         previous_type: Optional[ParsedParaType] = None
 
         for para in snapshot.get("paragraphs", []):
             text = (para.get("text") or "").strip()
             if not text:
                 continue
-            para_type = _detect_paragraph_type(
+            para_type = detect_paragraph_type(
                 text=text,
                 outline_level=int(para.get("outline_level", 10)),
                 previous=previous_type,
@@ -136,22 +95,42 @@ class WordComExtractor(DocumentExtractor):
         if not _WORD_COM_AVAILABLE:
             raise RuntimeError("Word COM is not available")
 
-        snapshot = extract_document_snapshot(doc_path)
+        # com_utils already imported at module level
+        snapshot = _com_utils.extract_document_snapshot(doc_path)
+        lines = []
         paragraphs = snapshot.get("paragraphs", [])
-        return "\n".join((p.get("text") or "").strip() for p in paragraphs if (p.get("text") or "").strip())
+        for p in paragraphs:
+            text = (p.get("text") or "").strip()
+            if text:
+                lines.append(text)
+                
+        tables = snapshot.get("tables", [])
+        for table in tables:
+            for row in table:
+                for cell in row:
+                    value = (cell or "").strip()
+                    if value:
+                        lines.append(value)
+                        
+        return "\n".join(lines)
 
     def extract_section_info(self, doc_path: str) -> Dict[str, Any]:
         if not _WORD_COM_AVAILABLE:
             raise RuntimeError("Word COM is not available")
 
-        snapshot = extract_document_snapshot(doc_path)
-        return snapshot.get("section", {})
+        # com_utils already imported at module level
+        snapshot = _com_utils.extract_document_snapshot(doc_path)
+        section = snapshot.get("section", {}) or {}
+        info = dict(section)
+        info["size"] = analysis_paper_size(section.get("page_width"), section.get("page_height"))
+        return info
 
     def is_available(self) -> bool:
         if not _WORD_COM_AVAILABLE:
             return False
         try:
-            ensure_word_com_available()
+            # com_utils already imported at module level
+            _com_utils.ensure_word_com_available()
             return True
         except Exception:
             return False
