@@ -1,6 +1,6 @@
 {
-  "format": "alibaba_deepseek-v3.2",
-  "editor": "alibaba_deepseek-v3.2",
-  "advice": "alibaba_deepseek-v3.2",
-  "communicate": "alibaba_deepseek-v3.2"
+  "format": "alibaba_qwen3.8-flash",
+  "editor": "alibaba_deepseek-v4-pro",
+  "advice": "alibaba_deepseek-v4-pro",
+  "communicate": "alibaba_deepseek-v4-pro"
 }

@@ -149,15 +149,17 @@ The system uses a provider-based configuration in `keys.json`:
       "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
       "api_key": "YOUR-API-KEY",
       "models": {
-        "qwen-flash": "qwen-flash",
-        "deepseek-v3.2": "deepseek-v3.2"
+        "qwen3.8-flash": "qwen3.8-flash",
+        "qwen3.7-plus": "qwen3.7-plus",
+        "qwen3.8-max": "qwen3.8-max",
+        "deepseek-v4-pro": "deepseek-v4-pro"
       }
     }
   }
 }
 ```
 
-Models are referenced as `{provider}_{model_key}` (e.g., `alibaba_qwen-flash`).
+Models are referenced as `{provider}_{model_key}` (e.g., `alibaba_qwen3.8-flash`).
 
 ### Document Processing Pipeline (API v2)
 
@@ -234,10 +236,10 @@ Required for LLM API access. Contains multiple provider configurations (alibaba,
 ### `backend/agent_models.json` (runtime)
 
 Stores agent-to-model mapping. Created automatically if not exists. Default models can be set via environment variables:
-- `FORMAT_MODEL` (default: alibaba_qwen-flash)
-- `EDITOR_MODEL` (default: alibaba_deepseek-v3.2)
-- `ADVICE_MODEL` (default: alibaba_deepseek-v3.2)
-- `COMMUNICATE_MODEL` (default: alibaba_deepseek-v3.2)
+- `FORMAT_MODEL` (default: alibaba_qwen3.8-flash)
+- `EDITOR_MODEL` (default: alibaba_deepseek-v4-pro)
+- `ADVICE_MODEL` (default: alibaba_deepseek-v4-pro)
+- `COMMUNICATE_MODEL` (default: alibaba_deepseek-v4-pro)
 
 ## Testing
 

@@ -79,10 +79,10 @@ FILE_TTL_HOURS = int(os.getenv("FILE_TTL_HOURS", "24"))
 CLEANUP_INTERVAL_MINUTES = int(os.getenv("CLEANUP_INTERVAL_MINUTES", "30"))
 
 DEFAULT_AGENT_MODELS = {
-    "format": os.getenv("FORMAT_MODEL", "alibaba_qwen-flash"),
-    "editor": os.getenv("EDITOR_MODEL", "alibaba_deepseek-v3.2"),
-    "advice": os.getenv("ADVICE_MODEL", "alibaba_deepseek-v3.2"),
-    "communicate": os.getenv("COMMUNICATE_MODEL", "alibaba_deepseek-v3.2"),
+    "format": os.getenv("FORMAT_MODEL", "alibaba_qwen3.8-flash"),
+    "editor": os.getenv("EDITOR_MODEL", "alibaba_deepseek-v4-pro"),
+    "advice": os.getenv("ADVICE_MODEL", "alibaba_deepseek-v4-pro"),
+    "communicate": os.getenv("COMMUNICATE_MODEL", "alibaba_deepseek-v4-pro"),
 }
 agent_model_config: Dict[str, str] = {}
 
