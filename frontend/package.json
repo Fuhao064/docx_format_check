@@ -1,6 +1,8 @@
 {
   "name": "scriptor",
   "version": "2.0.0",
+  "description": "Scriptor - 智能文档格式检查与更正工具",
+  "author": "Scriptor Team",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
@@ -9,6 +11,52 @@
     "preview": "vite preview",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "vite build && electron-builder"
+  },
+  "build": {
+    "appId": "com.scriptor.desktop",
+    "productName": "Scriptor",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**",
+      "electron/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/backend",
+        "to": "backend"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office"
+    }
   },
   "dependencies": {
     "@headlessui/vue": "^1.7.14",

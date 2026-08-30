@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import sys
 import time
 from datetime import datetime
@@ -38,11 +39,37 @@ app = Flask(__name__)
 CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
-CACHES_FOLDER = os.path.join(BASE_DIR, "caches")
+
+
+def _resolve_runtime_dir() -> str:
+    """可写运行时目录：打包后指向用户数据目录，开发时为 backend/ 本身。"""
+    env_dir = os.getenv("SCRIPTOR_DATA_DIR")
+    if env_dir:
+        return env_dir
+    if getattr(sys, "frozen", False):
+        return os.path.join(os.path.expanduser("~"), ".scriptor")
+    return BASE_DIR
+
+
+RUNTIME_DIR = _resolve_runtime_dir()
+os.makedirs(RUNTIME_DIR, exist_ok=True)
+UPLOAD_FOLDER = os.path.join(RUNTIME_DIR, "uploads")
+CACHES_FOLDER = os.path.join(RUNTIME_DIR, "caches")
+
+# 格式配置与模型映射需要写入：运行时目录没有副本时从随包只读文件播种
 DEFAULT_CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
-GLOBAL_CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
-AGENT_MODEL_CONFIG_PATH = os.path.join(BASE_DIR, "agent_models.json")
+GLOBAL_CONFIG_PATH = os.path.join(RUNTIME_DIR, "config.json")
+if not os.path.exists(GLOBAL_CONFIG_PATH) and os.path.exists(DEFAULT_CONFIG_PATH):
+    try:
+        shutil.copy2(DEFAULT_CONFIG_PATH, GLOBAL_CONFIG_PATH)
+    except Exception:
+        GLOBAL_CONFIG_PATH = DEFAULT_CONFIG_PATH
+AGENT_MODEL_CONFIG_PATH = os.path.join(RUNTIME_DIR, "agent_models.json")
+if not os.path.exists(AGENT_MODEL_CONFIG_PATH) and os.path.exists(os.path.join(BASE_DIR, "agent_models.json")):
+    try:
+        shutil.copy2(os.path.join(BASE_DIR, "agent_models.json"), AGENT_MODEL_CONFIG_PATH)
+    except Exception:
+        pass
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(CACHES_FOLDER, exist_ok=True)
 
@@ -139,12 +166,12 @@ cleanup_service = CleanupService(
 cleanup_service.start()
 
 # 初始化修复历史管理器
-REPAIR_HISTORY_DIR = os.path.join(BASE_DIR, "repair_history")
+REPAIR_HISTORY_DIR = os.path.join(RUNTIME_DIR, "repair_history")
 os.makedirs(REPAIR_HISTORY_DIR, exist_ok=True)
 repair_history_manager = RepairHistoryManager(REPAIR_HISTORY_DIR)
 
 # 初始化文档对比器
-DIFF_OUTPUT_DIR = os.path.join(BASE_DIR, "diffs")
+DIFF_OUTPUT_DIR = os.path.join(RUNTIME_DIR, "diffs")
 os.makedirs(DIFF_OUTPUT_DIR, exist_ok=True)
 document_differ = DocumentDiffer(DIFF_OUTPUT_DIR)
 
@@ -1159,5 +1186,53 @@ def legacy_delete_model(model_name: str):
         return error_response("INTERNAL_ERROR", str(exc), 500)
 
 
+def _resolve_frontend_dist() -> Optional[str]:
+    """定位前端构建产物：打包后在 _MEIPASS/frontend_dist，开发时为 frontend/dist。"""
+    candidates = []
+    env_dir = os.getenv("SCRIPTOR_FRONTEND_DIST")
+    if env_dir:
+        candidates.append(env_dir)
+    bundle_dir = getattr(sys, "_MEIPASS", None)
+    if bundle_dir:
+        candidates.append(os.path.join(bundle_dir, "frontend_dist"))
+    candidates.append(os.path.join(os.path.dirname(BASE_DIR), "frontend", "dist"))
+    for candidate in candidates:
+        if candidate and os.path.isfile(os.path.join(candidate, "index.html")):
+            return os.path.abspath(candidate)
+    return None
+
+
+FRONTEND_DIST = _resolve_frontend_dist()
+
+
+@app.route("/api/health")
+def health_check():
+    return jsonify(
+        {
+            "ok": True,
+            "status": "healthy",
+            "doc_engine": os.environ.get("SCRIPTOR_DOCX_ENGINE", "auto"),
+            "runtime_dir": RUNTIME_DIR,
+        }
+    )
+
+
+@app.route("/", defaults={"filename": "index.html"})
+@app.route("/<path:filename>")
+def serve_frontend(filename: str):
+    """托管前端构建产物；未匹配到静态文件时回退到 index.html（SPA history 路由）。"""
+    if not FRONTEND_DIST:
+        return jsonify({"code": "FRONTEND_NOT_BUILT", "message": "frontend/dist not found; run `npm run build` in frontend/"}), 404
+    if filename.startswith(("api/", "socket.io")):
+        return jsonify({"code": "NOT_FOUND", "message": "Unknown API endpoint"}), 404
+    target = os.path.abspath(os.path.join(FRONTEND_DIST, filename))
+    if target.startswith(os.path.abspath(FRONTEND_DIST)) and os.path.isfile(target):
+        return send_file(target)
+    return send_file(os.path.join(FRONTEND_DIST, "index.html"))
+
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    HOST = os.getenv("SCRIPTOR_HOST", "127.0.0.1")
+    PORT = int(os.getenv("SCRIPTOR_PORT", "8080"))
+    DEBUG = os.getenv("SCRIPTOR_DEBUG", "0" if getattr(sys, "frozen", False) else "1") == "1"
+    app.run(host=HOST, port=PORT, debug=DEBUG)

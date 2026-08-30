@@ -59,3 +59,10 @@ caches
 .claude/
 .claude/settings.local.json
 CLAUDE.md
+
+# Desktop packaging artifacts
+.venv/
+.workbuddy/
+frontend/resources/
+frontend/release/
+backend/diffs/

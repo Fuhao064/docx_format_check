@@ -1,43 +1,39 @@
 #!/bin/bash
-# scripts/build.sh
-
+# scripts/build.sh — macOS / Linux 桌面应用构建
+# 产物: frontend/release/ 下的 .dmg / .AppImage
 set -e
 
-echo "=== Scriptor 构建脚本 ==="
+cd "$(dirname "$0")/.."
+PROJECT_ROOT="$(pwd)"
 
-# 检查 Conda 环境
-echo "检查 Conda 环境..."
-if ! conda info --envs | grep -q "ALLinALL"; then
-    echo "错误: ALLinALL Conda 环境不存在"
-    echo "请先创建环境: conda env create -f environment.yml"
-    exit 1
+echo "=== Scriptor 跨平台桌面应用构建 ($(uname -s)) ==="
+
+# 优先使用 conda 环境（可选），否则使用当前 Python
+if command -v conda >/dev/null 2>&1 && conda env list | grep -q "ALLinALL"; then
+    echo "激活 Conda 环境 ALLinALL..."
+    eval "$(conda shell.bash hook)"
+    conda activate ALLinALL
 fi
 
-# 激活 Conda 环境
-echo "激活 Conda 环境..."
-eval "$(conda shell.bash hook)"
-conda activate ALLinALL
+PYTHON="${PYTHON:-python3}"
+echo "使用 Python: $($PYTHON --version 2>&1)"
 
-# 安装 Python 依赖
-echo "安装 Python 依赖..."
-pip install -r requirements.txt
+echo "[1/4] 安装 Python 依赖..."
+$PYTHON -m pip install -r requirements.txt pyinstaller
 
-# 打包 Python 后端
-echo "打包 Python 后端..."
-python scripts/build_backend.py
-
-# 安装前端依赖
-echo "安装前端依赖..."
-cd frontend
+echo "[2/4] 构建前端..."
+cd "$PROJECT_ROOT/frontend"
 npm install
-
-# 构建前端
-echo "构建前端..."
 npm run build
 
-# 打包 Electron 应用
-echo "打包 Electron 应用..."
+echo "[3/4] 打包后端 (PyInstaller)..."
+cd "$PROJECT_ROOT"
+$PYTHON scripts/build_backend.py
+
+echo "[4/4] 打包桌面应用 (electron-builder)..."
+cd "$PROJECT_ROOT/frontend"
 npm run electron:build
 
+echo ""
 echo "=== 构建完成 ==="
-echo "输出目录: frontend/release"
+echo "输出目录: $PROJECT_ROOT/frontend/release"

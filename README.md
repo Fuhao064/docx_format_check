@@ -90,6 +90,23 @@ Whether you are a student, researcher, technical writer, or corporate user, Scri
 
 ## Installation and Usage
 
+### Desktop App (Windows / macOS / Linux)
+
+Scriptor ships as a cross-platform desktop application (Electron shell + local Python backend):
+
+```bash
+# Windows
+build.bat
+
+# macOS / Linux
+bash scripts/build.sh
+```
+
+Installers are generated in `frontend/release/` (NSIS `.exe` / `.dmg` / `.AppImage`).
+On Windows the app uses Word COM when available for maximum fidelity; on macOS and
+Linux (or any machine without Word) a built-in python-docx engine takes over
+automatically — no Microsoft Word required. See [docs/CROSS_PLATFORM.md](docs/CROSS_PLATFORM.md).
+
 ### Environment Requirements
 
 - Python 3.8+
