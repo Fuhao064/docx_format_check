@@ -1,6 +1,7 @@
 from typing import List, Dict, Tuple, Any, Optional
 import os
 import json
+import re
 from datetime import datetime
 from preparation.para_type import ParagraphManager, ParaInfo
 from preparation.extractors import get_extractor_for_file
@@ -15,6 +16,69 @@ from .check_paper import check_paper_format
 from .check_references import check_reference_format
 from .check_tables_figures import check_table_format, check_figure_format
 from .checker import check_abstract, check_keywords, check_required_paragraphs
+
+
+def _as_iterable(value: Any) -> List[Any]:
+    """把元数据里的集合 / 单值统一成列表，便于逐项比对。"""
+    if value is None:
+        return []
+    if isinstance(value, (set, frozenset, list, tuple)):
+        return list(value)
+    return [value]
+
+
+def _to_cm(value: Any) -> Optional[float]:
+    """把 ``'0.74cm'`` / ``0.74`` / ``'21pt'`` 统一换算为厘米。"""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip().lower()
+    if not text:
+        return None
+    if "cm" in text or "厘米" in text:
+        factor = 1.0
+    elif "pt" in text or "磅" in text:
+        factor = 2.54 / 72.0
+    elif "字符" in text or "char" in text:
+        # 与 editors/format_fixer.py 的换算保持一致
+        factor = 0.5
+    else:
+        factor = 1.0
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    if not match:
+        return None
+    return float(match.group(0)) * factor
+
+
+def _normalize_line_spacing(value: Any) -> str:
+    """规范化行距文本，使 ``1.5`` 与 ``1.50`` 等价、固定值与倍数不混淆。"""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    low = text.lower()
+    match = re.search(r"\d+(?:\.\d+)?", text)
+    if not match:
+        return low
+    number = f"{float(match.group(0)):g}"
+    if "fixed" in low or "固定值" in text:
+        return f"fixed:{number}"
+    return number
+
+
+def _normalize_color(value: Any) -> str:
+    """把颜色统一成 ``#RRGGBB`` 小写形式；``black`` 视为 ``#000000``。"""
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    if text in ("black", "auto", "none"):
+        return "#000000"
+    if text.startswith("#"):
+        return text
+    if len(text) == 6 and re.fullmatch(r"[0-9a-f]{6}", text):
+        return "#" + text
+    return text
+
 
 class FormatChecker:
     def analyze_format_issues(self, doc_path: str, config_path: str, format_agent=None, preferred_extractor: Optional[str] = None) -> Tuple[List[Dict], ParagraphManager]:
@@ -122,80 +186,212 @@ class FormatChecker:
 
         return errors
 
+    # 对齐方式：配置值 → 中文展示名（ALIGNMENT_MAP 同时接受中英文键）
+    _ALIGNMENT_ZH = {
+        "left": "左对齐",
+        "center": "居中",
+        "right": "右对齐",
+        "justify": "两端对齐",
+    }
+
+    # 段落格式检查项：(元数据键, 配置键, 错误类型)
+    _INDENT_FIELDS = (
+        ("first_line", "first_line", "首行缩进"),
+        ("left", "left", "左缩进"),
+        ("right", "right", "右缩进"),
+        ("space_before", "space_before", "段前距"),
+        ("space_after", "space_after", "段后距"),
+    )
+
+    # 字体检查项：(元数据键, 配置键, 错误类型, 展示名)
+    _FONT_FIELDS = (
+        ("zh_family", "zh_family", "中文字体", "中文字体"),
+        ("en_family", "en_family", "英文字体", "英文字体"),
+    )
+
     def check_paragraph(self, para: ParaInfo, expected_format: Dict, index: int) -> List[Dict]:
-        """
-        检查单个段落的格式
-        """
-        errors = []
-        actual_format = para.meta.get('paragraph_format', {})
-        actual_fonts = para.meta.get('fonts', {})
-        
-        # 1. 检查段落格式 (对齐、缩进、行距)
-        if 'paragraph_format' in expected_format:
-            exp_para = expected_format['paragraph_format']
-            
-            # 检查对齐方式
-            if 'alignment' in exp_para:
-                exp_align_str = str(exp_para['alignment']).lower()
-                actual_align_str = str(actual_format.get('alignment')).lower()
-                
-                # 尝试将对齐方式转换为标准常量进行比较
-                exp_val = ALIGNMENT_MAP.get(exp_align_str)
-                actual_val = ALIGNMENT_MAP.get(actual_align_str)
-                
-                # 如果两者都能映射到常量，比较常量
-                if exp_val is not None and actual_val is not None:
-                    if exp_val != actual_val:
-                        errors.append({
-                            'type': '对齐方式',
-                            'message': f"段落类型 '{para.type.value}' 对齐方式不匹配。期望: {exp_align_str}, 实际: {actual_align_str}",
-                            'location': f"{para.content[:10]}... (段落 {index+1})"
-                        })
-                # 否则直接比较字符串
-                elif actual_align_str != exp_align_str:
-                     errors.append({
-                        'type': '对齐方式',
-                        'message': f"段落类型 '{para.type.value}' 对齐方式不匹配。期望: {exp_align_str}, 实际: {actual_align_str}",
-                        'location': f"{para.content[:10]}... (段落 {index+1})"
-                    })
-            
-            # 检查行间距 (TODO: 完善)
+        """检查单个段落的格式。
 
-        # 2. 检查字体 (中文字体、英文字体、字号、加粗、斜体)
-        if 'fonts' in expected_format:
-            exp_fonts = expected_format['fonts']
-            
-            # 检查字号
-            if 'size' in exp_fonts:
-                exp_size = str(exp_fonts['size'])
-                actual_sizes = actual_fonts.get('size', set())
-                valid_sizes = {str(s) for s in actual_sizes if s != 'Unknown'}
-                if valid_sizes:
-                    is_match = False
-                    for s in valid_sizes:
-                        if self._compare_font_size(s, exp_size):
-                            is_match = True
-                            break
-                    
-                    if not is_match:
-                        errors.append({
-                            'type': '字号',
-                            'message': f"段落类型 '{para.type.value}' 字号不匹配。期望: {exp_size}, 实际: {', '.join(valid_sizes)}",
-                            'location': f"{para.content[:10]}... (段落 {index+1})"
-                        })
+        比对字体（中英文、字号、加粗、斜体、颜色）与段落格式
+        （对齐、行距、缩进、段前段后距），实际值来自提取阶段的样式继承解析。
+        """
+        meta = para.meta or {}
+        actual_format = meta.get("paragraph_format") or {}
+        actual_fonts = meta.get("fonts") or {}
+        label = f"段落类型 '{para.type.value}'"
+        location = f"{para.content[:10]}... (段落 {index+1})"
 
-            # 检查中文字体
-            if 'zh_family' in exp_fonts:
-                exp_zh = exp_fonts['zh_family']
-                actual_zh = actual_fonts.get('zh_family', set())
-                valid_zh = {f for f in actual_zh if f != 'Unknown'}
-                
-                if valid_zh and exp_zh not in valid_zh:
-                     errors.append({
-                        'type': '字体',
-                        'message': f"段落类型 '{para.type.value}' 中文字体不匹配。期望: {exp_zh}, 实际: {', '.join(valid_zh)}",
-                        'location': f"{para.content[:10]}... (段落 {index+1})"
-                    })
+        errors: List[Dict] = []
+        errors.extend(
+            self._check_paragraph_format(
+                expected_format.get("paragraph_format") or {},
+                actual_format,
+                label,
+                location,
+            )
+        )
+        errors.extend(
+            self._check_fonts(
+                expected_format.get("fonts") or {},
+                actual_fonts,
+                label,
+                location,
+            )
+        )
+        return errors
+
+    def _check_paragraph_format(
+        self,
+        exp_para: Dict,
+        actual_format: Dict,
+        label: str,
+        location: str,
+    ) -> List[Dict]:
+        """检查段落的对齐、行距、缩进与段间距。"""
+        errors: List[Dict] = []
+
+        # 对齐方式
+        if "alignment" in exp_para:
+            exp_align = str(exp_para["alignment"]).strip().lower()
+            actual_align = str(actual_format.get("alignment") or "").strip().lower()
+            exp_code = ALIGNMENT_MAP.get(exp_align)
+            actual_code = ALIGNMENT_MAP.get(actual_align)
+            if exp_code is not None and actual_code is not None:
+                matched = exp_code == actual_code
+            else:
+                matched = actual_align == exp_align
+            if not matched:
+                errors.append({
+                    "type": "对齐方式",
+                    "message": (
+                        f"{label} 对齐方式不匹配。"
+                        f"期望: {self._ALIGNMENT_ZH.get(exp_align, exp_align)}, "
+                        f"实际: {self._ALIGNMENT_ZH.get(actual_align, actual_align)}"
+                    ),
+                    "location": location,
+                })
+
+        # 行间距
+        if "line_spacing" in exp_para:
+            exp_ls = str(exp_para["line_spacing"]).strip()
+            actual_ls = str(actual_format.get("line_spacing") or "").strip()
+            if (
+                exp_ls
+                and actual_ls
+                and _normalize_line_spacing(exp_ls) != _normalize_line_spacing(actual_ls)
+            ):
+                errors.append({
+                    "type": "行间距",
+                    "message": f"{label} 行间距不匹配。期望: {exp_ls}, 实际: {actual_ls}",
+                    "location": location,
+                })
+
+        # 缩进与段前段后距
+        exp_indent = exp_para.get("indentation") or {}
+        actual_indent = actual_format.get("indentation") or {}
+        for meta_key, exp_key, err_type in self._INDENT_FIELDS:
+            if exp_key not in exp_indent:
+                continue
+            exp_cm = _to_cm(exp_indent[exp_key])
+            actual_cm = _to_cm(actual_indent.get(meta_key))
+            if exp_cm is None or actual_cm is None:
+                continue
+            if abs(actual_cm - exp_cm) > 0.05:
+                errors.append({
+                    "type": err_type,
+                    "message": (
+                        f"{label} {err_type}不匹配。"
+                        f"期望: {exp_cm:g}cm, 实际: {actual_cm:g}cm"
+                    ),
+                    "location": location,
+                })
+
+        return errors
+
+    def _check_fonts(
+        self,
+        exp_fonts: Dict,
+        actual_fonts: Dict,
+        label: str,
+        location: str,
+    ) -> List[Dict]:
+        """检查字号、中英文字体、加粗、斜体与颜色。"""
+        errors: List[Dict] = []
+
+        # 字号
+        if "size" in exp_fonts:
+            exp_size = str(exp_fonts["size"])
+            sizes = {
+                str(s)
+                for s in _as_iterable(actual_fonts.get("size"))
+                if str(s) not in ("Unknown", "")
+            }
+            if sizes and not any(self._compare_font_size(s, exp_size) for s in sizes):
+                errors.append({
+                    "type": "字号",
+                    "message": (
+                        f"{label} 字号不匹配。"
+                        f"期望: {exp_size}, 实际: {', '.join(sorted(sizes))}"
+                    ),
+                    "location": location,
+                })
+
+        # 中文字体 / 英文字体
+        for meta_key, exp_key, err_type, human in self._FONT_FIELDS:
+            if exp_key not in exp_fonts:
+                continue
+            exp_family = str(exp_fonts[exp_key])
+            families = {
+                str(f)
+                for f in _as_iterable(actual_fonts.get(meta_key))
+                if str(f) not in ("Unknown", "")
+            }
+            if families and exp_family not in families:
+                errors.append({
+                    "type": err_type,
+                    "message": (
+                        f"{label} {human}不匹配。"
+                        f"期望: {exp_family}, 实际: {', '.join(sorted(families))}"
+                    ),
+                    "location": location,
+                })
+
+        # 加粗 / 斜体
+        for exp_key, err_type in (("bold", "加粗"), ("italic", "斜体")):
+            if exp_key not in exp_fonts:
+                continue
+            exp_flag = bool(exp_fonts[exp_key])
+            flags = {
+                bool(v) for v in _as_iterable(actual_fonts.get(exp_key)) if v is not None
+            }
+            if flags and exp_flag not in flags:
+                errors.append({
+                    "type": err_type,
+                    "message": (
+                        f"{label} {err_type}不匹配。"
+                        f"期望: {'是' if exp_flag else '否'}, "
+                        f"实际: {'是' if True in flags else '否'}"
+                    ),
+                    "location": location,
+                })
+
+        # 颜色
+        if "color" in exp_fonts:
+            exp_color = _normalize_color(exp_fonts["color"])
+            colors = {
+                _normalize_color(c)
+                for c in _as_iterable(actual_fonts.get("color"))
+                if c
+            }
+            if colors and exp_color not in colors:
+                errors.append({
+                    "type": "字体颜色",
+                    "message": (
+                        f"{label} 字体颜色不匹配。"
+                        f"期望: {exp_color}, 实际: {', '.join(sorted(colors))}"
+                    ),
+                    "location": location,
+                })
 
         return errors
 

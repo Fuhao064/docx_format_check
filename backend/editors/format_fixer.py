@@ -1,16 +1,13 @@
 from docx import Document
-from docx.shared import Pt, RGBColor, Cm, Inches
+from docx.shared import Pt, RGBColor, Cm
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
-from docx.enum.section import WD_ORIENT
-import json
+from docx.oxml.ns import qn
 import os
 import re
-import shutil
-from typing import Dict, List, Optional, Union, Tuple, Any
-from uuid import uuid4
+from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime
 
-from preparation.para_type import ParagraphManager, ParsedParaType, ParaInfo
+from preparation.para_type import ParagraphManager, ParaInfo
 from editors.repair_history import RepairHistoryManager, RepairAction, create_repair_action
 
 # 全局映射字典
@@ -24,6 +21,62 @@ ALIGNMENT_MAP = {
     "right": WD_ALIGN_PARAGRAPH.RIGHT,
     "justify": WD_ALIGN_PARAGRAPH.JUSTIFY
 }
+
+
+def _apply_run_font_family(run: Any, name: Any, east_asian: bool) -> None:
+    """设置 run 的字体族。
+
+    中文字体（``w:eastAsia``）与西文字体（``w:ascii`` / ``w:hAnsi``）在
+    OOXML 中是两组独立属性，只设 ``run.font.name`` 不会改变中文字体。
+    """
+    text = str(name or "").strip()
+    if not text:
+        return
+    rFonts = run._element.get_or_add_rPr().get_or_add_rFonts()
+    if east_asian:
+        rFonts.set(qn("w:eastAsia"), text)
+    else:
+        rFonts.set(qn("w:ascii"), text)
+        rFonts.set(qn("w:hAnsi"), text)
+
+
+def _apply_run_font_color(run: Any, value: Any) -> None:
+    """设置 run 的字体颜色，接受 ``#RRGGBB`` / ``RRGGBB`` / ``black``。"""
+    text = str(value or "").strip()
+    if not text:
+        return
+    if text.lower() in ("black", "auto"):
+        text = "000000"
+    if text.startswith("#"):
+        text = text[1:]
+    if len(text) == 6:
+        try:
+            run.font.color.rgb = RGBColor.from_string(text.upper())
+        except Exception:
+            pass
+
+
+def _parse_length_cm(value: Any) -> Optional[float]:
+    """把 ``'0.74cm'`` / ``'2字符'`` / ``'21pt'`` 解析为厘米数值。"""
+    text = str(value or "").strip()
+    if not text:
+        return None
+    match = re.search(r"(-?\d+(?:\.\d+)?)\s*(cm|厘米|字符|char|pt|磅)?", text)
+    if not match:
+        return None
+    number = float(match.group(1))
+    unit = (match.group(2) or "cm").lower()
+    if unit in ("字符", "char"):
+        # 与 _fix_first_line_indent 的换算保持一致
+        return number * 0.5
+    if unit in ("pt", "磅"):
+        return number * 2.54 / 72.0
+    return number
+
+
+def _normalize_text(value: Any) -> str:
+    """归一化文本用于段落匹配：去掉所有空白字符。"""
+    return re.sub(r"\s+", "", str(value or ""))
 
 LINE_SPACING_MAP = {
     "1.0": 1.0,
@@ -81,7 +134,14 @@ class FormatFixer:
             "加粗": self._fix_bold,
             "斜体": self._fix_italic,
             "首行缩进": self._fix_first_line_indent,
-            "字体": self._fix_font_family
+            "左缩进": self._fix_left_indent,
+            "右缩进": self._fix_right_indent,
+            "段前距": self._fix_space_before,
+            "段后距": self._fix_space_after,
+            "字体": self._fix_font_family,
+            "中文字体": self._fix_font_family_zh,
+            "英文字体": self._fix_font_family_en,
+            "字体颜色": self._fix_font_color,
         }
 
     def load_document(self, doc_path: str) -> None:
@@ -112,19 +172,15 @@ class FormatFixer:
         # 按段落分组错误
         errors_by_para = self._group_errors_by_paragraph(errors)
 
-        # 遍历段落管理器中的段落
+        # 遍历段落管理器中的段落，用段落序号（1 起算）取回该段落的错误
+        matched_indices: set = set()
         for i, para_info in enumerate(para_manager.paragraphs):
-            para_content = para_info.content
-            para_type = para_info.type
-
-            # 查找对应的段落错误
-            para_errors = self._find_para_errors(para_content, errors_by_para)
-
+            para_errors = errors_by_para.get(str(i + 1))
             if not para_errors:
                 continue
 
-            # 查找文档中对应的段落
-            doc_para = self._find_matching_paragraph(para_content)
+            # 查找文档中对应的段落（跳过已匹配过的，避免落到同一段落）
+            doc_para = self._find_matching_paragraph(para_info.content, matched_indices)
             if not doc_para:
                 continue
 
@@ -175,66 +231,60 @@ class FormatFixer:
         self.doc.save(output_path)
         return output_path
 
+    # 错误位置形如 "内容前缀... (段落 N)"，N 为 1 起算的段落序号
+    _PARA_INDEX_RE = re.compile(r"\(段落\s*(\d+)\s*\)")
+
     def _group_errors_by_paragraph(self, errors: List[Dict]) -> Dict[str, List[Dict]]:
         """
         按段落分组错误
+
+        位置文本里的内容前缀可能包含 ``.`` 或省略号，靠内容切分不可靠，
+        因此只使用 ``(段落 N)`` 中的序号作为分组键。
 
         Args:
             errors: 错误列表
 
         Returns:
-            Dict[str, List[Dict]]: 按段落分组的错误字典
+            Dict[str, List[Dict]]: 段落序号 → 该段落的错误列表
         """
-        errors_by_para = {}
+        errors_by_para: Dict[str, List[Dict]] = {}
 
         for error in errors:
-            location = error.get('location', '')
-            if '.' in location:
-                # 提取段落内容的前几个字作为标识
-                para_identifier = location.split('.', 1)[1].strip()
-
-                if para_identifier not in errors_by_para:
-                    errors_by_para[para_identifier] = []
-
-                errors_by_para[para_identifier].append(error)
+            location = str(error.get("location") or "")
+            match = self._PARA_INDEX_RE.search(location)
+            if not match:
+                continue
+            errors_by_para.setdefault(match.group(1), []).append(error)
 
         return errors_by_para
 
-    def _find_para_errors(self, para_content: str, errors_by_para: Dict[str, List[Dict]]) -> List[Dict]:
-        """
-        查找段落对应的错误
-
-        Args:
-            para_content: 段落内容
-            errors_by_para: 按段落分组的错误字典
-
-        Returns:
-            List[Dict]: 段落对应的错误列表
-        """
-        # 取段落内容的前30个字符作为匹配依据
-        para_start = para_content[:30] if len(para_content) > 30 else para_content
-
-        for para_id, errors in errors_by_para.items():
-            if para_start.startswith(para_id) or para_id.startswith(para_start):
-                return errors
-
-        return []
-
-    def _find_matching_paragraph(self, para_content: str) -> Optional[Any]:
+    def _find_matching_paragraph(self, para_content: str, used_indices: Optional[set] = None) -> Optional[Any]:
         """
         在文档中查找匹配的段落
 
         Args:
             para_content: 段落内容
+            used_indices: 已被匹配过的段落下标集合，用于避免多段相同文本
+                反复命中同一段落
 
         Returns:
             Optional[Any]: 匹配的段落对象，如果未找到则返回None
         """
-        # 取段落内容的前30个字符作为匹配依据
-        para_start = para_content[:30] if len(para_content) > 30 else para_content
+        # 比较前先去掉空白，避免提取值与文档值的空格差异导致匹配失败
+        target = _normalize_text(para_content)
+        if not target:
+            return None
+        probe = target[:30]
 
-        for para in self.doc.paragraphs:
-            if para.text.startswith(para_start) or para_start.startswith(para.text[:30]):
+        for idx, para in enumerate(self.doc.paragraphs):
+            if used_indices is not None and idx in used_indices:
+                continue
+            text = _normalize_text(para.text)
+            if not text:
+                continue
+            if text.startswith(probe) or probe.startswith(text[:30]):
+                if used_indices is not None:
+                    used_indices.add(idx)
                 return para
 
         return None
@@ -295,9 +345,14 @@ class FormatFixer:
 
         # 应用字体设置到所有runs
         for run in paragraph.runs:
-            # 设置字体族
+            # 中文字体写入 eastAsia，西文字体写入 ascii/hAnsi
             if 'zh_family' in font_settings:
-                run.font.name = font_settings['zh_family']
+                _apply_run_font_family(run, font_settings['zh_family'], east_asian=True)
+            if 'en_family' in font_settings:
+                _apply_run_font_family(run, font_settings['en_family'], east_asian=False)
+            elif 'zh_family' in font_settings:
+                # 仅给出中文字体时同步西文，避免中英混排字体不一致
+                _apply_run_font_family(run, font_settings['zh_family'], east_asian=False)
 
             # 设置字体大小
             if 'size' in font_settings:
@@ -315,6 +370,10 @@ class FormatFixer:
             # 设置斜体
             if 'italic' in font_settings:
                 run.font.italic = font_settings['italic']
+
+            # 设置颜色
+            if 'color' in font_settings:
+                _apply_run_font_color(run, font_settings['color'])
 
     def _apply_paragraph_format(self, paragraph: Any, para_format: Dict, para_info: ParaInfo) -> None:
         """
@@ -359,6 +418,17 @@ class FormatFixer:
             else:
                 paragraph.paragraph_format.first_line_indent = Cm(float(first_line))
 
+    # 错误消息中「类型 / 期望 / 实际」的写法。检查器输出中文格式，
+    # 历史代码只认英文格式，导致按错误清单修复时全部解析失败。
+    _ERROR_MESSAGE_PATTERNS = (
+        # 旧英文格式：'字号' 不匹配: 要求 12pt, 实际 10.5
+        r"'([^']+)'\s+不匹配:\s+要求\s+([^,]+),\s+实际\s+(.+)",
+        # 中文格式：段落类型 '正文' 字号不匹配。期望: 12pt, 实际: 10.5
+        r"段落类型\s*'[^']*'\s*([^不]+?)不匹配。\s*期望[:：]\s*([^,]+),\s*实际[:：]\s*(.+)",
+        # 中文格式（无段落类型前缀）：行间距不匹配。期望: 1.5, 实际: 1.0
+        r"([^不]+?)不匹配。\s*期望[:：]\s*([^,]+),\s*实际[:：]\s*(.+)",
+    )
+
     def _parse_error_message(self, error_message: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """
         解析错误消息，提取错误类型和要求值
@@ -369,16 +439,15 @@ class FormatFixer:
         Returns:
             Tuple[Optional[str], Optional[str], Optional[str]]: 错误类型、要求值和实际值
         """
-        # 匹配格式：'错误类型' 不匹配: 要求 要求值, 实际 实际值
-        pattern = r"'([^']+)'\s+不匹配:\s+要求\s+([^,]+),\s+实际\s+(.+)"
-        match = re.match(pattern, error_message)
-
-        if match:
-            error_type = match.group(1)
-            required_value = match.group(2)
-            actual_value = match.group(3)
-            return error_type, required_value, actual_value
-
+        text = str(error_message or "")
+        for pattern in self._ERROR_MESSAGE_PATTERNS:
+            match = re.search(pattern, text)
+            if match:
+                return (
+                    match.group(1).strip(),
+                    match.group(2).strip(),
+                    match.group(3).strip(),
+                )
         return None, None, None
 
     def _fix_font_size(self, paragraph: Any, required_value: str, para_info: ParaInfo) -> None:
@@ -500,9 +569,49 @@ class FormatFixer:
             required_value: 要求的字体族
             para_info: 段落信息
         """
-        # 应用到所有runs
+        # 未区分中英文的旧错误类型，中英文同时设置
         for run in paragraph.runs:
-            run.font.name = required_value
+            _apply_run_font_family(run, required_value, east_asian=True)
+            _apply_run_font_family(run, required_value, east_asian=False)
+
+    def _fix_font_family_zh(self, paragraph: Any, required_value: str, para_info: ParaInfo) -> None:
+        """修复中文字体（写入 w:eastAsia）。"""
+        for run in paragraph.runs:
+            _apply_run_font_family(run, required_value, east_asian=True)
+
+    def _fix_font_family_en(self, paragraph: Any, required_value: str, para_info: ParaInfo) -> None:
+        """修复西文字体（写入 w:ascii / w:hAnsi）。"""
+        for run in paragraph.runs:
+            _apply_run_font_family(run, required_value, east_asian=False)
+
+    def _fix_font_color(self, paragraph: Any, required_value: str, para_info: ParaInfo) -> None:
+        """修复字体颜色。"""
+        for run in paragraph.runs:
+            _apply_run_font_color(run, required_value)
+
+    def _fix_left_indent(self, paragraph: Any, required_value: str, para_info: ParaInfo) -> None:
+        """修复左缩进。"""
+        value = _parse_length_cm(required_value)
+        if value is not None:
+            paragraph.paragraph_format.left_indent = Cm(value)
+
+    def _fix_right_indent(self, paragraph: Any, required_value: str, para_info: ParaInfo) -> None:
+        """修复右缩进。"""
+        value = _parse_length_cm(required_value)
+        if value is not None:
+            paragraph.paragraph_format.right_indent = Cm(value)
+
+    def _fix_space_before(self, paragraph: Any, required_value: str, para_info: ParaInfo) -> None:
+        """修复段前距。"""
+        value = _parse_length_cm(required_value)
+        if value is not None:
+            paragraph.paragraph_format.space_before = Cm(value)
+
+    def _fix_space_after(self, paragraph: Any, required_value: str, para_info: ParaInfo) -> None:
+        """修复段后距。"""
+        value = _parse_length_cm(required_value)
+        if value is not None:
+            paragraph.paragraph_format.space_after = Cm(value)
 
 # 批量修复文档中的格式错误
 def batch_fix_errors(doc_path: str, errors: List[Dict], para_manager: ParagraphManager, output_path: Optional[str] = None) -> str:
@@ -599,14 +708,14 @@ class EnhancedFormatFixer(FormatFixer):
 
         # 修复错误
         fixed_count = 0
+        matched_indices: set = set()
         for i, para_info in enumerate(para_manager.paragraphs):
-            para_content = para_info.content
-            para_errors = self._find_para_errors(para_content, errors_by_para)
-
+            # 分组键为 1 起算的段落序号，与检查器写入的 (段落 N) 对应
+            para_errors = errors_by_para.get(str(i + 1))
             if not para_errors:
                 continue
 
-            doc_para = self._find_matching_paragraph(para_content)
+            doc_para = self._find_matching_paragraph(para_info.content, matched_indices)
             if not doc_para:
                 continue
 

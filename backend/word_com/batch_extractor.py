@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple, Callable
 from .com_utils import (
     WD_ALIGN_LEFT,
     WD_LINE_SPACE_SINGLE,
+    WD_WITH_IN_TABLE,
     clean_word_text,
     points_to_cm,
     _to_bool_word_flag,
@@ -214,9 +215,9 @@ class BatchExtractor:
             # 这比逐个访问 Paragraphs(i) 更高效
             content_range = doc.Content
 
-            # 预分配数组存储中间结果
-            texts = []
-            styles = []
+            # 以段落序号为键存储中间结果，跳过表格内段落时不会错位
+            texts: Dict[int, str] = {}
+            styles: Dict[int, str] = {}
 
             # 分批次提取，每批处理多个段落
             batch_size = min(50, para_count)  # 每批最多50个段落
@@ -228,26 +229,29 @@ class BatchExtractor:
                 for idx in range(batch_start, batch_end + 1):
                     try:
                         para = doc.Paragraphs(idx)
-                        text = clean_word_text(para.Range.Text)
-                        texts.append(text)
+                        # 跳过表格单元格内的段落（由 snapshot["tables"] 单独承载）
+                        if bool(para.Range.Information(WD_WITH_IN_TABLE)):
+                            continue
+                        texts[idx] = clean_word_text(para.Range.Text)
 
                         # 尝试获取样式名
                         try:
-                            style_name = str(para.Range.Style.NameLocal)
+                            styles[idx] = str(para.Range.Style.NameLocal)
                         except Exception:
-                            style_name = "Normal"
-                        styles.append(style_name)
+                            styles[idx] = "Normal"
 
                     except Exception as e:
                         logger.debug(f"提取段落 {idx} 失败: {e}")
-                        texts.append("")
-                        styles.append("Normal")
+                        texts[idx] = ""
+                        styles[idx] = "Normal"
 
             # 现在批量获取格式信息
             for idx in range(1, para_count + 1):
                 try:
                     para = doc.Paragraphs(idx)
-                    text_idx = idx - 1
+                    # 跳过表格单元格内的段落（由 snapshot["tables"] 单独承载）
+                    if bool(para.Range.Information(WD_WITH_IN_TABLE)):
+                        continue
 
                     # 获取 Range 和 ParagraphFormat（2 次 COM 调用）
                     rng = para.Range
@@ -256,11 +260,9 @@ class BatchExtractor:
 
                     # 构建 ParagraphData
                     data = ParagraphData(
-                        index=idx,
-                        text=texts[text_idx] if text_idx < len(texts) else "",
-                        style_name=styles[text_idx]
-                        if text_idx < len(styles)
-                        else "Normal",
+                        index=len(paragraphs) + 1,
+                        text=texts.get(idx, ""),
+                        style_name=styles.get(idx, "Normal"),
                         alignment_code=int(getattr(para, "Alignment", WD_ALIGN_LEFT)),
                         outline_level=int(getattr(para, "OutlineLevel", 10)),
                         line_spacing_rule=int(
@@ -302,16 +304,11 @@ class BatchExtractor:
                 except Exception as e:
                     logger.debug(f"处理段落 {idx} 格式失败: {e}")
                     # 添加一个最小化的段落数据
-                    text_idx = idx - 1
                     paragraphs.append(
                         ParagraphData(
-                            index=idx,
-                            text=texts[text_idx]
-                            if text_idx < len(texts)
-                            else "",
-                            style_name=styles[text_idx]
-                            if text_idx < len(styles)
-                            else "Normal",
+                            index=len(paragraphs) + 1,
+                            text=texts.get(idx, ""),
+                            style_name=styles.get(idx, "Normal"),
                         )
                     )
 
@@ -393,6 +390,9 @@ class BatchExtractor:
             for idx in range(1, para_count + 1):
                 try:
                     para = doc.Paragraphs(idx)
+                    # 跳过表格单元格内的段落（由 snapshot["tables"] 单独承载）
+                    if bool(para.Range.Information(WD_WITH_IN_TABLE)):
+                        continue
                     rng = para.Range
                     fmt = rng.ParagraphFormat
                     font = rng.Font
@@ -404,7 +404,7 @@ class BatchExtractor:
                         style_name = str(getattr(rng, "Style", "Normal"))
 
                     data = ParagraphData(
-                        index=idx,
+                        index=len(paragraphs) + 1,
                         text=clean_word_text(rng.Text),
                         style_name=style_name,
                         alignment_code=int(getattr(para, "Alignment", WD_ALIGN_LEFT)),

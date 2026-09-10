@@ -1,11 +1,8 @@
 import re
-import concurrent.futures
-import time
-from typing import Dict, List, Optional, Union, Tuple
-from preparation.para_type import ParsedParaType, ParagraphManager, ParaInfo
+from typing import Optional
+from preparation.para_type import ParsedParaType, ParagraphManager
 from agents.format_agent import FormatAgent
 from preparation.docx_parser import extract_doc_content
-import preparation.extract_para_info as extract_para_info
 
 
 def _is_abstract_or_keywords_content(content: str, prev_type: Optional[ParsedParaType],

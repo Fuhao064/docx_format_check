@@ -1,10 +1,27 @@
 import os as _os
 
-# 引擎分发：Windows 默认走 Word COM（最高保真）；macOS/Linux 走 python-docx 引擎。
+# 引擎分发：Windows（且 pywin32 可用）默认走 Word COM（最高保真）；
+# macOS / Linux / Windows 未装 pywin32 时自动降级到 python-docx 引擎。
 # 可用环境变量 SCRIPTOR_DOCX_ENGINE=com|docx 强制指定。
-# （Windows 上未安装 Word 时也可设 SCRIPTOR_DOCX_ENGINE=docx 降级运行。）
 _ENGINE_ENV = _os.environ.get("SCRIPTOR_DOCX_ENGINE", "").strip().lower()
-_USE_COM = (_ENGINE_ENV == "com") or (_ENGINE_ENV != "docx" and _os.name == "nt")
+
+
+def _com_dependencies_available() -> bool:
+    """pywin32 是否可用 —— Word COM 自动化的必要前提。"""
+    if _os.name != "nt":
+        return False
+    try:
+        import pythoncom  # noqa: F401
+        import win32com.client  # noqa: F401
+    except Exception:
+        return False
+    return True
+
+
+if _ENGINE_ENV in ("com", "docx"):
+    _USE_COM = _ENGINE_ENV == "com"
+else:
+    _USE_COM = _com_dependencies_available()
 
 from .com_utils import (
     WD_ALIGN_CENTER,
@@ -45,6 +62,19 @@ else:
     )
 
 DOC_ENGINE = "com" if _USE_COM else "docx"
+
+# 主题字体别名解析：两个引擎共用。COM 路径下 Word 会用 "+中文正文" 这类
+# 本地化主题别名代替真实字体名，用它还原为实际字体（如 "等线"）。
+# python-docx 缺失时降级为无操作，保证导入本身不失败。
+try:
+    from ._docx_styles import normalize_theme_name, theme_alias_map_from_path
+except Exception:  # pragma: no cover - 仅在 python-docx 不可用时触发
+
+    def theme_alias_map_from_path(doc_path: str):  # type: ignore[misc]
+        return {}
+
+    def normalize_theme_name(name, aliases):  # type: ignore[misc]
+        return str(name) if name else "Unknown"
 
 # 高性能模块导出（仅 Windows COM 场景使用，导入本身跨平台安全）
 from .connection_pool import (

@@ -21,6 +21,9 @@ WD_LINE_SPACE_DOUBLE = 2
 WD_LINE_SPACE_EXACTLY = 4
 WD_LINE_SPACE_MULTIPLE = 5
 
+# Word 的 wdInformation.wdWithInTable，用于判断段落是否位于表格单元格内
+WD_WITH_IN_TABLE = 12
+
 
 def ensure_word_com_available() -> None:
     if os.name != "nt":
@@ -250,6 +253,13 @@ def _extract_document_data(doc: Any) -> Dict[str, Any]:
     para_count = int(doc.Paragraphs.Count)
     for idx in range(1, para_count + 1):
         para = doc.Paragraphs(idx)
+        # 跳过表格单元格内的段落：表格内容由 snapshot["tables"] 单独承载，
+        # 否则会被当成正文段落参与格式检查而产生大量误报。
+        try:
+            if bool(para.Range.Information(WD_WITH_IN_TABLE)):
+                continue
+        except Exception:
+            pass
         text = clean_word_text(para.Range.Text)
         font = para.Range.Font
         fmt = para.Range.ParagraphFormat
@@ -262,7 +272,7 @@ def _extract_document_data(doc: Any) -> Dict[str, Any]:
         line_spacing_value = float(getattr(fmt, "LineSpacing", 0.0) or 0.0)
         paragraphs.append(
             {
-                "index": idx,
+                "index": len(paragraphs) + 1,
                 "text": text,
                 "alignment_code": alignment_code,
                 "alignment": _alignment_to_name(alignment_code),

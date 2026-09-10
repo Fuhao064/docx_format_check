@@ -28,18 +28,29 @@ Scriptor 桌面版基于 **Electron 外壳 + 本地 Python 后端** 架构，可
 
 ### 文档处理引擎（word_com）
 
-`word_com/__init__.py` 按平台自动选择引擎：
+`word_com/__init__.py` 按平台与依赖自动选择引擎：
 
-| 平台 | 默认引擎 | 说明 |
+| 环境 | 自动选择 | 说明 |
 |---|---|---|
-| Windows + 已装 Word | `com` | Word COM 自动化，保真度最高 |
-| Windows 未装 Word | 可降级 `docx` | 设 `SCRIPTOR_DOCX_ENGINE=docx` |
+| Windows + pywin32 可用 | `com` | Word COM 自动化，保真度最高 |
+| Windows 未装 pywin32 | `docx` | 自动降级，无需手动配置 |
 | macOS / Linux | `docx` | 纯 python-docx 实现，无需 Word |
 
-环境变量 `SCRIPTOR_DOCX_ENGINE=com|docx` 可强制指定。`docx` 引擎
-（`backend/word_com/docx_backend.py`）提供与 COM 完全一致的门面 API，覆盖字体
-（含中文 eastAsia）、字号、加粗/斜体/颜色、对齐、行距、缩进、段距的读取与写入，
-并输出与 COM 相同结构的文档快照。
+环境变量 `SCRIPTOR_DOCX_ENGINE=com|docx` 可强制指定。
+
+`docx` 引擎（`backend/word_com/docx_backend.py`）提供与 COM 完全一致的门面 API，
+覆盖字体（含中文 eastAsia）、字号、加粗/斜体/颜色、对齐、行距、缩进、段距的
+读取与写入，并输出与 COM 相同结构的文档快照。
+
+**格式读取的继承链解析**（`backend/word_com/_docx_styles.py`）：Word 文档中大多数
+格式并不直接写在段落上，而是来自样式链与 `docDefaults`，字体还可能通过主题字体
+引用（`w:eastAsiaTheme` 等）间接指定。读取时按
+`run → 段落样式（含 basedOn 链）→ docDefaults` 逐级回退，并解析 `theme1.xml`
+把 `+中文正文` 这类主题别名还原为实际字体名（如 `等线`），同时解析主题字体为空
+时的 `Hans` 脚本回退。两个引擎因此产出结构一致、取值等价的快照。
+
+`.docx` / `.doc` 由同一个提取器处理（内部经上述门面分发），不存在按引擎分裂的
+多套提取实现。
 
 ## 构建
 

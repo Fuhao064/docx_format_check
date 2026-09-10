@@ -44,6 +44,14 @@ from .com_utils import (
     points_to_cm,
 )
 
+from ._docx_styles import (
+    ThemeFonts,
+    resolve_alignment_code,
+    resolve_fonts,
+    resolve_indents,
+    resolve_line_spacing,
+)
+
 _ALIGNMENT_ENUM = {
     int(WD_ALIGN_LEFT): WD_ALIGN_PARAGRAPH.LEFT,
     int(WD_ALIGN_CENTER): WD_ALIGN_PARAGRAPH.CENTER,
@@ -81,8 +89,27 @@ def _pt(value: Any) -> float:
 
 
 def _rfonts(run: Any):
+    """获取（必要时创建）``rFonts`` —— 仅用于写入路径。"""
     rPr = run._element.get_or_add_rPr()
     return rPr.get_or_add_rFonts()
+
+
+def _find_rfonts(run: Any):
+    """只读获取 ``rFonts``，不存在时返回 ``None``。
+
+    读取路径必须用它：``get_or_add_rFonts()`` 会向文档注入空节点，
+    在只提取格式的场景下会污染原文件 XML。
+    """
+    try:
+        rPr = run._element.rPr
+    except Exception:
+        return None
+    if rPr is None:
+        return None
+    try:
+        return rPr.find(qn("w:rFonts"))
+    except Exception:
+        return None
 
 
 def _outline_level_of(para: Any) -> int:
@@ -132,7 +159,9 @@ class _Font:
         run = self._first_run()
         if not run:
             return ""
-        fonts = _rfonts(run)
+        fonts = _find_rfonts(run)
+        if fonts is None:
+            return ""
         return str(fonts.get(qn("w:eastAsia")) or "")
 
     @NameFarEast.setter
@@ -145,7 +174,9 @@ class _Font:
         run = self._first_run()
         if not run:
             return ""
-        fonts = _rfonts(run)
+        fonts = _find_rfonts(run)
+        if fonts is None:
+            return ""
         return str(fonts.get(qn("w:ascii")) or "")
 
     @NameAscii.setter
@@ -454,8 +485,8 @@ def build_document(output_path: str, paragraphs: Iterable[str]) -> str:
     return target
 
 
-def _font_dict(para: Any) -> Dict[str, Any]:
-    font_info: Dict[str, Any] = {
+def _empty_font_dict() -> Dict[str, Any]:
+    return {
         "zh_family": "Unknown",
         "en_family": "Unknown",
         "size": 0.0,
@@ -463,44 +494,38 @@ def _font_dict(para: Any) -> Dict[str, Any]:
         "italic": 0,
         "color": None,
     }
-    if not para.runs:
-        return font_info
-    run = para.runs[0]
-    font = run.font
+
+
+def _font_dict(para: Any, doc: Any = None, theme: Optional[ThemeFonts] = None) -> Dict[str, Any]:
+    """还原段落首个 run 实际生效的字体信息。
+
+    走完整的继承链（run → 段落样式 → docDefaults）并解析主题字体引用，
+    避免只读 run 直接属性导致的 “字体 Unknown / 字号 0” 漏检。
+    """
+    if doc is None:
+        try:
+            doc = para.part.document
+        except Exception:
+            return _empty_font_dict()
+    if theme is None:
+        theme = ThemeFonts(doc)
     try:
-        east_asia = _rfonts(run).get(qn("w:eastAsia"))
+        return resolve_fonts(para, doc, theme)
     except Exception:
-        east_asia = None
-    zh = east_asia or font.name
-    if zh:
-        font_info["zh_family"] = str(zh)
-    if font.name:
-        font_info["en_family"] = str(font.name)
-    size = _pt(font.size)
-    if size > 0:
-        font_info["size"] = round(size, 1)
-    font_info["bold"] = -1 if font.bold else 0
-    font_info["italic"] = -1 if font.italic else 0
-    if font.color is not None and font.color.rgb is not None:
-        rgb = font.color.rgb
-        ole = (int(rgb[2]) << 16) | (int(rgb[1]) << 8) | int(rgb[0])
-        font_info["color"] = ole_color_to_hex(ole)
-    return font_info
+        return _empty_font_dict()
 
 
 def _extract_document_data(doc_path: str) -> Dict[str, Any]:
     doc = _PyDocxDocument(doc_path)
+    theme = ThemeFonts(doc)
 
     paragraphs: List[Dict[str, Any]] = []
     for idx, para in enumerate(doc.paragraphs, start=1):
         text = clean_word_text(para.text)
-        alignment_code = int(para.alignment) if para.alignment is not None else int(WD_ALIGN_LEFT)
-        rule = _rule_int(para.paragraph_format.line_spacing_rule)
-        spacing = para.paragraph_format.line_spacing
-        if rule == int(WD_LINE_SPACE_MULTIPLE) and spacing is not None and not isinstance(spacing, Length):
-            spacing_value = float(spacing) * 12.0
-        else:
-            spacing_value = _pt(spacing)
+        alignment_code = resolve_alignment_code(para, doc)
+        spacing_info = resolve_line_spacing(para, doc)
+        rule = _rule_int(spacing_info["rule"])
+        indents = resolve_indents(para, doc)
         paragraphs.append(
             {
                 "index": idx,
@@ -510,13 +535,13 @@ def _extract_document_data(doc_path: str) -> Dict[str, Any]:
                 "outline_level": _outline_level_of(para),
                 "style_name": str(para.style.name) if para.style else "",
                 "line_spacing_rule": rule,
-                "line_spacing": _line_spacing_to_string(rule, spacing_value),
-                "first_line_indent_cm": points_to_cm(_pt(para.paragraph_format.first_line_indent)),
-                "left_indent_cm": points_to_cm(_pt(para.paragraph_format.left_indent)),
-                "right_indent_cm": points_to_cm(_pt(para.paragraph_format.right_indent)),
-                "space_before_cm": points_to_cm(_pt(para.paragraph_format.space_before)),
-                "space_after_cm": points_to_cm(_pt(para.paragraph_format.space_after)),
-                "font": _font_dict(para),
+                "line_spacing": _line_spacing_to_string(rule, spacing_info["spacing"]),
+                "first_line_indent_cm": indents["first_line"],
+                "left_indent_cm": indents["left"],
+                "right_indent_cm": indents["right"],
+                "space_before_cm": indents["space_before"],
+                "space_after_cm": indents["space_after"],
+                "font": _font_dict(para, doc, theme),
             }
         )
 

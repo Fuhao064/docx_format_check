@@ -61,12 +61,17 @@ def _check_number_format(text: str, kind: str) -> List[str]:
     if kind == "table":
         pattern = r"(表|table)\s*(\d+)[-.](\d+)"
         label = "表格"
+        cn_prefix = "表"
+        en_prefix = "Table"
     else:
         pattern = r"(图|figure)\s*(\d+)[-.](\d+)"
         label = "图片"
+        cn_prefix = "图"
+        en_prefix = "Figure"
     match = re.search(pattern, text, re.IGNORECASE)
     if not match:
-        return [f"{label}编号格式不正确，应为'{label[0]}x-y'或'{label.title()} x-y'格式"]
+        # 消息需与上面的正则保持一致：正则同时接受中英文前缀与 x-y 形式
+        return [f"{label}编号格式不正确，应为'{cn_prefix}x-y'或'{en_prefix} x-y'格式"]
     chapter = int(match.group(2))
     serial = int(match.group(3))
     if chapter <= 0 or serial <= 0:

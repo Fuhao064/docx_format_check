@@ -83,6 +83,7 @@ def list_available_extractors() -> List[str]:
 
 
 # 导入并注册所有提取器
+# 说明：.docx/.doc 统一由 word_com 提取器处理（内部经 word_com 门面分发到
+# Word COM 或 python-docx 引擎），不再保留功能重复的独立 python-docx 提取器。
 from . import word_com_extractor
-from . import python_docx_extractor
 from . import pdf_extractor

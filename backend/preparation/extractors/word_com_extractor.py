@@ -6,13 +6,37 @@ from typing import Any, Dict, Optional
 from .base import DocumentExtractor, register_extractor, detect_paragraph_type, analysis_paper_size
 from preparation.para_type import ParagraphManager, ParsedParaType
 
-# 尝试导入 Word COM 依赖
+# 通过 word_com 门面导入：由 ``word_com/__init__.py`` 按平台与依赖分发到
+# Word COM 或 python-docx 引擎，因此本提取器在 macOS / Linux 上同样可用
+# （自动走 docx 引擎），无需本机安装 Word，也不需要额外的提取器实现。
 try:
-    from word_com import extract_document_snapshot, ensure_word_com_available
-    import word_com.com_utils as _com_utils
+    from word_com import (
+        extract_document_snapshot,
+        normalize_theme_name,
+        theme_alias_map_from_path,
+    )
     _WORD_COM_AVAILABLE = True
 except ImportError:
     _WORD_COM_AVAILABLE = False
+
+    def theme_alias_map_from_path(doc_path: str):  # type: ignore[misc]
+        return {}
+
+    def normalize_theme_name(name, aliases):  # type: ignore[misc]
+        return name
+
+
+def _normalize_snapshot_fonts(snapshot: Dict[str, Any], aliases: Dict[str, str]) -> None:
+    """把 COM 返回的主题字体别名（``+中文正文``）还原为实际字体名。"""
+    if not aliases:
+        return
+    for para in snapshot.get("paragraphs", []) or []:
+        font = para.get("font")
+        if not isinstance(font, dict):
+            continue
+        for key in ("zh_family", "en_family"):
+            if key in font:
+                font[key] = normalize_theme_name(font[key], aliases)
 
 
 def _build_paragraph_meta(info: Dict[str, Any]) -> Dict[str, Any]:
@@ -51,18 +75,19 @@ def _build_paragraph_meta(info: Dict[str, Any]) -> Dict[str, Any]:
 
 @register_extractor
 class WordComExtractor(DocumentExtractor):
-    """基于 Word COM 的文档提取器"""
+    """Word 文档提取器（经 word_com 门面，自动适配 COM 与 python-docx 引擎）"""
 
     name = "word_com"
     supported_extensions = [".docx", ".doc"]
 
     def extract(self, doc_path: str, manager: ParagraphManager) -> ParagraphManager:
         if not _WORD_COM_AVAILABLE:
-            raise RuntimeError("Word COM is not available")
+            raise RuntimeError("Document engine is not available")
 
-        # type checker workaround
-        # com_utils already imported at module level
-        snapshot = _com_utils.extract_document_snapshot(doc_path)
+        snapshot = extract_document_snapshot(doc_path)
+        # COM 引擎用 "+中文正文" 这类主题别名表示字体，统一还原为实际字体名，
+        # 使两个引擎的输出一致，也避免错误消息里出现用户看不懂的别名。
+        _normalize_snapshot_fonts(snapshot, theme_alias_map_from_path(doc_path))
         previous_type: Optional[ParsedParaType] = None
 
         for para in snapshot.get("paragraphs", []):
@@ -93,10 +118,9 @@ class WordComExtractor(DocumentExtractor):
 
     def extract_text(self, doc_path: str) -> str:
         if not _WORD_COM_AVAILABLE:
-            raise RuntimeError("Word COM is not available")
+            raise RuntimeError("Document engine is not available")
 
-        # com_utils already imported at module level
-        snapshot = _com_utils.extract_document_snapshot(doc_path)
+        snapshot = extract_document_snapshot(doc_path)
         lines = []
         paragraphs = snapshot.get("paragraphs", [])
         for p in paragraphs:
@@ -116,21 +140,15 @@ class WordComExtractor(DocumentExtractor):
 
     def extract_section_info(self, doc_path: str) -> Dict[str, Any]:
         if not _WORD_COM_AVAILABLE:
-            raise RuntimeError("Word COM is not available")
+            raise RuntimeError("Document engine is not available")
 
-        # com_utils already imported at module level
-        snapshot = _com_utils.extract_document_snapshot(doc_path)
+        snapshot = extract_document_snapshot(doc_path)
         section = snapshot.get("section", {}) or {}
         info = dict(section)
         info["size"] = analysis_paper_size(section.get("page_width"), section.get("page_height"))
         return info
 
     def is_available(self) -> bool:
-        if not _WORD_COM_AVAILABLE:
-            return False
-        try:
-            # com_utils already imported at module level
-            _com_utils.ensure_word_com_available()
-            return True
-        except Exception:
-            return False
+        # 提取统一走 word_com 门面，门面已按平台与依赖选好后端
+        # （Word COM 或 python-docx），因此门面可用即本提取器可用。
+        return _WORD_COM_AVAILABLE

@@ -89,6 +89,19 @@ translation_dict = {
     "包含多个不同的值": "包含多个不同的值"
 }
 
+# 压缩重复的「数值 + 单位」串，例如 "16pt16pt" → "16pt"。
+# 单位部分必须是必选（+），否则纯数字串会被误伤：
+# 旧写法 (\d+\.?\d*\s*[a-zA-Z]*)(\1)+ 会把颜色值 "#000000" 压成 "#0"。
+_DUPLICATE_VALUE_RE = re.compile(r"(\d+\.?\d*\s*[a-zA-Z]+)(?:\1)+")
+
+
+def collapse_duplicate_values(text: str) -> str:
+    """折叠重复出现的「数值 + 单位」，不影响纯数字（颜色、年份等）。"""
+    if not text:
+        return text
+    return _DUPLICATE_VALUE_RE.sub(r"\1", str(text))
+
+
 def translate_to_chinese(text: str) -> str:
     """
     将英文文本翻译为中文，保留数字和单位
@@ -117,16 +130,8 @@ def translate_to_chinese(text: str) -> str:
             # 将字段名替换为中文
             text = text.replace(f"'{field}'", f"'{translation_dict[field]}'")
 
-    # 处理重复的值，如 "16pt16pt"
-    # 匹配数字+单位的模式
-    value_pattern = r'(\d+\.?\d*\s*[a-zA-Z]*)(\1)+'
-
-    # 找到所有重复的值
-    for match in re.finditer(value_pattern, text):
-        # 取第一个值替换重复的值
-        original = match.group(0)
-        replacement = match.group(1)
-        text = text.replace(original, replacement)
+    # 处理重复的值，如 "16pt16pt"（仅限带单位的数值，避免误伤颜色值）
+    text = collapse_duplicate_values(text)
 
     # 翻译其他关键词
     for key, value in translation_dict.items():
@@ -153,16 +158,8 @@ def translate_error_message(error: Dict[str, Any]) -> Dict[str, Any]:
 
     # 翻译错误消息
     if 'message' in result:
-        # 先处理重复的值
-        message = result['message']
-        # 匹配数字+单位的模式
-        value_pattern = r'(\d+\.?\d*\s*[a-zA-Z]*)(\1)+'
-        for match in re.finditer(value_pattern, message):
-            original = match.group(0)
-            replacement = match.group(1)
-            message = message.replace(original, replacement)
-
-        # 然后翻译消息
+        # 先折叠重复的带单位数值，再翻译
+        message = collapse_duplicate_values(result['message'])
         result['message'] = translate_to_chinese(message)
 
     # 翻译位置信息（如果不是段落内容的前几个字）
