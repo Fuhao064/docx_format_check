@@ -1,22 +1,19 @@
+# Web 框架（Flask + Socket.IO 实时事件）
 flask==3.0.0
 flask-cors==4.0.0
 flask-socketio==5.3.6
-fastapi>=0.109.0
-uvicorn[standard]>=0.27.0
-python-multipart>=0.0.6
-websockets>=12.0
-pydantic-settings>=2.1.0
-pandas
-openpyxl
+
+# 请求校验与 LLM 客户端
 pydantic
-python-dotenv
-pylatex
 openai>=1.0.0
+
+# 文档处理
 PyMuPDF>=1.23.0
 python-docx>=1.1.0
 
-# MinerU PDF support
-magic-pdf[full]>=0.7.0
+# Windows 平台：Word COM 高保真引擎所需。
+# 未安装时引擎会自动降级到 python-docx（macOS / Linux 无需此包）。
+pywin32>=306; sys_platform == "win32"
 
 # 本地推理可选依赖
 # llama-cpp-python>=0.2.0

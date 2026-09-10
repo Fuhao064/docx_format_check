@@ -4,7 +4,7 @@
 使用 Pydantic 定义 API 请求和响应的数据模型
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 
@@ -31,7 +31,7 @@ class FileMetadata(BaseModel):
     size: int
     upload_time: str
     task_id: Optional[str] = None
-    status: str = Field(..., regex="^(pending|uploading|completed|error)$")
+    status: str = Field(..., pattern="^(pending|uploading|completed|error)$")
     path: Optional[str] = None
 
 
@@ -53,7 +53,7 @@ class DocumentCheckResponse(BaseModel):
 class TaskStatusUpdate(BaseModel):
     """任务状态更新"""
     task_id: str = Field(..., description="任务ID")
-    status: str = Field(..., regex="^(pending|in_progress|completed|error)$", description="任务状态")
+    status: str = Field(..., pattern="^(pending|in_progress|completed|error)$", description="任务状态")
     progress: float = Field(..., ge=0, le=100, description="进度百分比")
     message: Optional[str] = Field(None, description="状态消息")
     result: Optional[Dict[str, Any]] = Field(None, description="任务结果")
@@ -70,7 +70,7 @@ class AnalysisProgress(BaseModel):
 
 class NotificationMessage(BaseModel):
     """通知消息"""
-    level: str = Field(..., regex="^(success|warning|error|info)$")
+    level: str = Field(..., pattern="^(success|warning|error|info)$")
     title: str
     message: str
     data: Optional[Dict[str, Any]] = Field(default_factory=dict)
@@ -120,7 +120,7 @@ class ModelConfigRequest(BaseModel):
 
 class SetAgentModelRequest(BaseModel):
     """设置代理模型请求"""
-    agent_type: str = Field(..., regex="^(format|editor|advice|communicate)$", description="代理类型")
+    agent_type: str = Field(..., pattern="^(format|editor|advice|communicate)$", description="代理类型")
     model_name: str = Field(..., description="模型名称")
 
 
